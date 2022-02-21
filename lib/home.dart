@@ -12,6 +12,11 @@ class Home extends StatelessWidget {
           return Scaffold(
             body: Stack(
               children: [
+                // * 背景
+                Container(
+                  height: double.infinity,
+                  color: Colors.green,
+                ),
                 Align(
                   alignment: Alignment(0, -0.8),
                   child: ElevatedButton(
@@ -23,7 +28,7 @@ class Home extends StatelessWidget {
                 ),
                 // * 敵の基地
                 Align(
-                  alignment: Alignment(-1, -1),
+                  alignment: Alignment(model.enemyBaseX, model.enemyBaseY),
                   child: SizedBox(
                     height: 100,
                     width: 100,
@@ -39,8 +44,11 @@ class Home extends StatelessWidget {
                           ),
                         ),
                       ),
-                      onPressed: () {},
-                      child: Text(model.baseScale.toString()),
+                      onPressed: () {
+                        print(model.enemyBaseY);
+                        print(model.enemyBaseX);
+                      },
+                      child: Text(model.enemyBaseScale.toString()),
                     ),
                   ),
                 ),
@@ -52,7 +60,7 @@ class Home extends StatelessWidget {
                     width: 100,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        primary: Colors.orange,
+                        primary: model.baseTapFlg ? Colors.pink : Colors.orange,
                         onPrimary: Colors.white,
                         shape: const CircleBorder(
                           side: BorderSide(
@@ -62,7 +70,11 @@ class Home extends StatelessWidget {
                           ),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        model.baseTapFlg = true;
+                        print(model.baseY);
+                        print(model.baseX);
+                      },
                       child: Text(model.baseScale.toString()),
                     ),
                   ),
@@ -71,7 +83,7 @@ class Home extends StatelessWidget {
                 Align(
                   alignment: Alignment(model.tankX, model.tankY),
                   child: Container(
-                    color: Colors.green,
+                    color: Colors.white,
                     height: 30,
                     width: 30,
                   ),
