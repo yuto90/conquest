@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'home_model.dart';
 
 class Home extends StatelessWidget {
@@ -11,27 +10,43 @@ class Home extends StatelessWidget {
       child: Consumer<HomeModel>(
         builder: (context, model, child) {
           return Scaffold(
-            appBar: AppBar(
-              title: Text('Conquest'),
-            ),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Text(
-                    'You have pushed the button this many times:',
+            body: Stack(
+              children: [
+                Align(
+                  alignment: Alignment(0, -0.8),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      model.startGame();
+                    },
+                    child: Text('start'),
                   ),
-                  Text(
-                    model.counter.toString(),
-                    style: Theme.of(context).textTheme.headline4,
+                ),
+                Align(
+                  alignment: Alignment(-1, -1),
+                  child: Container(
+                    color: Colors.blue,
+                    height: 100,
+                    width: 100,
                   ),
-                ],
-              ),
-            ),
-            floatingActionButton: FloatingActionButton(
-              onPressed: model.incrementCounter,
-              tooltip: 'Increment',
-              child: Icon(Icons.add),
+                ),
+                Align(
+                  alignment: Alignment(1, 1),
+                  child: Container(
+                    color: Colors.red,
+                    height: 100,
+                    width: 100,
+                  ),
+                ),
+                // * Tank
+                Align(
+                  alignment: Alignment(model.tankX, model.tankY),
+                  child: Container(
+                    color: Colors.green,
+                    height: 30,
+                    width: 30,
+                  ),
+                ),
+              ],
             ),
           );
         },
