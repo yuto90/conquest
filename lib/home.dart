@@ -21,20 +21,50 @@ class Home extends StatelessWidget {
                     child: Text('start'),
                   ),
                 ),
+                // * 敵の基地
                 Align(
                   alignment: Alignment(-1, -1),
-                  child: Container(
-                    color: Colors.blue,
+                  child: SizedBox(
                     height: 100,
                     width: 100,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        primary: Colors.red,
+                        onPrimary: Colors.white,
+                        shape: const CircleBorder(
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 1,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: Text(model.baseScale.toString()),
+                    ),
                   ),
                 ),
+                // * 自分の基地
                 Align(
-                  alignment: Alignment(1, 1),
-                  child: Container(
-                    color: Colors.red,
+                  alignment: Alignment(model.baseX, model.baseY),
+                  child: SizedBox(
                     height: 100,
                     width: 100,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        primary: Colors.orange,
+                        onPrimary: Colors.white,
+                        shape: const CircleBorder(
+                          side: BorderSide(
+                            color: Colors.black,
+                            width: 1,
+                            style: BorderStyle.solid,
+                          ),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: Text(model.baseScale.toString()),
+                    ),
                   ),
                 ),
                 // * Tank
