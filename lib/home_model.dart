@@ -1,7 +1,33 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:math';
 
 class HomeModel extends ChangeNotifier {
+  HomeModel() {
+    generateBasePosition();
+  }
+
+  // ランダムなdoubleを生成する(1 ~ -1)
+  double randomDouble() {
+    if (Random().nextBool()) {
+      return Random().nextDouble();
+    } else {
+      return (Random().nextDouble() - 1);
+    }
+  }
+
+  // 画面上のランダムな位置に拠点を生成する
+  void generateBasePosition() {
+    for (int i = 2; i <= 10; i++) {
+      double x = randomDouble();
+      double y = randomDouble();
+
+      List position = [x, y];
+      allBase[i.toString()] = position;
+    }
+    print(allBase);
+  }
+
   // ゲーム開始フラグ
   bool gameHasStarted = false;
   // ゲームスタートからの時間
@@ -12,6 +38,12 @@ class HomeModel extends ChangeNotifier {
   double tankX = 1;
 
   // ------------------------------
+
+  Map<String, List> allBase = {
+    '0': [1.0, 1.0], //　自分の本陣
+    '1': [-1.0, -1.0], // 敵の本陣
+  };
+
   // 自分の基地の座標
   double baseY = 1;
   double baseX = 1;
@@ -40,9 +72,6 @@ class HomeModel extends ChangeNotifier {
         if (tankX >= -1 && tankY >= -1) {
           tankY -= 0.005;
           tankX -= 0.005;
-        } else {
-          print('到着');
-          timer.cancel();
         }
 
         // 1秒経過でScaleを上げる

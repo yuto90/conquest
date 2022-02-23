@@ -1,3 +1,4 @@
+import 'package:conquest/base.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'home_model.dart';
@@ -15,7 +16,7 @@ class Home extends StatelessWidget {
                 // * 背景
                 Container(
                   height: double.infinity,
-                  color: Colors.green,
+                  color: Colors.white,
                 ),
                 Align(
                   alignment: Alignment(0, -0.8),
@@ -36,13 +37,6 @@ class Home extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         primary: Colors.red,
                         onPrimary: Colors.white,
-                        shape: const CircleBorder(
-                          side: BorderSide(
-                            color: Colors.black,
-                            width: 1,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
                       ),
                       onPressed: () {
                         print(model.enemyBaseY);
@@ -62,16 +56,9 @@ class Home extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         primary: model.baseTapFlg ? Colors.pink : Colors.orange,
                         onPrimary: Colors.white,
-                        shape: const CircleBorder(
-                          side: BorderSide(
-                            color: Colors.black,
-                            width: 1,
-                            style: BorderStyle.solid,
-                          ),
-                        ),
                       ),
                       onPressed: () {
-                        model.baseTapFlg = true;
+                        model.baseTapFlg = !model.baseTapFlg;
                         print(model.baseY);
                         print(model.baseX);
                       },
@@ -79,6 +66,49 @@ class Home extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // * 拠点
+                Align(
+                  alignment:
+                      Alignment(model.allBase['2']![0], model.allBase['2']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['3']![0], model.allBase['3']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['4']![0], model.allBase['4']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['5']![0], model.allBase['5']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['6']![0], model.allBase['6']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['7']![0], model.allBase['7']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['8']![0], model.allBase['8']![1]),
+                  child: Base(),
+                ),
+                Align(
+                  alignment:
+                      Alignment(model.allBase['9']![0], model.allBase['9']![1]),
+                  child: Base(),
+                ),
+
                 // * Tank
                 Align(
                   alignment: Alignment(model.tankX, model.tankY),
