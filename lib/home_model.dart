@@ -18,12 +18,11 @@ class HomeModel extends ChangeNotifier {
 
   // 画面上のランダムな位置に拠点を生成する
   void generateBasePosition() {
-    for (int i = 2; i <= 10; i++) {
+    for (int i = 2; i <= 4; i++) {
       double x = randomDouble();
       double y = randomDouble();
 
-      List position = [x, y];
-      allBase[i.toString()] = position;
+      allBase[i.toString()] = {'x': x, 'y': y, 'control': 2};
     }
     print(allBase);
   }
@@ -37,26 +36,17 @@ class HomeModel extends ChangeNotifier {
   double tankY = 1;
   double tankX = 1;
 
-  // ------------------------------
-
-  Map<String, List> allBase = {
-    '0': [1.0, 1.0], //　自分の本陣
-    '1': [-1.0, -1.0], // 敵の本陣
+// 全ての拠点の情報
+  Map<String, Map> allBase = {
+    '0': {'x': 1.0, 'y': 1.0, 'control': 0}, //　自分の本陣
+    '1': {'x': -1.0, 'y': -1.0, 'control': 1}, //　敵の本陣
   };
-
-  // 自分の基地の座標
-  double baseY = 1;
-  double baseX = 1;
 
   // 基地の兵力
   int baseScale = 0;
 
+  // 拠点が選択されているかフラグ
   bool baseTapFlg = false;
-  // ------------------------------
-
-  // 敵の基地の座標
-  double enemyBaseY = -1;
-  double enemyBaseX = -1;
 
   // 基地の兵力
   int enemyBaseScale = 0;

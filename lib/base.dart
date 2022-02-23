@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../size_config.dart';
 
 class Base extends StatelessWidget {
-  //final double heightSize;
-  //final double widthSize;
-  //Goal({required this.heightSize, required this.widthSize});
-
   @override
   Widget build(BuildContext context) {
+    int control = Provider.of<Map?>(context)!['control'];
     return Container(
       //color: Colors.red,
-
       child: SizedBox(
-        height: 80,
-        width: 80,
+        height: 50,
+        width: 50,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             primary: Colors.red,
@@ -27,17 +24,9 @@ class Base extends StatelessWidget {
             ),
           ),
           onPressed: () {},
-          //child: Text(model.enemyBaseScale.toString()),
-          child: Text('aaaa'),
+          child: Text(control.toString()),
         ),
       ),
-
-      //child: Image(
-      //image: AssetImage('lib/images/goal.png'),
-      //fit: BoxFit.cover,
-      //height: SizeConfig.blockSizeVertical! * heightSize,
-      //width: SizeConfig.blockSizeVertical! * widthSize,
-      //),
     );
   }
 }
