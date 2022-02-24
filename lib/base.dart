@@ -5,27 +5,28 @@ import '../size_config.dart';
 class Base extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    int control = Provider.of<Map?>(context)!['control'];
+    Map? baseDetail = Provider.of<Map?>(context);
     return Container(
       //color: Colors.red,
-      child: SizedBox(
-        height: 50,
-        width: 50,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            primary: Colors.red,
-            onPrimary: Colors.white,
-            shape: const CircleBorder(
-              side: BorderSide(
-                color: Colors.black,
-                width: 1,
-                style: BorderStyle.solid,
-              ),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          primary:
+              baseDetail!['selectedFlg'] == 1 ? Colors.pink : Colors.orange,
+          onPrimary: Colors.white,
+          shape: const CircleBorder(
+            side: BorderSide(
+              color: Colors.black,
+              width: 1,
+              style: BorderStyle.solid,
             ),
           ),
-          onPressed: () {},
-          child: Text(control.toString()),
         ),
+        onPressed: () {
+          baseDetail['selectedFlg'] == 0
+              ? baseDetail['selectedFlg'] = 1
+              : baseDetail['selectedFlg'] = 0;
+        },
+        child: Text(baseDetail['scale'].toString()),
       ),
     );
   }

@@ -4,7 +4,7 @@ import 'dart:math';
 
 class HomeModel extends ChangeNotifier {
   HomeModel() {
-    generateBasePosition();
+    generateBaseDetails();
   }
 
   // ランダムなdoubleを生成する(1 ~ -1)
@@ -16,15 +16,21 @@ class HomeModel extends ChangeNotifier {
     }
   }
 
-  // 画面上のランダムな位置に拠点を生成する
-  void generateBasePosition() {
-    for (int i = 2; i <= 4; i++) {
+  // 各拠点の詳細データを生成
+  void generateBaseDetails() {
+    for (int i = 2; i <= 3; i++) {
       double x = randomDouble();
       double y = randomDouble();
 
-      allBase[i.toString()] = {'x': x, 'y': y, 'control': 2};
+      allBaseDetails[i.toString()] = {
+        'x': x,
+        'y': y,
+        'control': 2,
+        'scale': 0,
+        'selectedFlg': 0,
+      };
     }
-    print(allBase);
+    print(allBaseDetails);
   }
 
   // ゲーム開始フラグ
@@ -37,19 +43,22 @@ class HomeModel extends ChangeNotifier {
   double tankX = 1;
 
 // 全ての拠点の情報
-  Map<String, Map> allBase = {
-    '0': {'x': 1.0, 'y': 1.0, 'control': 0}, //　自分の本陣
-    '1': {'x': -1.0, 'y': -1.0, 'control': 1}, //　敵の本陣
+  Map<String, Map> allBaseDetails = {
+    '0': {
+      'x': 1.0,
+      'y': 1.0,
+      'control': 0,
+      'scale': 100,
+      'selectedFlg': 0,
+    }, //自分の本陣
+    '1': {
+      'x': -1.0,
+      'y': -1.0,
+      'control': 1,
+      'scale': 100,
+      'selectedFlg': 0,
+    }, //敵の本陣
   };
-
-  // 基地の兵力
-  int baseScale = 0;
-
-  // 拠点が選択されているかフラグ
-  bool baseTapFlg = false;
-
-  // 基地の兵力
-  int enemyBaseScale = 0;
 
   // ゲームを開始する
   void startGame() {
@@ -66,8 +75,9 @@ class HomeModel extends ChangeNotifier {
 
         // 1秒経過でScaleを上げる
         if (gameTime % 1000 == 0) {
-          baseScale += 1;
-          enemyBaseScale += 1;
+          allBaseDetails.forEach((key, value) {
+            allBaseDetails[key]!['scale']++;
+          });
         }
 
         notifyListeners();

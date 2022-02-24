@@ -19,61 +19,23 @@ class Home extends StatelessWidget {
                   color: Colors.white,
                 ),
 
-                // * 自分の基地
-                Align(
-                  alignment: Alignment(
-                      model.allBase['0']!['x'], model.allBase['0']!['y']),
-                  child: SizedBox(
-                    height: 100,
-                    width: 100,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        primary: model.baseTapFlg ? Colors.pink : Colors.orange,
-                        onPrimary: Colors.white,
+                // * 拠点(自動生成)
+                for (int i = 0; i < model.allBaseDetails.length; i++) ...[
+                  Align(
+                    alignment: Alignment(
+                      model.allBaseDetails['$i']!['x'],
+                      model.allBaseDetails['$i']!['y'],
+                    ),
+                    child: SizedBox(
+                      height: i == 0 || i == 1 ? 100 : 50,
+                      width: i == 0 || i == 1 ? 100 : 50,
+                      child: Provider<Map?>.value(
+                        value: model.allBaseDetails['$i'],
+                        child: Base(),
                       ),
-                      onPressed: () {
-                        model.baseTapFlg = !model.baseTapFlg;
-                      },
-                      child: Text(model.baseScale.toString()),
                     ),
                   ),
-                ),
-
-                // * 敵の基地
-                Align(
-                  alignment: Alignment(
-                      model.allBase['1']!['x'], model.allBase['1']!['y']),
-                  child: SizedBox(
-                    height: 100,
-                    width: 100,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        primary: Colors.red,
-                        onPrimary: Colors.white,
-                      ),
-                      onPressed: () {},
-                      child: Text(model.enemyBaseScale.toString()),
-                    ),
-                  ),
-                ),
-
-                // * 拠点
-                Align(
-                  alignment: Alignment(
-                      model.allBase['2']!['x'], model.allBase['2']!['y']),
-                  child: Provider<Map?>.value(
-                    value: model.allBase['2'],
-                    child: Base(),
-                  ),
-                ),
-                Align(
-                  alignment: Alignment(
-                      model.allBase['3']!['x'], model.allBase['3']!['y']),
-                  child: Provider<Map?>.value(
-                    value: model.allBase['3'],
-                    child: Base(),
-                  ),
-                ),
+                ],
 
                 // * Tank
                 Align(
