@@ -29,8 +29,14 @@ class Home extends StatelessWidget {
                     child: SizedBox(
                       height: i == 0 || i == 1 ? 100 : 50,
                       width: i == 0 || i == 1 ? 100 : 50,
-                      child: Provider<Map?>.value(
-                        value: model.allBaseDetails['$i'],
+                      child: MultiProvider(
+                        providers: [
+                          Provider<Map?>.value(
+                            value: model.allBaseDetails['$i'],
+                            child: Base(),
+                          ),
+                          Provider<int>.value(value: i),
+                        ],
                         child: Base(),
                       ),
                     ),

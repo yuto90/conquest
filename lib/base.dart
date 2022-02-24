@@ -1,17 +1,19 @@
+import 'package:conquest/home_model.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../size_config.dart';
 
 class Base extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    Map? baseDetail = Provider.of<Map?>(context);
+    HomeModel model = Provider.of<HomeModel>(context);
+    int baseIndex = Provider.of<int>(context);
     return Container(
       //color: Colors.red,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          primary:
-              baseDetail!['selectedFlg'] == 1 ? Colors.pink : Colors.orange,
+          primary: model.allBaseDetails['$baseIndex']!['selectedFlg'] == 1
+              ? Colors.pink
+              : Colors.orange,
           onPrimary: Colors.white,
           shape: const CircleBorder(
             side: BorderSide(
@@ -22,11 +24,11 @@ class Base extends StatelessWidget {
           ),
         ),
         onPressed: () {
-          baseDetail['selectedFlg'] == 0
-              ? baseDetail['selectedFlg'] = 1
-              : baseDetail['selectedFlg'] = 0;
+          model.allBaseDetails['$baseIndex']!['selectedFlg'] == 0
+              ? model.allBaseDetails['$baseIndex']!['selectedFlg'] = 1
+              : model.allBaseDetails['$baseIndex']!['selectedFlg'] = 0;
         },
-        child: Text(baseDetail['scale'].toString()),
+        child: Text(model.allBaseDetails['$baseIndex']!['scale'].toString()),
       ),
     );
   }

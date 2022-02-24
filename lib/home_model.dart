@@ -28,6 +28,7 @@ class HomeModel extends ChangeNotifier {
         'control': 2,
         'scale': 0,
         'selectedFlg': 0,
+        'targetBase': 0,
       };
     }
     print(allBaseDetails);
@@ -45,11 +46,12 @@ class HomeModel extends ChangeNotifier {
 // 全ての拠点の情報
   Map<String, Map> allBaseDetails = {
     '0': {
-      'x': 1.0,
-      'y': 1.0,
-      'control': 0,
-      'scale': 100,
-      'selectedFlg': 0,
+      'x': 1.0, // 拠点のX座標
+      'y': 1.0, // 拠点のY座標
+      'control': 0, // 拠点の支配下(0:味方, 1:敵)
+      'scale': 100, // 拠点の戦力パラメータ
+      'selectedFlg': 0, // 拠点選択中フラグ(0:false, 1:true)
+      'targetBase': 0, // 被ターゲット指定フラグ(0:false, 1:true)
     }, //自分の本陣
     '1': {
       'x': -1.0,
@@ -57,6 +59,7 @@ class HomeModel extends ChangeNotifier {
       'control': 1,
       'scale': 100,
       'selectedFlg': 0,
+      'targetBase': 0,
     }, //敵の本陣
   };
 
