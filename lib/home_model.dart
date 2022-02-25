@@ -51,9 +51,9 @@ class HomeModel extends ChangeNotifier {
   int tankScale = 0;
 
   // 選択拠点とターゲット拠点を格納
-  Map<String, Map> tapBase = {
-    'selectedBase': {},
-    'targetBase': {},
+  Map<String, String> tapBase = {
+    'selectedBase': '',
+    'targetBase': '',
   };
 
 // 全ての拠点の情報
@@ -86,11 +86,10 @@ class HomeModel extends ChangeNotifier {
 
         if (isMove) {
           // ターゲット拠点まで攻撃オブジェクトを動かす
-
-          double selectedX = tapBase['selectedBase']!['x'];
-          double selectedY = tapBase['selectedBase']!['y'];
-          double targetX = tapBase['targetBase']!['x'];
-          double targetY = tapBase['targetBase']!['y'];
+          double selectedX = allBaseDetails[tapBase['selectedBase']]!['x'];
+          double selectedY = allBaseDetails[tapBase['selectedBase']]!['y'];
+          double targetX = allBaseDetails[tapBase['targetBase']]!['x'];
+          double targetY = allBaseDetails[tapBase['targetBase']]!['y'];
 
           // diffXが初期値だったら座標の差分を計算
           if (diffX == 0) {
@@ -113,7 +112,7 @@ class HomeModel extends ChangeNotifier {
           }
 
           // ターゲット座標を超えたら移動オブジェクトを消す
-          if (calcDiff(targetX, tankX) <= 0.01 ||
+          if (calcDiff(targetX, tankX) <= 0.01 &&
               calcDiff(targetY, tankY) <= 0.01) {
             isMove = false;
 
@@ -124,8 +123,8 @@ class HomeModel extends ChangeNotifier {
             diffY = 0;
 
             tapBase = {
-              'selectedBase': {},
-              'targetBase': {},
+              'selectedBase': '',
+              'targetBase': '',
             };
           }
         }
