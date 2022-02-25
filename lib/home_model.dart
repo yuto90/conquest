@@ -91,10 +91,10 @@ class HomeModel extends ChangeNotifier {
 
           // diffXが初期値だったら座標の差分を計算
           if (diffX == 0) {
-            diffX = calcDiffX(selectedX, targetX);
+            diffX = calcDiff(selectedX, targetX);
           }
           if (diffY == 0) {
-            diffY = calcDiffY(selectedY, targetY);
+            diffY = calcDiff(selectedY, targetY);
           }
 
           // 座標の差分を少なくしながらオブジェクトを移動させる
@@ -109,10 +109,21 @@ class HomeModel extends ChangeNotifier {
             tankY += diffY / 100;
           }
 
-          // todo ターゲット座標を超えたら移動オブジェクトを消す
-          //if (targetX <= tankX && targetY <= tankY) {
-          //isMove = false;
-          //}
+          // ターゲット座標を超えたら移動オブジェクトを消す
+          if (calcDiff(targetX, tankX) <= 0.01) {
+            isMove = false;
+
+            tankY = 2;
+            tankX = 2;
+
+            diffX = 0;
+            diffY = 0;
+
+            tapBase = {
+              'selectedBase': {},
+              'targetBase': {},
+            };
+          }
         }
 
         // 1秒経過でScaleを上げる
@@ -127,26 +138,14 @@ class HomeModel extends ChangeNotifier {
     );
   }
 
-  // 選択拠点からターゲット拠点までのX座標の差分を計算
-  double calcDiffX(selectedX, targetX) {
+  // 第一引数と第二引数の差分を計算
+  double calcDiff(double elem1, double elem2) {
     double diff;
 
-    if (selectedX >= targetX) {
-      diff = selectedX - targetX;
+    if (elem1 >= elem2) {
+      diff = elem1 - elem2;
     } else {
-      diff = targetX - selectedX;
-    }
-    return diff;
-  }
-
-  // 選択拠点からターゲット拠点までのY座標の差分を計算
-  double calcDiffY(selectedY, targetY) {
-    double diff;
-
-    if (selectedY >= targetY) {
-      diff = selectedY - targetY;
-    } else {
-      diff = targetY - selectedY;
+      diff = elem2 - elem1;
     }
     return diff;
   }
