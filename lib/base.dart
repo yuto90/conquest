@@ -11,9 +11,7 @@ class Base extends StatelessWidget {
       //color: Colors.red,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          primary: model.allBaseDetails['$baseIndex']!['selectedFlg'] == 1
-              ? Colors.pink
-              : Colors.orange,
+          primary: model.pickColor('$baseIndex'),
           onPrimary: Colors.white,
           shape: const CircleBorder(
             side: BorderSide(

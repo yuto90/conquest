@@ -18,7 +18,7 @@ class HomeModel extends ChangeNotifier {
 
   // 各拠点の詳細データを生成
   void generateBaseDetails() {
-    for (int i = 2; i <= 3; i++) {
+    for (int i = 2; i <= 9; i++) {
       double x = randomDouble();
       double y = randomDouble();
 
@@ -155,6 +155,17 @@ class HomeModel extends ChangeNotifier {
       diff = elem2 - elem1;
     }
     return diff;
+  }
+
+  // 拠点の勢力によって色を返す
+  Color pickColor(baseIndex) {
+    if (allBaseDetails['$baseIndex']!['control'] == 0) {
+      return Colors.green;
+    } else if (allBaseDetails['$baseIndex']!['control'] == 1) {
+      return Colors.red;
+    } else {
+      return Colors.grey;
+    }
   }
 
   void move() {}
