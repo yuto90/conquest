@@ -59,6 +59,9 @@ class Home extends StatelessWidget {
                             color: Colors.red,
                             height: 30,
                             width: 30,
+                            child: Center(
+                              child: Text(model.tankScale.toString()),
+                            ),
                           ),
                         )
                       : const SizedBox(),

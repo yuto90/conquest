@@ -47,6 +47,9 @@ class HomeModel extends ChangeNotifier {
   double tankY = 2;
   double tankX = 2;
 
+  // 移動オブジェクトの戦力パラメータ
+  int tankScale = 0;
+
   // 選択拠点とターゲット拠点を格納
   Map<String, Map> tapBase = {
     'selectedBase': {},
@@ -110,7 +113,8 @@ class HomeModel extends ChangeNotifier {
           }
 
           // ターゲット座標を超えたら移動オブジェクトを消す
-          if (calcDiff(targetX, tankX) <= 0.01) {
+          if (calcDiff(targetX, tankX) <= 0.01 ||
+              calcDiff(targetY, tankY) <= 0.01) {
             isMove = false;
 
             tankY = 2;
