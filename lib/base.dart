@@ -50,7 +50,10 @@ class Base extends StatelessWidget {
           print(model.isMove);
           print(model.tapBase);
         },
-        child: Text(model.allBaseDetails['$baseIndex']!['scale'].toString()),
+        // controlが0か1の時のみscaleを表示
+        child: model.allBaseDetails['$baseIndex']!['control'] != 2
+            ? Text(model.allBaseDetails['$baseIndex']!['scale'].toString())
+            : Text(''),
       ),
     );
   }
