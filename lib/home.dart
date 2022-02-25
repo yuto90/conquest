@@ -44,14 +44,17 @@ class Home extends StatelessWidget {
                 ],
 
                 // * Tank
-                Align(
-                  alignment: Alignment(model.tankX, model.tankY),
-                  child: Container(
-                    color: Colors.white,
-                    height: 30,
-                    width: 30,
-                  ),
-                ),
+                model.isMove
+                    ? Align(
+                        alignment: Alignment(model.tankX, model.tankY),
+                        child: Container(
+                          color: Colors.red,
+                          height: 30,
+                          width: 30,
+                        ),
+                      )
+                    : const SizedBox(),
+
                 Align(
                   alignment: Alignment(0, -0.8),
                   child: ElevatedButton(

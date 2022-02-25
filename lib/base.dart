@@ -24,9 +24,26 @@ class Base extends StatelessWidget {
           ),
         ),
         onPressed: () {
-          model.allBaseDetails['$baseIndex']!['selectedFlg'] == 0
-              ? model.allBaseDetails['$baseIndex']!['selectedFlg'] = 1
-              : model.allBaseDetails['$baseIndex']!['selectedFlg'] = 0;
+          if (model.tapBase['selectedBase']!.isEmpty) {
+            model.tapBase['selectedBase'] = {
+              'x': model.allBaseDetails['$baseIndex']!['x'],
+              'y': model.allBaseDetails['$baseIndex']!['y'],
+            };
+          } else {
+            model.tapBase['targetBase'] = {
+              'x': model.allBaseDetails['$baseIndex']!['x'],
+              'y': model.allBaseDetails['$baseIndex']!['y'],
+            };
+
+            // 移動オブジェクトの初期座標を代入
+            model.tankX = model.tapBase['selectedBase']!['x'];
+            model.tankY = model.tapBase['selectedBase']!['y'];
+            // 移動フラグ
+            model.isMove = true;
+          }
+
+          print(model.isMove);
+          print(model.tapBase);
         },
         child: Text(model.allBaseDetails['$baseIndex']!['scale'].toString()),
       ),
