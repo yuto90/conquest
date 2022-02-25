@@ -37,6 +37,9 @@ class HomeModel extends ChangeNotifier {
   // ゲームスタートからの時間
   int gameTime = 0;
 
+  // 画面スタータス
+  String display = 'ready';
+
   // Tankオブジェクト動作フラグ
   bool isMove = false;
 
