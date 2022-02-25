@@ -41,6 +41,10 @@ class Base extends StatelessWidget {
                         2)
                     .floor();
 
+            // 選択拠点の戦力パラメータを半分にする
+            model.allBaseDetails[model.tapBase['selectedBase']]!['scale'] =
+                model.tankScale;
+
             // 移動フラグ
             model.isMove = true;
           }

@@ -114,6 +114,10 @@ class HomeModel extends ChangeNotifier {
           // ターゲット座標を超えたら移動オブジェクトを消す
           if (calcDiff(targetX, tankX) <= 0.01 &&
               calcDiff(targetY, tankY) <= 0.01) {
+            // todo 移動オブジェクトが着いた時の処理
+            // 味方の拠点から味方の拠点に戦力を移動させた場合プラスする
+            allBaseDetails[tapBase['targetBase']]!['scale'] += tankScale;
+
             isMove = false;
 
             tankY = 2;
