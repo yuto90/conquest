@@ -13,13 +13,15 @@ class Base extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           primary: model.pickColor('$baseIndex'),
           onPrimary: Colors.white,
-          shape: const CircleBorder(
-            side: BorderSide(
-              color: Colors.black,
-              width: 1,
-              style: BorderStyle.solid,
-            ),
-          ),
+          shape: '$baseIndex' == '0' || '$baseIndex' == '1'
+              ? null
+              : const CircleBorder(
+                  side: BorderSide(
+                    color: Colors.black,
+                    width: 1,
+                    style: BorderStyle.solid,
+                  ),
+                ),
         ),
         onPressed: () {
           if (model.tapBase['selectedBase']!.isEmpty) {
