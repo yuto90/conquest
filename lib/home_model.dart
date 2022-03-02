@@ -56,6 +56,11 @@ class HomeModel extends ChangeNotifier {
     return positionSet;
   }
 
+  int generateScale() {
+    List<int> scaleList = [50, 50, 100, 200, 300];
+    return scaleList[Random().nextInt(scaleList.length - 1)];
+  }
+
   // 各拠点の詳細データを生成
   void generateBaseDetails() {
     for (int i = 2; i <= 9; i++) {
@@ -66,7 +71,7 @@ class HomeModel extends ChangeNotifier {
         'x': xy[0],
         'y': xy[1],
         'control': 2,
-        'scale': 0,
+        'scale': generateScale(),
       };
     }
     print(allBaseDetails);
@@ -101,7 +106,7 @@ class HomeModel extends ChangeNotifier {
     '0': {
       'x': 0.8, // 拠点のX座標
       'y': 0.9, // 拠点のY座標
-      'control': 0, // 拠点の支配下(0:味方, 1:敵)
+      'control': 0, // 拠点の支配下(0:味方, 1:敵, 2:中立)
       'scale': 100, // 拠点の戦力パラメータ
     }, //自分の本陣
     '1': {
@@ -120,12 +125,14 @@ class HomeModel extends ChangeNotifier {
       (timer) {
         gameTime += 50;
 
-        if (isMove) {}
+        //if (isMove) {}
 
-        // 1秒経過でScaleを上げる
+        // 中立拠点以外は1秒経過でScaleを上げる
         if (gameTime % 1000 == 0) {
           allBaseDetails.forEach((key, value) {
-            allBaseDetails[key]!['scale']++;
+            if (allBaseDetails[key]!['control'] != 2) {
+              allBaseDetails[key]!['scale']++;
+            }
           });
         }
 
@@ -145,11 +152,26 @@ class HomeModel extends ChangeNotifier {
     }
   }
 
-  void resetMoveObject() {
-    // todo 移動オブジェクトが着いた時の処理
-    // 味方の拠点から味方の拠点に戦力を移動させた場合プラスする
-    allBaseDetails[tapBase['targetBase']]!['scale'] += tankScale;
+  // todo 移動オブジェクトが着いた時の処理
+  void calcAttack(String targetIndex) {
+    Map? target = allBaseDetails[targetIndex];
 
+    if (target!['control'] == 0) {
+      // 味方の拠点から味方の拠点にscaleを移動させた場合プラスする
+      target['scale'] += tankScale;
+    } else {
+      // 味方の拠点から敵または中立の拠点にscaleを移動させた場合マイナスする
+      target['scale'] -= tankScale;
+      // 敵または中立の拠点のscaleが0を下回ったら味方の拠点にする
+      if (target['scale'] <= 0) {
+        target['control'] = 0;
+        target['scale'] = 0;
+      }
+    }
+  }
+
+  // フラグと選択拠点情報をリセット
+  void resetMoveObject() {
     isReady = false;
     isMove = false;
 

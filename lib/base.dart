@@ -44,6 +44,7 @@ class Base extends StatelessWidget {
             // 移動フラグ
             model.isMove = true;
             await Future.delayed(Duration(seconds: model.delay));
+            model.calcAttack('$baseIndex');
             model.resetMoveObject();
             print('リセット');
           }
@@ -51,10 +52,7 @@ class Base extends StatelessWidget {
           print(model.isMove);
           print(model.tapBase);
         },
-        // controlが0か1の時のみscaleを表示
-        child: model.allBaseDetails['$baseIndex']!['control'] != 2
-            ? Text(model.allBaseDetails['$baseIndex']!['scale'].toString())
-            : Text(''),
+        child: Text(model.allBaseDetails['$baseIndex']!['scale'].toString()),
       ),
     );
   }
