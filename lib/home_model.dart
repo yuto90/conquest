@@ -14,22 +14,7 @@ class HomeModel extends ChangeNotifier {
   // todo もっと効率いい記述あるかも
   List<double> generateXY() {
     List<double> positionIntX = [-0.2, -0.5, -0.7, 0.2, 0.5, 0.7];
-    List<double> positionIntY = [
-      -0.1,
-      -0.2,
-      -0.3,
-      -0.4,
-      -0.5,
-      -0.6,
-      -0.7,
-      0.1,
-      0.2,
-      0.3,
-      0.4,
-      0.5,
-      0.6,
-      0.7,
-    ];
+    List<double> positionIntY = [-0.1, -0.3, -0.5, -0.7, 0.1, 0.3, 0.5, 0.7];
     List<double> positionSet = [];
     bool reloop = true;
 
@@ -104,14 +89,14 @@ class HomeModel extends ChangeNotifier {
 // 全ての拠点の情報
   Map<String, Map> allBaseDetails = {
     '0': {
-      'x': 0.8, // 拠点のX座標
-      'y': 0.9, // 拠点のY座標
+      'x': 1.0, // 拠点のX座標
+      'y': 1.0, // 拠点のY座標
       'control': 0, // 拠点の支配下(0:味方, 1:敵, 2:中立)
       'scale': 100, // 拠点の戦力パラメータ
     }, //自分の本陣
     '1': {
-      'x': -0.8,
-      'y': -0.9,
+      'x': -1.0,
+      'y': -1.0,
       'control': 1,
       'scale': 100,
     }, //敵の本陣
@@ -143,22 +128,21 @@ class HomeModel extends ChangeNotifier {
 
   // 拠点をタップした時の処理
   Future<void> onPressedBase(String baseIndex) async {
-    // 選択した拠点のインデックス番号
-    String? selected = tapBase['selectedBase'];
-
     // 選択できるのは味方拠点のみ
-    if (selected!.isEmpty && allBaseDetails[baseIndex]!['control'] == 0) {
-      selected = baseIndex;
+    if (tapBase['selectedBase']!.isEmpty &&
+        allBaseDetails[baseIndex]!['control'] == 0) {
+      tapBase['selectedBase'] = baseIndex;
       // 移動準備フラグ
       isReady = true;
-    } else if (selected.isNotEmpty) {
-      selected = baseIndex;
+    } else if (tapBase['selectedBase']!.isNotEmpty) {
+      tapBase['targetBase'] = baseIndex;
 
       // 移動オブジェクトの戦力パラメータを設定
-      tankScale = (allBaseDetails[selected]!['scale'] / 2).floor();
+      tankScale =
+          (allBaseDetails[tapBase['selectedBase']]!['scale'] / 2).floor();
 
       // 選択拠点の戦力パラメータを半分にする
-      allBaseDetails[selected]!['scale'] = tankScale;
+      allBaseDetails[tapBase['selectedBase']]!['scale'] = tankScale;
 
       // 移動フラグ
       isMove = true;
