@@ -13,23 +13,7 @@ class HomeModel extends ChangeNotifier {
   // 拠点の座標を生成して返却する
   // todo もっと効率いい記述あるかも
   List<double> generateXY() {
-    List<double> positionIntX = [-0.2, -0.5, -0.7, 0.2, 0.5, 0.7];
-    List<double> positionIntY = [
-      -0.1,
-      -0.2,
-      -0.3,
-      -0.4,
-      -0.5,
-      -0.6,
-      -0.7,
-      0.1,
-      0.2,
-      0.3,
-      0.4,
-      0.5,
-      0.6,
-      0.7,
-    ];
+    List<double> positionInt = [-0.2, -0.5, -0.7, 0.2, 0.5, 0.7];
     List<double> positionSet = [];
     bool reloop = true;
 
@@ -39,8 +23,9 @@ class HomeModel extends ChangeNotifier {
       reloop = false;
 
       // XYの組み合わせリストを作る
-      positionSet.add(positionIntX[Random().nextInt(positionIntX.length - 1)]);
-      positionSet.add(positionIntY[Random().nextInt(positionIntY.length - 1)]);
+      for (int i = 0; i <= 1; i++) {
+        positionSet.add(positionInt[Random().nextInt(positionInt.length - 1)]);
+      }
 
       // 作成した組み合わせが重複していないかを調べる
       for (List position in positionSetAll) {
