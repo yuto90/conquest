@@ -42,13 +42,13 @@ class HomeModel extends ChangeNotifier {
 
   // Tankオブジェクト動作フラグ
   bool isMove = false;
-  bool isReady = false;
+
+  // 移動オブジェクト(初期値は画面外)
+  double tankY = 2;
+  double tankX = 2;
 
   // 移動オブジェクトの戦力パラメータ
   int tankScale = 0;
-
-  // 移動オブジェクトが拠点に到着するまでのディレイ
-  int delay = 1;
 
   // 選択拠点とターゲット拠点を格納
   Map<String, String> tapBase = {
@@ -72,6 +72,10 @@ class HomeModel extends ChangeNotifier {
     }, //敵の本陣
   };
 
+  // X座標の差分;
+  double diffX = 0;
+  double diffY = 0;
+
   // ゲームを開始する
   void startGame() {
     gameHasStarted = true;
@@ -80,7 +84,54 @@ class HomeModel extends ChangeNotifier {
       (timer) {
         gameTime += 50;
 
-        if (isMove) {}
+        if (isMove) {
+          // ターゲット拠点まで攻撃オブジェクトを動かす
+          double selectedX = allBaseDetails[tapBase['selectedBase']]!['x'];
+          double selectedY = allBaseDetails[tapBase['selectedBase']]!['y'];
+          double targetX = allBaseDetails[tapBase['targetBase']]!['x'];
+          double targetY = allBaseDetails[tapBase['targetBase']]!['y'];
+
+          // diffXが初期値だったら座標の差分を計算
+          if (diffX == 0) {
+            diffX = calcDiff(selectedX, targetX);
+          }
+          if (diffY == 0) {
+            diffY = calcDiff(selectedY, targetY);
+          }
+
+          // 座標の差分を少なくしながらオブジェクトを移動させる
+          if (selectedX >= targetX) {
+            tankX -= diffX / 100;
+          } else {
+            tankX += diffX / 100;
+          }
+          if (selectedY >= targetY) {
+            tankY -= diffY / 100;
+          } else {
+            tankY += diffY / 100;
+          }
+
+          // ターゲット座標を超えたら移動オブジェクトを消す
+          if (calcDiff(targetX, tankX) <= 0.01 &&
+              calcDiff(targetY, tankY) <= 0.01) {
+            // todo 移動オブジェクトが着いた時の処理
+            // 味方の拠点から味方の拠点に戦力を移動させた場合プラスする
+            allBaseDetails[tapBase['targetBase']]!['scale'] += tankScale;
+
+            isMove = false;
+
+            tankY = 2;
+            tankX = 2;
+
+            diffX = 0;
+            diffY = 0;
+
+            tapBase = {
+              'selectedBase': '',
+              'targetBase': '',
+            };
+          }
+        }
 
         // 1秒経過でScaleを上げる
         if (gameTime % 1000 == 0) {
@@ -94,6 +145,18 @@ class HomeModel extends ChangeNotifier {
     );
   }
 
+  // 第一引数と第二引数の差分を計算
+  double calcDiff(double elem1, double elem2) {
+    double diff;
+
+    if (elem1 >= elem2) {
+      diff = elem1 - elem2;
+    } else {
+      diff = elem2 - elem1;
+    }
+    return diff;
+  }
+
   // 拠点の勢力によって色を返す
   Color pickColor(baseIndex) {
     if (allBaseDetails['$baseIndex']!['control'] == 0) {
@@ -103,20 +166,6 @@ class HomeModel extends ChangeNotifier {
     } else {
       return Colors.grey;
     }
-  }
-
-  void resetMoveObject() {
-    // todo 移動オブジェクトが着いた時の処理
-    // 味方の拠点から味方の拠点に戦力を移動させた場合プラスする
-    allBaseDetails[tapBase['targetBase']]!['scale'] += tankScale;
-
-    isReady = false;
-    isMove = false;
-
-    tapBase = {
-      'selectedBase': '',
-      'targetBase': '',
-    };
   }
 
   void move() {}

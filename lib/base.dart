@@ -23,13 +23,17 @@ class Base extends StatelessWidget {
                   ),
                 ),
         ),
-        onPressed: () async {
+        onPressed: () {
           if (model.tapBase['selectedBase']!.isEmpty) {
             model.tapBase['selectedBase'] = '$baseIndex';
-            // 移動準備フラグ
-            model.isReady = true;
           } else {
             model.tapBase['targetBase'] = '$baseIndex';
+
+            // 移動オブジェクトの初期座標を代入
+            model.tankX =
+                model.allBaseDetails[model.tapBase['selectedBase']]!['x'];
+            model.tankY =
+                model.allBaseDetails[model.tapBase['selectedBase']]!['y'];
 
             // 移動オブジェクトの戦力パラメータを設定
             model.tankScale =
@@ -43,9 +47,6 @@ class Base extends StatelessWidget {
 
             // 移動フラグ
             model.isMove = true;
-            await Future.delayed(Duration(seconds: model.delay));
-            model.resetMoveObject();
-            print('リセット');
           }
 
           print(model.isMove);

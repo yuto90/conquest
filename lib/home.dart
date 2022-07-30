@@ -52,24 +52,17 @@ class Home extends StatelessWidget {
                   ],
 
                   // * Tank
-                  model.isReady
-                      ? AnimatedAlign(
-                          alignment: model.isMove
-                              ? Alignment(
-                                  model.allBaseDetails[
-                                      model.tapBase['targetBase']]!['x'],
-                                  model.allBaseDetails[
-                                      model.tapBase['targetBase']]!['y'],
-                                )
-                              : Alignment(
-                                  model.allBaseDetails[
-                                      model.tapBase['selectedBase']]!['x'],
-                                  model.allBaseDetails[
-                                      model.tapBase['selectedBase']]!['y'],
-                                ),
-                          duration: Duration(seconds: model.delay),
-                          curve: Curves.linear,
-                          child: const FlutterLogo(size: 30.0),
+                  model.isMove
+                      ? Align(
+                          alignment: Alignment(model.tankX, model.tankY),
+                          child: Container(
+                            color: Colors.red,
+                            height: 30,
+                            width: 30,
+                            child: Center(
+                              child: Text(model.tankScale.toString()),
+                            ),
+                          ),
                         )
                       : const SizedBox(),
 
