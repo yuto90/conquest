@@ -7,49 +7,24 @@ class HomeModel extends ChangeNotifier {
     generateBaseDetails();
   }
 
-  // 生成拠点の座標組み合わせ格納用
-  List positionSetAll = [];
-
-  // 拠点の座標を生成して返却する
-  // todo もっと効率いい記述あるかも
-  List<double> generateXY() {
-    List<double> positionInt = [-0.2, -0.5, -0.7, 0.2, 0.5, 0.7];
-    List<double> positionSet = [];
-    bool reloop = true;
-
-    while (reloop) {
-      // 初期化
-      positionSet = [];
-      reloop = false;
-
-      // XYの組み合わせリストを作る
-      for (int i = 0; i <= 1; i++) {
-        positionSet.add(positionInt[Random().nextInt(positionInt.length - 1)]);
-      }
-
-      // 作成した組み合わせが重複していないかを調べる
-      for (List position in positionSetAll) {
-        // 組み合わせがかぶっていれば再度作り直し
-        if (position[0] == positionSet[0] && position[1] == positionSet[1]) {
-          reloop = true;
-          break;
-        }
-      }
+  // ランダムなdoubleを生成する(1 ~ -1)
+  double randomDouble() {
+    if (Random().nextBool()) {
+      return Random().nextDouble();
+    } else {
+      return (Random().nextDouble() - 1);
     }
-
-    positionSetAll.add(positionSet);
-    return positionSet;
   }
 
   // 各拠点の詳細データを生成
   void generateBaseDetails() {
     for (int i = 2; i <= 9; i++) {
-      // 一意の座標を生成
-      List<double> xy = generateXY();
+      double x = randomDouble();
+      double y = randomDouble();
 
       allBaseDetails[i.toString()] = {
-        'x': xy[0],
-        'y': xy[1],
+        'x': x,
+        'y': y,
         'control': 2,
         'scale': 0,
       };
@@ -84,14 +59,14 @@ class HomeModel extends ChangeNotifier {
 // 全ての拠点の情報
   Map<String, Map> allBaseDetails = {
     '0': {
-      'x': 0.8, // 拠点のX座標
-      'y': 0.9, // 拠点のY座標
+      'x': 1.0, // 拠点のX座標
+      'y': 1.0, // 拠点のY座標
       'control': 0, // 拠点の支配下(0:味方, 1:敵)
       'scale': 100, // 拠点の戦力パラメータ
     }, //自分の本陣
     '1': {
-      'x': -0.8,
-      'y': -0.9,
+      'x': -1.0,
+      'y': -1.0,
       'control': 1,
       'scale': 100,
     }, //敵の本陣
