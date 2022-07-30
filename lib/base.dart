@@ -24,7 +24,30 @@ class Base extends StatelessWidget {
                 ),
         ),
         onPressed: () async {
-          await model.onPressedBase('$baseIndex');
+          if (model.tapBase['selectedBase']!.isEmpty) {
+            model.tapBase['selectedBase'] = '$baseIndex';
+            // 移動準備フラグ
+            model.isReady = true;
+          } else {
+            model.tapBase['targetBase'] = '$baseIndex';
+
+            // 移動オブジェクトの戦力パラメータを設定
+            model.tankScale =
+                (model.allBaseDetails[model.tapBase['selectedBase']]!['scale'] /
+                        2)
+                    .floor();
+
+            // 選択拠点の戦力パラメータを半分にする
+            model.allBaseDetails[model.tapBase['selectedBase']]!['scale'] =
+                model.tankScale;
+
+            // 移動フラグ
+            model.isMove = true;
+            await Future.delayed(Duration(seconds: model.delay));
+            model.calcAttack('$baseIndex');
+            model.resetMoveObject();
+            print('リセット');
+          }
 
           print(model.isMove);
           print(model.tapBase);

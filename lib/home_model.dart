@@ -141,34 +141,6 @@ class HomeModel extends ChangeNotifier {
     );
   }
 
-  // 拠点をタップした時の処理
-  Future<void> onPressedBase(String baseIndex) async {
-    // 選択した拠点のインデックス番号
-    String? selected = tapBase['selectedBase'];
-
-    // 選択できるのは味方拠点のみ
-    if (selected!.isEmpty && allBaseDetails[baseIndex]!['control'] == 0) {
-      selected = baseIndex;
-      // 移動準備フラグ
-      isReady = true;
-    } else if (selected.isNotEmpty) {
-      selected = baseIndex;
-
-      // 移動オブジェクトの戦力パラメータを設定
-      tankScale = (allBaseDetails[selected]!['scale'] / 2).floor();
-
-      // 選択拠点の戦力パラメータを半分にする
-      allBaseDetails[selected]!['scale'] = tankScale;
-
-      // 移動フラグ
-      isMove = true;
-      await Future.delayed(Duration(seconds: delay));
-      calcAttack('$baseIndex');
-      resetMoveObject();
-      print('リセット');
-    }
-  }
-
   // 拠点の勢力によって色を返す
   Color pickColor(baseIndex) {
     if (allBaseDetails['$baseIndex']!['control'] == 0) {
