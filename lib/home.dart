@@ -2,7 +2,6 @@ import 'package:conquest/base.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'home_model.dart';
-import 'size_config.dart';
 
 class Home extends StatelessWidget {
   @override

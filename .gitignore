@@ -1,4 +1,7 @@
 .fvm/flutter_sdk
+.fvm/release
+.fvm/version
+.fvm/versions/
 
 # Miscellaneous
 *.class
@@ -34,7 +37,6 @@
 /build/
 
 # Web related
-lib/generated_plugin_registrant.dart
 
 # Symbolication related
 app.*.symbols
