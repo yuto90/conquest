@@ -1,19 +1,25 @@
-import 'package:conquest/home_model.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'game/game_state.dart';
 
 class Base extends StatelessWidget {
+  const Base({required this.base, required this.onPressed, super.key});
+
+  final BaseState base;
+  final VoidCallback onPressed;
+
   @override
   Widget build(BuildContext context) {
-    HomeModel model = Provider.of<HomeModel>(context);
-    int baseIndex = Provider.of<int>(context);
     return Container(
       //color: Colors.red,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: model.pickColor('$baseIndex'),
+          backgroundColor: switch (base.control) {
+            BaseControl.ally => Colors.green,
+            BaseControl.enemy => Colors.red,
+            BaseControl.neutral => Colors.grey,
+          },
           foregroundColor: Colors.white,
-          shape: '$baseIndex' == '0' || '$baseIndex' == '1'
+          shape: base.id == 0 || base.id == 1
               ? null
               : const CircleBorder(
                   side: BorderSide(
@@ -23,39 +29,11 @@ class Base extends StatelessWidget {
                   ),
                 ),
         ),
-        onPressed: () {
-          if (model.tapBase['selectedBase']!.isEmpty) {
-            model.tapBase['selectedBase'] = '$baseIndex';
-          } else {
-            model.tapBase['targetBase'] = '$baseIndex';
-
-            // 移動オブジェクトの初期座標を代入
-            model.tankX =
-                model.allBaseDetails[model.tapBase['selectedBase']]!['x'];
-            model.tankY =
-                model.allBaseDetails[model.tapBase['selectedBase']]!['y'];
-
-            // 移動オブジェクトの戦力パラメータを設定
-            model.tankScale =
-                (model.allBaseDetails[model.tapBase['selectedBase']]!['scale'] /
-                        2)
-                    .floor();
-
-            // 選択拠点の戦力パラメータを半分にする
-            model.allBaseDetails[model.tapBase['selectedBase']]!['scale'] =
-                model.tankScale;
-
-            // 移動フラグ
-            model.isMove = true;
-          }
-
-          print(model.isMove);
-          print(model.tapBase);
-        },
+        onPressed: onPressed,
         // controlが0か1の時のみscaleを表示
-        child: model.allBaseDetails['$baseIndex']!['control'] != 2
-            ? Text(model.allBaseDetails['$baseIndex']!['scale'].toString())
-            : Text(''),
+        child: base.control != BaseControl.neutral
+            ? Text(base.scale.toString())
+            : const Text(''),
       ),
     );
   }
