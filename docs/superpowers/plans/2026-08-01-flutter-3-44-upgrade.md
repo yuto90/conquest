@@ -389,4 +389,3 @@ git log --oneline --decorate origin/main..HEAD
 ~~~
 
 Expected: The diff is limited to Flutter SDK/dependency files, Android/iOS/Web scaffolding, Dart compatibility/test changes, and the already-approved Codex environment/docs. Issue #1 remains the separate Riverpod migration scope.
-
