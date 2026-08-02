@@ -233,7 +233,31 @@ final class GameRules {
       islands: islands,
       movingForces: remainingForces,
     );
-    return remainingForces.isEmpty ? nextState.clearSelection() : nextState;
+
+    // A selected source remains active while the player is choosing a
+    // destination.  Only clear it after an existing dispatch has completed,
+    // or when the source can no longer dispatch under the current rules.
+    final selectedIsland = nextState.selectedIslandId == null
+        ? null
+        : nextState.islands.firstWhere(
+            (island) => island.id == nextState.selectedIslandId,
+            orElse: () => const IslandState(
+              id: -1,
+              position: IslandPosition(x: 0, y: 0),
+              faction: Faction.neutral,
+            ),
+          );
+    final selectionInvalid =
+        nextState.selectedIslandId != null &&
+        (selectedIsland == null ||
+            selectedIsland.id == -1 ||
+            selectedIsland.faction != Faction.player ||
+            selectedIsland.currentForces <= 1);
+    final dispatchCompleted =
+        state.movingForces.isNotEmpty && remainingForces.isEmpty;
+    return dispatchCompleted || selectionInvalid
+        ? nextState.clearSelection()
+        : nextState;
   }
 
   MovingForce createMovingForce({
