@@ -2,6 +2,10 @@
 
 A new Flutter project.
 
+## Documentation
+
+- [ゲームルール](docs/game-rules.md)
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
