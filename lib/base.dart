@@ -4,7 +4,7 @@ import 'game/game_state.dart';
 class Base extends StatelessWidget {
   const Base({required this.base, required this.onPressed, super.key});
 
-  final BaseState base;
+  final IslandState base;
   final VoidCallback onPressed;
 
   @override
