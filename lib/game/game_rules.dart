@@ -88,20 +88,25 @@ final class GameRules {
   /// request.  This makes UI commands idempotent while [canTransition]
   /// remains available for validation and tests.
   GameState transitionTo(GameState state, GamePhase target) {
+    if (state.phase == target) {
+      return state;
+    }
     if (!canTransition(state.phase, target) ||
         (target == GamePhase.result && state.result == null)) {
       return state;
     }
 
-    final nextState = state.copyWith(
-      phase: target,
+    if (target == GamePhase.result) {
+      return state.finishWithResult(state.result!);
+    }
+    return state.transitionToPhase(
+      target,
       countdownRemainingMs:
           target == GamePhase.startCountdown ||
               target == GamePhase.resumeCountdown
           ? startCountdownDurationMs
           : 0,
     );
-    return target == GamePhase.result ? nextState : nextState.clearResult();
   }
 
   GameState startCountdown(
@@ -111,12 +116,10 @@ final class GameRules {
     if (state.phase != GamePhase.configuration) {
       return state;
     }
-    return state
-        .copyWith(
-          phase: GamePhase.startCountdown,
-          countdownRemainingMs: math.max(0, durationMs),
-        )
-        .clearResult();
+    return state.transitionToPhase(
+      GamePhase.startCountdown,
+      countdownRemainingMs: math.max(0, durationMs),
+    );
   }
 
   GameState resumeCountdown(
@@ -126,12 +129,10 @@ final class GameRules {
     if (state.phase != GamePhase.paused) {
       return state;
     }
-    return state
-        .copyWith(
-          phase: GamePhase.resumeCountdown,
-          countdownRemainingMs: math.max(0, durationMs),
-        )
-        .clearResult();
+    return state.transitionToPhase(
+      GamePhase.resumeCountdown,
+      countdownRemainingMs: math.max(0, durationMs),
+    );
   }
 
   GameState pause(GameState state) {
@@ -139,10 +140,11 @@ final class GameRules {
   }
 
   GameState finish(GameState state, GameResult result) {
-    if (state.phase != GamePhase.playing) {
+    if (state.phase != GamePhase.playing ||
+        !canTransition(state.phase, GamePhase.result)) {
       return state;
     }
-    return transitionTo(state.copyWith(result: result), GamePhase.result);
+    return state.finishWithResult(result);
   }
 
   /// Advances countdowns and the time-based foundation state.

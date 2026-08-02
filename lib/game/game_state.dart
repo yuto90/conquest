@@ -495,8 +495,10 @@ final class GameState {
        ),
        result = result,
        countdownRemainingMs = countdownRemainingMs ?? 0 {
-    if (phase == GamePhase.result && result == null) {
-      throw StateError('A result phase must include a GameResult');
+    if ((phase == GamePhase.result) != (result != null)) {
+      throw StateError(
+        'Only a result phase may include a GameResult, and it must include one',
+      );
     }
   }
 
@@ -539,6 +541,46 @@ final class GameState {
       movingForces: movingForces ?? this.movingForces,
       result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
+    );
+  }
+
+  /// Atomically enters the result phase with its result.  This avoids a
+  /// transient non-result phase that carries a result.
+  GameState finishWithResult(GameResult nextResult) {
+    return GameState(
+      configuration: configuration,
+      phase: GamePhase.result,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: movingForces,
+      result: nextResult,
+      countdownRemainingMs: 0,
+    );
+  }
+
+  /// Atomically enters a non-result phase without a result.  This is used for
+  /// reset/configuration transitions from a completed match.
+  GameState transitionToPhase(
+    GamePhase nextPhase, {
+    int countdownRemainingMs = 0,
+  }) {
+    if (nextPhase == GamePhase.result) {
+      throw ArgumentError.value(
+        nextPhase,
+        'nextPhase',
+        'use finishWithResult for the result phase',
+      );
+    }
+    return GameState(
+      configuration: configuration,
+      phase: nextPhase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: movingForces,
+      result: null,
+      countdownRemainingMs: countdownRemainingMs,
     );
   }
 

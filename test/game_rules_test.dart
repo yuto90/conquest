@@ -193,9 +193,11 @@ void main() {
     }
 
     expect(rules.transitionTo(playing, GamePhase.result), same(playing));
+    expect(rules.transitionTo(playing, GamePhase.playing), same(playing));
     final finished = rules.finish(playing, result);
     expect(finished.phase, GamePhase.result);
     expect(finished.result, result);
+    expect(rules.transitionTo(finished, GamePhase.result), same(finished));
     expect(rules.finish(paused, result), same(paused));
     expect(rules.finish(resuming, result), same(resuming));
     expect(
@@ -205,6 +207,26 @@ void main() {
     expect(
       () => GameState(phase: GamePhase.result, elapsedMs: 0),
       throwsStateError,
+    );
+  });
+
+  test('countdown self-transitions preserve remaining time', () {
+    final initial = rules.initialState(random: Random(5));
+    final countdown = rules.startCountdown(initial, durationMs: 1000);
+    final partialStart = rules.tick(countdown, deltaMs: 400);
+    final paused = rules.pause(rules.tick(countdown, deltaMs: 1000));
+    final resume = rules.resumeCountdown(paused, durationMs: 1200);
+    final partialResume = rules.tick(resume, deltaMs: 500);
+
+    expect(partialStart.countdownRemainingMs, 600);
+    expect(
+      rules.transitionTo(partialStart, GamePhase.startCountdown),
+      same(partialStart),
+    );
+    expect(partialResume.countdownRemainingMs, 700);
+    expect(
+      rules.transitionTo(partialResume, GamePhase.resumeCountdown),
+      same(partialResume),
     );
   });
 
@@ -302,12 +324,34 @@ void main() {
       elapsedMs: 0,
       selectedIslandId: 0,
       movingForces: const [force],
-    ).copyWith(result: const GameResult.draw(elapsedMs: 0));
+    );
+    final resultState = state.finishWithResult(
+      const GameResult.draw(elapsedMs: 0),
+    );
 
     expect(state.clearSelection().selectedIslandId, isNull);
     expect(state.clearMovingForces().movingForces, isEmpty);
     expect(state.clearResult().result, isNull);
     expect(state.copyWithMovement(null).movingForces, isEmpty);
+    expect(resultState.phase, GamePhase.result);
+    expect(resultState.result, isNotNull);
+    expect(
+      () => GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        result: const GameResult.draw(elapsedMs: 0),
+      ),
+      throwsStateError,
+    );
+    expect(
+      () => state.copyWith(result: const GameResult.draw(elapsedMs: 0)),
+      throwsStateError,
+    );
+    expect(
+      () => resultState.copyWith(phase: GamePhase.playing),
+      throwsStateError,
+    );
+    expect(() => resultState.clearResult(), throwsStateError);
   });
 
   test('controller ignores invalid island-count selections', () {
