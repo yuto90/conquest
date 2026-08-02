@@ -121,6 +121,9 @@ class GameController extends _$GameController {
     if (_disposed || state.phase != GamePhase.configuration) {
       return;
     }
+    if (!GameConfiguration.isValidIslandCount(totalIslandCount)) {
+      return;
+    }
     final configuration = state.configuration.copyWith(
       totalIslandCount: totalIslandCount,
     );
@@ -151,7 +154,7 @@ class GameController extends _$GameController {
     }
 
     if (selectedIslandId == baseId) {
-      state = state.copyWith(selectedIslandId: null);
+      state = state.clearSelection();
       return;
     }
 
@@ -159,13 +162,13 @@ class GameController extends _$GameController {
     if (source == null ||
         source.faction != Faction.player ||
         source.currentForces <= 1) {
-      state = state.copyWith(selectedIslandId: null);
+      state = state.clearSelection();
       return;
     }
 
     final strength = source.currentForces ~/ 2;
     if (strength <= 0) {
-      state = state.copyWith(selectedIslandId: null);
+      state = state.clearSelection();
       return;
     }
 

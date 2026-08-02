@@ -88,19 +88,20 @@ final class GameRules {
   /// request.  This makes UI commands idempotent while [canTransition]
   /// remains available for validation and tests.
   GameState transitionTo(GameState state, GamePhase target) {
-    if (!canTransition(state.phase, target)) {
+    if (!canTransition(state.phase, target) ||
+        (target == GamePhase.result && state.result == null)) {
       return state;
     }
 
-    return state.copyWith(
+    final nextState = state.copyWith(
       phase: target,
       countdownRemainingMs:
           target == GamePhase.startCountdown ||
               target == GamePhase.resumeCountdown
           ? startCountdownDurationMs
           : 0,
-      result: target == GamePhase.result ? state.result : null,
     );
+    return target == GamePhase.result ? nextState : nextState.clearResult();
   }
 
   GameState startCountdown(
@@ -110,11 +111,12 @@ final class GameRules {
     if (state.phase != GamePhase.configuration) {
       return state;
     }
-    return state.copyWith(
-      phase: GamePhase.startCountdown,
-      countdownRemainingMs: math.max(0, durationMs),
-      result: null,
-    );
+    return state
+        .copyWith(
+          phase: GamePhase.startCountdown,
+          countdownRemainingMs: math.max(0, durationMs),
+        )
+        .clearResult();
   }
 
   GameState resumeCountdown(
@@ -124,10 +126,12 @@ final class GameRules {
     if (state.phase != GamePhase.paused) {
       return state;
     }
-    return state.copyWith(
-      phase: GamePhase.resumeCountdown,
-      countdownRemainingMs: math.max(0, durationMs),
-    );
+    return state
+        .copyWith(
+          phase: GamePhase.resumeCountdown,
+          countdownRemainingMs: math.max(0, durationMs),
+        )
+        .clearResult();
   }
 
   GameState pause(GameState state) {
@@ -135,12 +139,10 @@ final class GameRules {
   }
 
   GameState finish(GameState state, GameResult result) {
-    if (state.phase != GamePhase.playing &&
-        state.phase != GamePhase.paused &&
-        state.phase != GamePhase.resumeCountdown) {
+    if (state.phase != GamePhase.playing) {
       return state;
     }
-    return state.copyWith(phase: GamePhase.result, result: result);
+    return transitionTo(state.copyWith(result: result), GamePhase.result);
   }
 
   /// Advances countdowns and the time-based foundation state.
@@ -224,12 +226,12 @@ final class GameRules {
       );
     }
 
-    return state.copyWith(
+    final nextState = state.copyWith(
       elapsedMs: elapsedMs,
       islands: islands,
       movingForces: remainingForces,
-      selectedIslandId: remainingForces.isEmpty ? null : state.selectedIslandId,
     );
+    return remainingForces.isEmpty ? nextState.clearSelection() : nextState;
   }
 
   MovingForce createMovingForce({
@@ -278,7 +280,7 @@ final class GameRules {
       faction: Faction.neutral,
       size: size,
       currentForces: 0,
-      durability: 0,
+      durability: size.neutralDurability ?? 0,
       capacity: size.capacity,
     );
   }

@@ -20,10 +20,10 @@ void main() {
   test('configuration exposes the supported counts and default selection', () {
     expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
     expect(GameConfiguration.initial.totalIslandCount, 10);
-    expect(const GameConfiguration(islandCount: 6).totalIslandCount, 6);
+    expect(GameConfiguration(islandCount: 6).totalIslandCount, 6);
     expect(
       () => GameConfiguration(totalIslandCount: 7),
-      throwsA(isA<AssertionError>()),
+      throwsA(isA<ArgumentError>()),
     );
   });
 
@@ -46,6 +46,67 @@ void main() {
     expect(updated.capacity, 100);
     expect(IslandSize.medium.capacity, 100);
   });
+
+  test(
+    'initial neutral island composition carries typed durability values',
+    () {
+      const expectedSizes = <int, List<IslandSize>>{
+        6: [
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.medium,
+          IslandSize.medium,
+        ],
+        8: [
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.medium,
+          IslandSize.medium,
+          IslandSize.large,
+          IslandSize.large,
+        ],
+        10: [
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.medium,
+          IslandSize.medium,
+          IslandSize.large,
+          IslandSize.large,
+        ],
+        12: [
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.small,
+          IslandSize.medium,
+          IslandSize.medium,
+          IslandSize.medium,
+          IslandSize.medium,
+          IslandSize.large,
+          IslandSize.large,
+        ],
+      };
+
+      for (final entry in expectedSizes.entries) {
+        final islands = rules
+            .initialState(
+              configuration: GameConfiguration(totalIslandCount: entry.key),
+              random: Random(entry.key),
+            )
+            .islands
+            .skip(2)
+            .toList();
+
+        expect(islands.map((island) => island.size), entry.value);
+        for (final island in islands) {
+          expect(island.durability, island.size.neutralDurability);
+          expect(island.capacity, island.size.capacity);
+        }
+      }
+    },
+  );
 
   test('state holds multiple typed moving forces immutably', () {
     const forces = [
@@ -93,6 +154,58 @@ void main() {
     expect(rules.pause(initial), same(initial));
     expect(rules.tick(countdown, deltaMs: 99).phase, GamePhase.startCountdown);
     expect(rules.tick(countdown, deltaMs: 100).phase, GamePhase.playing);
+  });
+
+  test('phase transition table and result invariant agree for every phase', () {
+    final initial = rules.initialState(random: Random(4));
+    final playing = initial.copyWith(phase: GamePhase.playing);
+    final paused = rules.pause(playing);
+    final resuming = rules.resumeCountdown(paused, durationMs: 100);
+    final result = const GameResult.draw(elapsedMs: 10);
+
+    const validTransitions = <GamePhase, Set<GamePhase>>{
+      GamePhase.configuration: {
+        GamePhase.configuration,
+        GamePhase.startCountdown,
+      },
+      GamePhase.startCountdown: {GamePhase.startCountdown, GamePhase.playing},
+      GamePhase.playing: {
+        GamePhase.playing,
+        GamePhase.paused,
+        GamePhase.result,
+      },
+      GamePhase.paused: {
+        GamePhase.paused,
+        GamePhase.resumeCountdown,
+        GamePhase.configuration,
+      },
+      GamePhase.resumeCountdown: {GamePhase.resumeCountdown, GamePhase.playing},
+      GamePhase.result: {GamePhase.result, GamePhase.configuration},
+    };
+    for (final from in GamePhase.values) {
+      for (final to in GamePhase.values) {
+        expect(
+          rules.canTransition(from, to),
+          validTransitions[from]!.contains(to),
+          reason: '$from -> $to',
+        );
+      }
+    }
+
+    expect(rules.transitionTo(playing, GamePhase.result), same(playing));
+    final finished = rules.finish(playing, result);
+    expect(finished.phase, GamePhase.result);
+    expect(finished.result, result);
+    expect(rules.finish(paused, result), same(paused));
+    expect(rules.finish(resuming, result), same(resuming));
+    expect(
+      rules.transitionTo(finished, GamePhase.configuration).result,
+      isNull,
+    );
+    expect(
+      () => GameState(phase: GamePhase.result, elapsedMs: 0),
+      throwsStateError,
+    );
   });
 
   test(
@@ -175,5 +288,50 @@ void main() {
     loop.tick();
 
     expect(container.read(gameControllerProvider).elapsedMs, 125);
+  });
+
+  test('nullable state values are cleared through typed APIs', () {
+    const force = MovingForce(
+      id: 1,
+      sourceIslandId: 0,
+      destinationIslandId: 1,
+      strength: 5,
+    );
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      selectedIslandId: 0,
+      movingForces: const [force],
+    ).copyWith(result: const GameResult.draw(elapsedMs: 0));
+
+    expect(state.clearSelection().selectedIslandId, isNull);
+    expect(state.clearMovingForces().movingForces, isEmpty);
+    expect(state.clearResult().result, isNull);
+    expect(state.copyWithMovement(null).movingForces, isEmpty);
+  });
+
+  test('controller ignores invalid island-count selections', () {
+    final loop = ManualGameLoop();
+    final container = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(loop),
+        randomProvider.overrideWithValue(Random(8)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectIslandCount(7);
+    expect(
+      container.read(gameControllerProvider).configuration.totalIslandCount,
+      10,
+    );
+
+    controller.selectIslandCount(6);
+    expect(
+      container.read(gameControllerProvider).configuration.totalIslandCount,
+      6,
+    );
+    expect(container.read(gameControllerProvider).islands, hasLength(6));
   });
 }

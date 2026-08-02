@@ -4,8 +4,6 @@
 /// transitions usable by a later renderer, a CPU player, and deterministic
 /// tests without having to construct a widget tree.
 
-const _unchanged = Object();
-
 enum GamePhase {
   configuration,
   startCountdown,
@@ -80,23 +78,31 @@ final class GameConfiguration {
   static const allowedIslandCounts = <int>[6, 8, 10, 12];
   static const defaultIslandCount = 10;
 
-  const GameConfiguration({int? totalIslandCount, int? islandCount})
-    : totalIslandCount = totalIslandCount ?? islandCount ?? defaultIslandCount,
-      assert(
-        (totalIslandCount ?? islandCount ?? defaultIslandCount) == 6 ||
-            (totalIslandCount ?? islandCount ?? defaultIslandCount) == 8 ||
-            (totalIslandCount ?? islandCount ?? defaultIslandCount) == 10 ||
-            (totalIslandCount ?? islandCount ?? defaultIslandCount) == 12,
-        'totalIslandCount must be one of 6, 8, 10, or 12',
+  factory GameConfiguration({int? totalIslandCount, int? islandCount}) {
+    final count = totalIslandCount ?? islandCount ?? defaultIslandCount;
+    if (!isValidIslandCount(count)) {
+      throw ArgumentError.value(
+        count,
+        'totalIslandCount',
+        'must be one of 6, 8, 10, or 12',
       );
+    }
+    return GameConfiguration._(count);
+  }
+
+  const GameConfiguration._(this.totalIslandCount);
 
   final int totalIslandCount;
+
+  static bool isValidIslandCount(int count) {
+    return count == 6 || count == 8 || count == 10 || count == 12;
+  }
 
   /// Alternate spelling used by map-facing code.
   int get islandCount => totalIslandCount;
 
   /// The initial selection required by the rules document.
-  static const initial = GameConfiguration();
+  static const initial = GameConfiguration._(defaultIslandCount);
   static const defaultConfiguration = initial;
 
   GameConfiguration copyWith({int? totalIslandCount, int? islandCount}) {
@@ -190,7 +196,7 @@ class IslandState {
     int? id,
     double? x,
     double? y,
-    Object? position = _unchanged,
+    IslandPosition? position,
     Faction? faction,
     BaseControl? control,
     IslandSize? size,
@@ -202,9 +208,7 @@ class IslandState {
     int? scale,
   }) {
     final nextFaction = faction ?? control ?? this.faction;
-    final nextPosition = identical(position, _unchanged)
-        ? this.position
-        : position as IslandPosition;
+    final nextPosition = position ?? this.position;
     final positioned = x == null && y == null
         ? nextPosition
         : nextPosition.copyWith(x: x, y: y);
@@ -212,7 +216,9 @@ class IslandState {
     final nextDurability =
         durability ??
         currentDurability ??
-        (scale == null ? this.durability : scale);
+        (scale == null || this.faction != Faction.neutral
+            ? this.durability
+            : scale);
 
     return IslandState(
       id: id ?? this.id,
@@ -330,7 +336,7 @@ class MovingForce {
     int? targetBaseId,
     int? strength,
     int? scale,
-    Object? position = _unchanged,
+    IslandPosition? position,
     double? x,
     double? y,
     int? departureTimeMs,
@@ -341,9 +347,7 @@ class MovingForce {
     double? deltaX,
     double? deltaY,
   }) {
-    final nextPosition = identical(position, _unchanged)
-        ? this.position
-        : position as IslandPosition;
+    final nextPosition = position ?? this.position;
     final positionWithCoordinates = x == null && y == null
         ? nextPosition
         : nextPosition.copyWith(x: x, y: y);
@@ -477,7 +481,7 @@ final class GameState {
     int? selectedIslandId,
     int? selectedBaseId,
     List<MovingForce>? movingForces,
-    Object? movement = _unchanged,
+    MovingForce? movement,
     GameResult? result,
     int? countdownRemainingMs,
   }) : configuration = configuration ?? GameConfiguration.initial,
@@ -485,14 +489,16 @@ final class GameState {
        selectedIslandId = selectedIslandId ?? selectedBaseId,
        movingForces = List.unmodifiable(
          movingForces ??
-             (identical(movement, _unchanged)
+             (movement == null
                  ? const <MovingForce>[]
-                 : movement == null
-                 ? const <MovingForce>[]
-                 : <MovingForce>[movement as MovingForce]),
+                 : <MovingForce>[movement]),
        ),
        result = result,
-       countdownRemainingMs = countdownRemainingMs ?? 0;
+       countdownRemainingMs = countdownRemainingMs ?? 0 {
+    if (phase == GamePhase.result && result == null) {
+      throw StateError('A result phase must include a GameResult');
+    }
+  }
 
   final GameConfiguration configuration;
   final GamePhase phase;
@@ -511,46 +517,84 @@ final class GameState {
   bool get isCountdown =>
       phase == GamePhase.startCountdown || phase == GamePhase.resumeCountdown;
 
-  static const _unchanged = Object();
-
   GameState copyWith({
     GameConfiguration? configuration,
     GamePhase? phase,
     int? elapsedMs,
     List<IslandState>? islands,
     List<BaseState>? bases,
-    Object? selectedIslandId = _unchanged,
-    Object? selectedBaseId = _unchanged,
+    int? selectedIslandId,
+    int? selectedBaseId,
     List<MovingForce>? movingForces,
-    Object? movement = _unchanged,
-    Object? result = _unchanged,
+    GameResult? result,
     int? countdownRemainingMs,
   }) {
-    final nextSelected = !identical(selectedIslandId, _unchanged)
-        ? selectedIslandId as int?
-        : !identical(selectedBaseId, _unchanged)
-        ? selectedBaseId as int?
-        : this.selectedIslandId;
-    final nextMovingForces =
-        movingForces ??
-        (!identical(movement, _unchanged)
-            ? movement == null
-                  ? const <MovingForce>[]
-                  : <MovingForce>[movement as MovingForce]
-            : this.movingForces);
-
     return GameState(
       configuration: configuration ?? this.configuration,
       phase: phase ?? this.phase,
       elapsedMs: elapsedMs ?? this.elapsedMs,
       islands: islands ?? bases ?? this.islands,
-      selectedIslandId: nextSelected,
-      movingForces: nextMovingForces,
-      result: identical(result, _unchanged)
-          ? this.result
-          : result as GameResult?,
+      selectedIslandId:
+          selectedIslandId ?? selectedBaseId ?? this.selectedIslandId,
+      movingForces: movingForces ?? this.movingForces,
+      result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
     );
+  }
+
+  /// Clears the nullable selection through a typed API rather than a dynamic
+  /// sentinel in [copyWith].
+  GameState clearSelection() {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: null,
+      movingForces: movingForces,
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
+  /// Clears all moving forces through a typed API.
+  GameState clearMovingForces() {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: const <MovingForce>[],
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
+  /// Clears a result only while the state is not in the result phase.  This
+  /// preserves the invariant that a result phase always carries its result.
+  GameState clearResult() {
+    if (phase == GamePhase.result) {
+      throw StateError('A result phase cannot clear its GameResult');
+    }
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: movingForces,
+      result: null,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
+  /// Compatibility helper for callers that used the old singular movement
+  /// field while keeping the update statically typed.
+  GameState copyWithMovement(MovingForce? movement) {
+    return movement == null
+        ? clearMovingForces()
+        : copyWith(movingForces: <MovingForce>[movement]);
   }
 
   @override
