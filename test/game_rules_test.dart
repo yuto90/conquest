@@ -108,6 +108,109 @@ void main() {
     },
   );
 
+  test('generated maps keep fixed headquarters and pair neutral islands', () {
+    const expectedSizes = <int, Map<IslandSize, int>>{
+      6: {IslandSize.small: 2, IslandSize.medium: 2},
+      8: {IslandSize.small: 2, IslandSize.medium: 2, IslandSize.large: 2},
+      10: {IslandSize.small: 4, IslandSize.medium: 2, IslandSize.large: 2},
+      12: {IslandSize.small: 4, IslandSize.medium: 4, IslandSize.large: 2},
+    };
+
+    for (final entry in expectedSizes.entries) {
+      final islands = rules.generateIslands(
+        configuration: GameConfiguration(totalIslandCount: entry.key),
+        random: Random(entry.key),
+      );
+      expect(islands, hasLength(entry.key));
+      expect(islands[0].position, const IslandPosition(x: 1, y: 1));
+      expect(islands[0].faction, Faction.player);
+      expect(islands[0].currentForces, 100);
+      expect(islands[0].capacity, 200);
+      expect(islands[1].position, const IslandPosition(x: -1, y: -1));
+      expect(islands[1].faction, Faction.cpu);
+      expect(islands[1].currentForces, 100);
+      expect(islands[1].capacity, 200);
+
+      final counts = <IslandSize, int>{};
+      for (var index = 2; index < islands.length; index += 2) {
+        final first = islands[index];
+        final second = islands[index + 1];
+        counts[first.size] = (counts[first.size] ?? 0) + 2;
+        expect(second.size, first.size);
+        expect(second.position.x, closeTo(-first.position.x, 1e-12));
+        expect(second.position.y, closeTo(-first.position.y, 1e-12));
+        expect(second.durability, first.durability);
+        expect(second.capacity, first.capacity);
+      }
+      expect(counts, entry.value);
+    }
+  });
+
+  test('generated maps stay in bounds and do not overlap', () {
+    for (final total in GameConfiguration.allowedIslandCounts) {
+      for (var seed = 0; seed < 20; seed++) {
+        final islands = rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: total),
+          random: Random(seed),
+        );
+
+        for (final island in islands) {
+          expect(island.x, inInclusiveRange(-1.0, 1.0));
+          expect(island.y, inInclusiveRange(-1.0, 1.0));
+        }
+        for (var firstIndex = 0; firstIndex < islands.length; firstIndex++) {
+          for (
+            var secondIndex = firstIndex + 1;
+            secondIndex < islands.length;
+            secondIndex++
+          ) {
+            final first = islands[firstIndex];
+            final second = islands[secondIndex];
+            final distance = sqrt(
+              pow(first.x - second.x, 2) + pow(first.y - second.y, 2),
+            );
+            final requiredDistance = max(
+              GameRules.minimumIslandSpacing,
+              GameRules.islandRadius(first.size) +
+                  GameRules.islandRadius(second.size),
+            );
+            expect(
+              distance,
+              greaterThanOrEqualTo(requiredDistance - 1e-12),
+              reason: 'islands ${first.id} and ${second.id} overlap',
+            );
+          }
+        }
+      }
+    }
+  });
+
+  test('map generation is reproducible for a seed and varies across seeds', () {
+    final first = rules.generateIslands(random: Random(123));
+    final second = rules.generateIslands(random: Random(123));
+    final different = rules.generateIslands(random: Random(124));
+
+    expect(first, second);
+    expect(
+      first.skip(2).map((island) => island.position),
+      isNot(orderedEquals(different.skip(2).map((island) => island.position))),
+    );
+  });
+
+  test(
+    'map generation returns a bounded failure when attempts are exhausted',
+    () {
+      expect(
+        rules.tryGenerateIslands(random: Random(1), maxAttempts: 0),
+        isNull,
+      );
+      expect(
+        () => rules.generateIslands(random: Random(1), maxAttempts: 0),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
   test('state holds multiple typed moving forces immutably', () {
     const forces = [
       MovingForce(
