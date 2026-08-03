@@ -134,25 +134,53 @@ void main() {
     expect(find.byType(ElevatedButton), findsNothing);
   });
 
-  testWidgets('keeps the controller operable after the viewport changes', (
+  testWidgets('preserves an in-progress game after the viewport changes', (
     tester,
   ) async {
+    final loop = ManualWidgetGameLoop();
     await tester.binding.setSurfaceSize(const Size(320, 500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
 
     await tester.tap(find.text('T A P  T O  P L A Y'));
     await tester.pump();
-    expect(find.byKey(const ValueKey('tank')), findsNothing);
+    await tester.tap(find.byType(ElevatedButton).at(0));
+    await tester.tap(find.byType(ElevatedButton).at(1));
+    loop.tick();
+    await tester.pump();
+
+    final beforeButton = tester.element(find.byType(ElevatedButton).first);
+    final beforeContainer = ProviderScope.containerOf(beforeButton);
+    final before = beforeContainer.read(gameControllerProvider);
+    expect(before.phase, GamePhase.playing);
+    expect(before.elapsedMs, greaterThan(0));
+    expect(before.movingForces, isNotEmpty);
 
     await tester.binding.setSurfaceSize(const Size(321, 500));
     await tester.pump();
 
-    await tester.tap(find.text('T A P  T O  P L A Y'));
-    await tester.pump();
+    final afterButton = tester.element(find.byType(ElevatedButton).first);
+    final afterContainer = ProviderScope.containerOf(afterButton);
+    final after = afterContainer.read(gameControllerProvider);
+    expect(after.phase, GamePhase.playing);
+    expect(after.elapsedMs, before.elapsedMs);
+    expect(after.islands, before.islands);
+    expect(after.selectedIslandId, before.selectedIslandId);
+    expect(after.movingForces, before.movingForces);
+    expect(loop.isRunning, isTrue);
 
-    final button = tester.element(find.byType(ElevatedButton).first);
-    final container = ProviderScope.containerOf(button);
-    expect(container.read(gameControllerProvider).phase, GamePhase.playing);
+    loop.tick();
+    await tester.pump();
+    final continued = afterContainer.read(gameControllerProvider);
+    expect(continued.elapsedMs, greaterThan(after.elapsedMs));
+    expect(continued.movingForces.first.progress, greaterThan(0));
   });
 }

@@ -57,6 +57,20 @@ class GameController extends _$GameController {
       _gameLoop.stop();
     });
 
+    final previousState = stateOrNull;
+    if (previousState != null &&
+        previousState.phase != GamePhase.configuration &&
+        _cachedConfiguration == configuration) {
+      _cachedViewport = viewport;
+      if (previousState.phase == GamePhase.playing && !_gameLoop.isRunning) {
+        // A dependency rebuild runs the disposal callback before build. Keep
+        // an in-progress match alive by resuming its loop after rebuilding.
+        _lastTickMs = _clock.nowMs();
+        _gameLoop.start(_tick);
+      }
+      return previousState;
+    }
+
     return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 
