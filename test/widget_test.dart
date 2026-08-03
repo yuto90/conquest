@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
+import 'package:conquest/game/game_state.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
@@ -131,5 +132,27 @@ void main() {
     await tester.pumpWidget(ProviderScope(child: const MyApp()));
 
     expect(find.byType(ElevatedButton), findsNothing);
+  });
+
+  testWidgets('keeps the controller operable after the viewport changes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+
+    await tester.tap(find.text('T A P  T O  P L A Y'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('tank')), findsNothing);
+
+    await tester.binding.setSurfaceSize(const Size(321, 500));
+    await tester.pump();
+
+    await tester.tap(find.text('T A P  T O  P L A Y'));
+    await tester.pump();
+
+    final button = tester.element(find.byType(ElevatedButton).first);
+    final container = ProviderScope.containerOf(button);
+    expect(container.read(gameControllerProvider).phase, GamePhase.playing);
   });
 }

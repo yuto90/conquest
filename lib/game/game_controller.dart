@@ -42,6 +42,10 @@ class GameController extends _$GameController {
 
   @override
   GameState build() {
+    // Riverpod may invoke the disposal callbacks while rebuilding this
+    // notifier after a watched viewport changes.  A completed rebuild is a
+    // live controller again; the final disposal still leaves this true.
+    _disposed = false;
     _gameLoop = ref.read(gameLoopProvider);
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
