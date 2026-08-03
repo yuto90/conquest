@@ -75,6 +75,24 @@ void main() {
     );
   });
 
+  test('uses an externally configured island count on initial build', () {
+    final configuredContainer = ProviderContainer(
+      overrides: [
+        gameConfigurationProvider.overrideWithValue(
+          GameConfiguration(totalIslandCount: 8),
+        ),
+        gameLoopProvider.overrideWithValue(ManualGameLoop()),
+        randomProvider.overrideWithValue(Random(1)),
+      ],
+    );
+    addTearDown(configuredContainer.dispose);
+
+    final state = configuredContainer.read(gameControllerProvider);
+
+    expect(state.configuration.totalIslandCount, 8);
+    expect(state.islands, hasLength(8));
+  });
+
   test('starts the game and loop only once', () {
     final controller = container.read(gameControllerProvider.notifier);
 

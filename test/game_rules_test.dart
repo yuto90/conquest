@@ -108,6 +108,211 @@ void main() {
     },
   );
 
+  test('generated maps keep fixed headquarters and pair neutral islands', () {
+    const expectedSizes = <int, Map<IslandSize, int>>{
+      6: {IslandSize.small: 2, IslandSize.medium: 2},
+      8: {IslandSize.small: 2, IslandSize.medium: 2, IslandSize.large: 2},
+      10: {IslandSize.small: 4, IslandSize.medium: 2, IslandSize.large: 2},
+      12: {IslandSize.small: 4, IslandSize.medium: 4, IslandSize.large: 2},
+    };
+
+    for (final entry in expectedSizes.entries) {
+      final islands = rules.generateIslands(
+        configuration: GameConfiguration(totalIslandCount: entry.key),
+        random: Random(entry.key),
+      );
+      expect(islands, hasLength(entry.key));
+      expect(islands[0].position, const IslandPosition(x: 1, y: 1));
+      expect(islands[0].faction, Faction.player);
+      expect(islands[0].currentForces, 100);
+      expect(islands[0].capacity, 200);
+      expect(islands[1].position, const IslandPosition(x: -1, y: -1));
+      expect(islands[1].faction, Faction.cpu);
+      expect(islands[1].currentForces, 100);
+      expect(islands[1].capacity, 200);
+
+      final counts = <IslandSize, int>{};
+      for (var index = 2; index < islands.length; index += 2) {
+        final first = islands[index];
+        final second = islands[index + 1];
+        counts[first.size] = (counts[first.size] ?? 0) + 2;
+        expect(second.size, first.size);
+        expect(second.position.x, closeTo(-first.position.x, 1e-12));
+        expect(second.position.y, closeTo(-first.position.y, 1e-12));
+        expect(second.durability, first.durability);
+        expect(second.capacity, first.capacity);
+      }
+      expect(counts, entry.value);
+    }
+  });
+
+  test('generated maps stay in viewport bounds and do not overlap', () {
+    const viewports = <IslandMapViewport>[
+      IslandMapViewport(width: 320, height: 320),
+      IslandMapViewport(width: 320, height: 480),
+      IslandMapViewport(width: 320, height: 568),
+      IslandMapViewport(width: 390, height: 844),
+      IslandMapViewport(width: 430, height: 932),
+    ];
+    for (final total in GameConfiguration.allowedIslandCounts) {
+      for (var seed = 0; seed < 20; seed++) {
+        final islands = rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: total),
+          random: Random(seed),
+        );
+
+        for (final viewport in viewports) {
+          for (final island in islands) {
+            expect(island.x, inInclusiveRange(-1.0, 1.0));
+            expect(island.y, inInclusiveRange(-1.0, 1.0));
+          }
+          final rectangles = [
+            for (final island in islands) viewport.rectFor(island),
+          ];
+          for (var index = 0; index < rectangles.length; index++) {
+            expect(
+              rectangles[index].isWithin(viewport),
+              isTrue,
+              reason: 'island ${islands[index].id} is outside the safe area',
+            );
+          }
+          for (
+            var firstIndex = 0;
+            firstIndex < rectangles.length;
+            firstIndex++
+          ) {
+            for (
+              var secondIndex = firstIndex + 1;
+              secondIndex < rectangles.length;
+              secondIndex++
+            ) {
+              expect(
+                rectangles[firstIndex].overlaps(rectangles[secondIndex]),
+                isFalse,
+                reason:
+                    'islands ${islands[firstIndex].id} and '
+                    '${islands[secondIndex].id} overlap',
+              );
+            }
+          }
+        }
+      }
+    }
+  });
+
+  test(
+    'viewport rectangles catch the tall-screen headquarters overlap case',
+    () {
+      const viewport = IslandMapViewport(width: 390, height: 844);
+      const headquarters = IslandState(
+        id: 0,
+        position: IslandPosition(x: 1, y: 1),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 100,
+        capacity: 200,
+      );
+      const small = IslandState(
+        id: 2,
+        position: IslandPosition(x: 0.66, y: 0.89),
+        faction: Faction.neutral,
+        size: IslandSize.small,
+        durability: 10,
+        capacity: 50,
+      );
+
+      final headquartersRect = viewport.rectFor(headquarters);
+      final smallRect = viewport.rectFor(small);
+      expect(headquartersRect.left, closeTo(290, 1e-12));
+      expect(headquartersRect.top, closeTo(744, 1e-12));
+      expect(smallRect.left, closeTo(282.2, 1e-12));
+      expect(smallRect.top, closeTo(750.33, 1e-12));
+      expect(headquartersRect.overlaps(smallRect), isTrue);
+      expect(
+        sqrt(
+          pow(headquarters.x - small.x, 2) + pow(headquarters.y - small.y, 2),
+        ),
+        greaterThan(0.34),
+        reason: 'the old normalized-radius check would incorrectly accept this',
+      );
+    },
+  );
+
+  test('default envelope rejects the short-screen symmetric overlap case', () {
+    const viewport = GameRules.defaultMapViewport;
+    const first = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0, y: 0.105),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+    const counterpart = IslandState(
+      id: 3,
+      position: IslandPosition(x: 0, y: -0.105),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+
+    expect(
+      GameRules.islandRectanglesOverlap(first, counterpart, viewport),
+      isTrue,
+    );
+    final islands = rules.generateIslands(
+      configuration: GameConfiguration(totalIslandCount: 6),
+      random: Random(20),
+    );
+    final rectangles = [for (final island in islands) viewport.rectFor(island)];
+    for (var firstIndex = 0; firstIndex < rectangles.length; firstIndex++) {
+      for (
+        var secondIndex = firstIndex + 1;
+        secondIndex < rectangles.length;
+        secondIndex++
+      ) {
+        expect(
+          rectangles[firstIndex].overlaps(rectangles[secondIndex]),
+          isFalse,
+        );
+      }
+    }
+  });
+
+  test('map generation is reproducible for a seed and varies across seeds', () {
+    final first = rules.generateIslands(random: Random(123));
+    final second = rules.generateIslands(random: Random(123));
+    final different = rules.generateIslands(random: Random(124));
+
+    expect(first, second);
+    expect(
+      first.skip(2).map((island) => island.position),
+      isNot(orderedEquals(different.skip(2).map((island) => island.position))),
+    );
+  });
+
+  test(
+    'map generation returns a bounded failure when attempts are exhausted',
+    () {
+      expect(
+        rules.tryGenerateIslands(random: Random(1), maxAttempts: 0),
+        isNull,
+      );
+      expect(
+        () => rules.generateIslands(random: Random(1), maxAttempts: 0),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        rules.tryGenerateIslands(
+          random: Random(1),
+          viewport: const IslandMapViewport(width: 80, height: 80),
+        ),
+        isNull,
+      );
+    },
+  );
+
   test('state holds multiple typed moving forces immutably', () {
     const forces = [
       MovingForce(
@@ -209,6 +414,30 @@ void main() {
       throwsStateError,
     );
   });
+
+  test(
+    'returns a bounded failure when fixed headquarters cannot be separated',
+    () {
+      const viewport = IslandMapViewport(width: 180, height: 180);
+
+      expect(
+        rules.tryGenerateIslands(
+          configuration: GameConfiguration(totalIslandCount: 6),
+          random: Random(1),
+          viewport: viewport,
+        ),
+        isNull,
+      );
+      expect(
+        () => rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: 6),
+          random: Random(1),
+          viewport: viewport,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
 
   test('countdown self-transitions preserve remaining time', () {
     final initial = rules.initialState(random: Random(5));

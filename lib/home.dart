@@ -3,10 +3,38 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'game/game_controller.dart';
+import 'game/game_rules.dart';
 import 'game/game_state.dart';
 
-class Home extends ConsumerWidget {
+class Home extends StatelessWidget {
   const Home({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final viewport = IslandMapViewport(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+            );
+            return ProviderScope(
+              overrides: [
+                mapViewportProvider.overrideWithValue(viewport),
+                gameControllerProvider.overrideWith(GameController.new),
+              ],
+              child: const _GameSurface(),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _GameSurface extends ConsumerWidget {
+  const _GameSurface();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,55 +47,53 @@ class Home extends ConsumerWidget {
           controller.startGame();
         }
       },
-      child: Scaffold(
-        body: Stack(
-          children: [
-            // * 背景
-            Container(height: double.infinity, color: Colors.blue),
+      child: Stack(
+        children: [
+          // * 背景
+          Container(height: double.infinity, color: Colors.blue),
 
-            // * 拠点(自動生成)
-            for (final base in state.bases) ...[
-              Align(
-                alignment: Alignment(base.x, base.y),
-                child: SizedBox(
-                  height: base.id == 0 || base.id == 1 ? 100 : 50,
-                  width: base.id == 0 || base.id == 1 ? 100 : 50,
-                  child: Base(
-                    base: base,
-                    onPressed: () => controller.tapBase(base.id),
-                  ),
+          // * 拠点(自動生成)
+          for (final base in state.bases) ...[
+            Align(
+              alignment: Alignment(base.x, base.y),
+              child: SizedBox(
+                height: GameRules.islandWidgetSize(base.size),
+                width: GameRules.islandWidgetSize(base.size),
+                child: Base(
+                  base: base,
+                  onPressed: () => controller.tapBase(base.id),
                 ),
               ),
-            ],
-
-            // * Tank
-            state.movement != null
-                ? Align(
-                    alignment: Alignment(state.movement!.x, state.movement!.y),
-                    child: Container(
-                      key: const ValueKey('tank'),
-                      color: Colors.red,
-                      height: 30,
-                      width: 30,
-                      child: Center(
-                        child: Text(state.movement!.scale.toString()),
-                      ),
-                    ),
-                  )
-                : const SizedBox(),
-
-            // * Ready画面
-            state.phase == GamePhase.ready
-                ? const Align(
-                    alignment: Alignment(0, -0.2),
-                    child: Text(
-                      'T A P  T O  P L A Y',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  )
-                : const SizedBox(),
+            ),
           ],
-        ),
+
+          // * Tank
+          state.movement != null
+              ? Align(
+                  alignment: Alignment(state.movement!.x, state.movement!.y),
+                  child: Container(
+                    key: const ValueKey('tank'),
+                    color: Colors.red,
+                    height: 30,
+                    width: 30,
+                    child: Center(
+                      child: Text(state.movement!.scale.toString()),
+                    ),
+                  ),
+                )
+              : const SizedBox(),
+
+          // * Ready画面
+          state.phase == GamePhase.ready
+              ? const Align(
+                  alignment: Alignment(0, -0.2),
+                  child: Text(
+                    'T A P  T O  P L A Y',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                )
+              : const SizedBox(),
+        ],
       ),
     );
   }
