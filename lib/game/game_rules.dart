@@ -10,9 +10,9 @@ final class IslandMapViewport {
   /// A representative portrait viewport used by the regression tests.
   static const reference = IslandMapViewport(width: 390, height: 844);
 
-  /// The conservative default for callers that do not have layout constraints
-  /// yet.  Maps generated for this viewport also fit larger portrait screens.
-  static const minimumPortrait = IslandMapViewport(width: 320, height: 568);
+  /// The minimum axis envelope for supported portrait layouts.  Maps generated
+  /// for this viewport also fit every larger portrait screen.
+  static const minimumPortrait = IslandMapViewport(width: 320, height: 320);
 
   final double width;
   final double height;
@@ -547,19 +547,19 @@ final class GameRules {
     List<IslandState> existing,
     IslandMapViewport viewport,
   ) {
-    if (_islandRectsOverlap(first, second, viewport)) {
+    if (islandRectanglesOverlap(first, second, viewport)) {
       return false;
     }
     for (final island in existing) {
-      if (_islandRectsOverlap(first, island, viewport) ||
-          _islandRectsOverlap(second, island, viewport)) {
+      if (islandRectanglesOverlap(first, island, viewport) ||
+          islandRectanglesOverlap(second, island, viewport)) {
         return false;
       }
     }
     return true;
   }
 
-  static bool _islandRectsOverlap(
+  static bool islandRectanglesOverlap(
     IslandState first,
     IslandState second,
     IslandMapViewport viewport,

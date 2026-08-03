@@ -148,19 +148,20 @@ void main() {
 
   test('generated maps stay in viewport bounds and do not overlap', () {
     const viewports = <IslandMapViewport>[
+      IslandMapViewport(width: 320, height: 320),
+      IslandMapViewport(width: 320, height: 480),
       IslandMapViewport(width: 320, height: 568),
       IslandMapViewport(width: 390, height: 844),
       IslandMapViewport(width: 430, height: 932),
     ];
-    for (final viewport in viewports) {
-      for (final total in GameConfiguration.allowedIslandCounts) {
-        for (var seed = 0; seed < 20; seed++) {
-          final islands = rules.generateIslands(
-            configuration: GameConfiguration(totalIslandCount: total),
-            random: Random(seed),
-            viewport: viewport,
-          );
+    for (final total in GameConfiguration.allowedIslandCounts) {
+      for (var seed = 0; seed < 20; seed++) {
+        final islands = rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: total),
+          random: Random(seed),
+        );
 
+        for (final viewport in viewports) {
           for (final island in islands) {
             expect(island.x, inInclusiveRange(-1.0, 1.0));
             expect(island.y, inInclusiveRange(-1.0, 1.0));
@@ -236,6 +237,48 @@ void main() {
       );
     },
   );
+
+  test('default envelope rejects the short-screen symmetric overlap case', () {
+    const viewport = GameRules.defaultMapViewport;
+    const first = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0, y: 0.105),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+    const counterpart = IslandState(
+      id: 3,
+      position: IslandPosition(x: 0, y: -0.105),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+
+    expect(
+      GameRules.islandRectanglesOverlap(first, counterpart, viewport),
+      isTrue,
+    );
+    final islands = rules.generateIslands(
+      configuration: GameConfiguration(totalIslandCount: 6),
+      random: Random(20),
+    );
+    final rectangles = [for (final island in islands) viewport.rectFor(island)];
+    for (var firstIndex = 0; firstIndex < rectangles.length; firstIndex++) {
+      for (
+        var secondIndex = firstIndex + 1;
+        secondIndex < rectangles.length;
+        secondIndex++
+      ) {
+        expect(
+          rectangles[firstIndex].overlaps(rectangles[secondIndex]),
+          isFalse,
+        );
+      }
+    }
+  });
 
   test('map generation is reproducible for a seed and varies across seeds', () {
     final first = rules.generateIslands(random: Random(123));
