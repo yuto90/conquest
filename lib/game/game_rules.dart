@@ -2,6 +2,73 @@ import 'dart:math' as math;
 
 import 'game_state.dart';
 
+/// The pixel viewport used to translate normalized [IslandPosition] values
+/// into the same alignment centers as the renderer.
+final class IslandMapViewport {
+  const IslandMapViewport({required this.width, required this.height});
+
+  /// A representative portrait viewport used by the regression tests.
+  static const reference = IslandMapViewport(width: 390, height: 844);
+
+  /// The conservative default for callers that do not have layout constraints
+  /// yet.  Maps generated for this viewport also fit larger portrait screens.
+  static const minimumPortrait = IslandMapViewport(width: 320, height: 568);
+
+  final double width;
+  final double height;
+
+  bool get isValid =>
+      width.isFinite && height.isFinite && width > 0 && height > 0;
+
+  IslandMapRect rectFor(IslandState island) {
+    return rectForPosition(island.position, island.size);
+  }
+
+  IslandMapRect rectForPosition(IslandPosition position, IslandSize size) {
+    final widgetSize = GameRules.islandWidgetSize(size);
+    // Flutter's Align lays out a child with
+    // `(parent - child) * (alignment + 1) / 2`; using the child size here is
+    // what makes this contract match the actual centers in lib/home.dart.
+    final left = (width - widgetSize) * (position.x + 1) / 2;
+    final top = (height - widgetSize) * (position.y + 1) / 2;
+    return IslandMapRect(
+      left: left,
+      top: top,
+      right: left + widgetSize,
+      bottom: top + widgetSize,
+    );
+  }
+}
+
+/// A renderer-independent rectangle for one island's square widget.
+final class IslandMapRect {
+  const IslandMapRect({
+    required this.left,
+    required this.top,
+    required this.right,
+    required this.bottom,
+  });
+
+  final double left;
+  final double top;
+  final double right;
+  final double bottom;
+
+  bool overlaps(IslandMapRect other) {
+    return left < other.right &&
+        other.left < right &&
+        top < other.bottom &&
+        other.top < bottom;
+  }
+
+  bool isWithin(IslandMapViewport viewport) {
+    return left >= 0 &&
+        top >= 0 &&
+        right <= viewport.width &&
+        bottom <= viewport.height;
+  }
+}
+
 /// Pure, deterministic game-state transitions.
 ///
 /// The class has no Riverpod, timer, or Flutter dependency.  Callers provide
@@ -20,9 +87,17 @@ final class GameRules {
   static const mapMinCoordinate = -1.0;
   static const mapMaxCoordinate = 1.0;
 
-  /// A small global gap keeps islands from touching even when their visual
-  /// footprints are smaller than the size-specific collision radii below.
-  static const minimumIslandSpacing = 0.20;
+  /// These dimensions are shared with [Home]'s `SizedBox` widgets.  Neutral
+  /// island variants currently use the same 50px square; the enum is retained
+  /// in the API so a future renderer can give each variant its own size.
+  static const headquartersWidgetSize = 100.0;
+  static const neutralWidgetSize = 50.0;
+
+  /// A layout-independent fallback for state creation before Flutter layout
+  /// constraints are available.  Callers with a real viewport should pass it
+  /// to [generateIslands] so collision and safe-area checks use exact pixels.
+  static const defaultMapViewport = IslandMapViewport.minimumPortrait;
+  static const referenceMapViewport = IslandMapViewport.reference;
 
   /// The default retry budget for a complete map generation attempt.
   static const defaultMapGenerationAttempts = 64;
@@ -30,15 +105,26 @@ final class GameRules {
   /// The retry budget for placing one symmetric pair during a map attempt.
   static const defaultPairPlacementAttempts = 128;
 
+  static double islandWidgetSize(IslandSize size) {
+    return size == IslandSize.headquarters
+        ? headquartersWidgetSize
+        : neutralWidgetSize;
+  }
+
   GameState initialState({
     GameConfiguration configuration = GameConfiguration.initial,
     math.Random? random,
+    IslandMapViewport viewport = defaultMapViewport,
   }) {
     return GameState(
       configuration: configuration,
       phase: GamePhase.configuration,
       elapsedMs: 0,
-      islands: generateIslands(configuration: configuration, random: random),
+      islands: generateIslands(
+        configuration: configuration,
+        random: random,
+        viewport: viewport,
+      ),
       selectedIslandId: null,
       movingForces: const <MovingForce>[],
       result: null,
@@ -50,8 +136,13 @@ final class GameRules {
   GameState createInitialState({
     GameConfiguration configuration = GameConfiguration.initial,
     math.Random? random,
+    IslandMapViewport viewport = defaultMapViewport,
   }) {
-    return initialState(configuration: configuration, random: random);
+    return initialState(
+      configuration: configuration,
+      random: random,
+      viewport: viewport,
+    );
   }
 
   /// Generates a valid map or throws a [StateError] after the bounded retry
@@ -60,6 +151,7 @@ final class GameRules {
   List<IslandState> generateIslands({
     GameConfiguration configuration = GameConfiguration.initial,
     math.Random? random,
+    IslandMapViewport viewport = defaultMapViewport,
     int maxAttempts = defaultMapGenerationAttempts,
     int? maxRetries,
     int maxPairAttempts = defaultPairPlacementAttempts,
@@ -68,6 +160,7 @@ final class GameRules {
     final islands = tryGenerateIslands(
       configuration: configuration,
       random: random,
+      viewport: viewport,
       maxAttempts: maxAttempts,
       maxRetries: maxRetries,
       maxPairAttempts: maxPairAttempts,
@@ -93,6 +186,7 @@ final class GameRules {
   List<IslandState>? tryGenerateIslands({
     GameConfiguration configuration = GameConfiguration.initial,
     math.Random? random,
+    IslandMapViewport viewport = defaultMapViewport,
     int maxAttempts = defaultMapGenerationAttempts,
     int? maxRetries,
     int maxPairAttempts = defaultPairPlacementAttempts,
@@ -117,6 +211,17 @@ final class GameRules {
     if (attempts == 0 || pairAttempts == 0) {
       return null;
     }
+    if (!viewport.isValid) {
+      throw ArgumentError.value(
+        viewport,
+        'viewport',
+        'must have positive dimensions',
+      );
+    }
+    if (viewport.width < headquartersWidgetSize ||
+        viewport.height < headquartersWidgetSize) {
+      return null;
+    }
 
     final source = random ?? math.Random();
     final neutralSizes = _neutralSizes(configuration.totalIslandCount);
@@ -129,6 +234,7 @@ final class GameRules {
           size: neutralSizes[pairIndex],
           existing: islands,
           random: source,
+          viewport: viewport,
           maxAttempts: pairAttempts,
         );
         if (pair == null) {
@@ -388,36 +494,30 @@ final class GameRules {
     capacity: 200,
   );
 
-  /// Approximate normalized collision radius for the renderer's island
-  /// footprints.  The value is intentionally conservative so generated
-  /// centers cannot visually overlap at the expected widget sizes.
-  static double islandRadius(IslandSize size) {
-    return switch (size) {
-      IslandSize.small => 0.10,
-      IslandSize.medium => 0.14,
-      IslandSize.large => 0.18,
-      IslandSize.headquarters => 0.24,
-    };
-  }
-
   static List<IslandState>? _tryPlaceNeutralPair({
     required int firstId,
     required IslandSize size,
     required List<IslandState> existing,
     required math.Random random,
+    required IslandMapViewport viewport,
     required int maxAttempts,
   }) {
-    final radius = islandRadius(size);
-    final minCoordinate = mapMinCoordinate + radius;
-    final coordinateRange = mapMaxCoordinate - radius - minCoordinate;
-    if (coordinateRange < 0) {
+    // Align itself keeps any child inside the viewport for every alignment in
+    // [-1, 1], so the normalized map bounds are also the safe-area bounds.
+    final minX = mapMinCoordinate;
+    final maxX = mapMaxCoordinate;
+    final minY = mapMinCoordinate;
+    final maxY = mapMaxCoordinate;
+    final xRange = maxX - minX;
+    final yRange = maxY - minY;
+    if (xRange < 0 || yRange < 0) {
       return null;
     }
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
       final firstPosition = IslandPosition(
-        x: minCoordinate + random.nextDouble() * coordinateRange,
-        y: minCoordinate + random.nextDouble() * coordinateRange,
+        x: minX + random.nextDouble() * xRange,
+        y: minY + random.nextDouble() * yRange,
       );
       final secondPosition = IslandPosition(
         x: -firstPosition.x,
@@ -434,7 +534,7 @@ final class GameRules {
         position: secondPosition,
       );
 
-      if (_islandPairSeparated(first, second, existing)) {
+      if (_islandPairSeparated(first, second, existing, viewport)) {
         return [first, second];
       }
     }
@@ -445,28 +545,26 @@ final class GameRules {
     IslandState first,
     IslandState second,
     List<IslandState> existing,
+    IslandMapViewport viewport,
   ) {
-    if (!_islandPositionsSeparated(first, second)) {
+    if (_islandRectsOverlap(first, second, viewport)) {
       return false;
     }
     for (final island in existing) {
-      if (!_islandPositionsSeparated(first, island) ||
-          !_islandPositionsSeparated(second, island)) {
+      if (_islandRectsOverlap(first, island, viewport) ||
+          _islandRectsOverlap(second, island, viewport)) {
         return false;
       }
     }
     return true;
   }
 
-  static bool _islandPositionsSeparated(IslandState first, IslandState second) {
-    final requiredDistance = math.max(
-      minimumIslandSpacing,
-      islandRadius(first.size) + islandRadius(second.size),
-    );
-    final deltaX = first.x - second.x;
-    final deltaY = first.y - second.y;
-    final distanceSquared = deltaX * deltaX + deltaY * deltaY;
-    return distanceSquared + 1e-12 >= requiredDistance * requiredDistance;
+  static bool _islandRectsOverlap(
+    IslandState first,
+    IslandState second,
+    IslandMapViewport viewport,
+  ) {
+    return viewport.rectFor(first).overlaps(viewport.rectFor(second));
   }
 
   static IslandState _neutralIsland({

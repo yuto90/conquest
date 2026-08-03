@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'game/game_controller.dart';
+import 'game/game_rules.dart';
 import 'game/game_state.dart';
 
 class Home extends ConsumerWidget {
@@ -30,8 +31,8 @@ class Home extends ConsumerWidget {
               Align(
                 alignment: Alignment(base.x, base.y),
                 child: SizedBox(
-                  height: base.id == 0 || base.id == 1 ? 100 : 50,
-                  width: base.id == 0 || base.id == 1 ? 100 : 50,
+                  height: GameRules.islandWidgetSize(base.size),
+                  width: GameRules.islandWidgetSize(base.size),
                   child: Base(
                     base: base,
                     onPressed: () => controller.tapBase(base.id),
