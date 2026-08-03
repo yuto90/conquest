@@ -134,6 +134,98 @@ void main() {
     expect(find.byType(ElevatedButton), findsNothing);
   });
 
+  testWidgets(
+    'preserves the selected island count in configuration on resize',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [randomProvider.overrideWithValue(Random(1))],
+          child: const MyApp(),
+        ),
+      );
+
+      final beforeButton = tester.element(find.byType(ElevatedButton).first);
+      final beforeContainer = ProviderScope.containerOf(beforeButton);
+      final controller = beforeContainer.read(gameControllerProvider.notifier);
+      controller.selectIslandCount(6);
+      await tester.pump();
+
+      final before = beforeContainer.read(gameControllerProvider);
+      expect(before.phase, GamePhase.configuration);
+      expect(before.configuration.totalIslandCount, 6);
+      expect(before.islands, hasLength(6));
+
+      await tester.binding.setSurfaceSize(const Size(321, 500));
+      await tester.pump();
+
+      final afterButton = tester.element(find.byType(ElevatedButton).first);
+      final afterContainer = ProviderScope.containerOf(afterButton);
+      final after = afterContainer.read(gameControllerProvider);
+      expect(after.phase, GamePhase.configuration);
+      expect(after.configuration.totalIslandCount, 6);
+      expect(after.islands, hasLength(6));
+    },
+  );
+
+  testWidgets(
+    'preserves a selected island count during an in-progress resize',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      await tester.binding.setSurfaceSize(const Size(320, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      final beforeButton = tester.element(find.byType(ElevatedButton).first);
+      final beforeContainer = ProviderScope.containerOf(beforeButton);
+      final controller = beforeContainer.read(gameControllerProvider.notifier);
+      controller.selectIslandCount(6);
+      await tester.pump();
+      controller.startGame();
+      controller.tapBase(0);
+      controller.tapBase(1);
+      loop.tick();
+      await tester.pump();
+
+      final before = beforeContainer.read(gameControllerProvider);
+      expect(before.phase, GamePhase.playing);
+      expect(before.configuration.totalIslandCount, 6);
+      expect(before.islands, hasLength(6));
+      expect(before.elapsedMs, greaterThan(0));
+      expect(before.movingForces, isNotEmpty);
+      expect(before.selectedIslandId, 0);
+
+      await tester.binding.setSurfaceSize(const Size(321, 500));
+      await tester.pump();
+
+      final afterButton = tester.element(find.byType(ElevatedButton).first);
+      final afterContainer = ProviderScope.containerOf(afterButton);
+      final after = afterContainer.read(gameControllerProvider);
+      expect(after.phase, GamePhase.playing);
+      expect(after.configuration.totalIslandCount, 6);
+      expect(after.islands, hasLength(6));
+      expect(after.elapsedMs, before.elapsedMs);
+      expect(after.movingForces, before.movingForces);
+      expect(after.selectedIslandId, before.selectedIslandId);
+      expect(loop.isRunning, isTrue);
+
+      loop.tick();
+      await tester.pump();
+      final continued = afterContainer.read(gameControllerProvider);
+      expect(continued.elapsedMs, greaterThan(after.elapsedMs));
+      expect(continued.movingForces.first.progress, greaterThan(0));
+    },
+  );
+
   testWidgets('preserves an in-progress game after the viewport changes', (
     tester,
   ) async {

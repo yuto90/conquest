@@ -51,16 +51,19 @@ class GameController extends _$GameController {
     _clock = ref.read(gameClockProvider);
     _rules = ref.read(gameRulesProvider);
     final viewport = ref.watch(mapViewportProvider);
-    final configuration = ref.read(gameConfigurationProvider);
+    final providerConfiguration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
       _disposed = true;
       _gameLoop.stop();
     });
 
     final previousState = stateOrNull;
+    // The provider supplies the initial match configuration. Once a state
+    // exists, its configuration is the match's source of truth so viewport
+    // rebuilds cannot replace a user-selected island count.
+    final configuration = previousState?.configuration ?? providerConfiguration;
     if (previousState != null &&
-        previousState.phase != GamePhase.configuration &&
-        _cachedConfiguration == configuration) {
+        previousState.phase != GamePhase.configuration) {
       _cachedViewport = viewport;
       if (previousState.phase == GamePhase.playing && !_gameLoop.isRunning) {
         // A dependency rebuild runs the disposal callback before build. Keep
