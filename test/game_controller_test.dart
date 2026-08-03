@@ -104,6 +104,23 @@ void main() {
     expect(state.bases[0].scale, 50);
   });
 
+  test('preserves a selected source across ticks before destination tap', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    controller.tapBase(0);
+
+    loop.tick();
+    loop.tick();
+
+    expect(container.read(gameControllerProvider).selectedBaseId, 0);
+    expect(container.read(gameControllerProvider).movement, isNull);
+
+    controller.tapBase(1);
+    final state = container.read(gameControllerProvider);
+    expect(state.selectedBaseId, 0);
+    expect(state.movement, isNotNull);
+  });
+
   test('ticks movement and resolves it at the target', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
