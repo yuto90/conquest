@@ -20,6 +20,16 @@ final class IslandMapViewport {
   bool get isValid =>
       width.isFinite && height.isFinite && width > 0 && height > 0;
 
+  @override
+  bool operator ==(Object other) {
+    return other is IslandMapViewport &&
+        other.width == width &&
+        other.height == height;
+  }
+
+  @override
+  int get hashCode => Object.hash(width, height);
+
   IslandMapRect rectFor(IslandState island) {
     return rectForPosition(island.position, island.size);
   }
@@ -116,7 +126,7 @@ final class GameRules {
     math.Random? random,
     IslandMapViewport viewport = defaultMapViewport,
   }) {
-    return GameState(
+    return _initialState(
       configuration: configuration,
       phase: GamePhase.configuration,
       elapsedMs: 0,
@@ -125,6 +135,43 @@ final class GameRules {
         random: random,
         viewport: viewport,
       ),
+      selectedIslandId: null,
+      movingForces: const <MovingForce>[],
+      result: null,
+      countdownRemainingMs: 0,
+    );
+  }
+
+  /// Creates an initial state when the supplied viewport can fit a complete
+  /// map, or returns null after the bounded generation budget is exhausted.
+  /// This is used by the renderer-facing controller so an unusually small
+  /// layout fails closed without displaying overlapping islands.
+  GameState? tryInitialState({
+    GameConfiguration configuration = GameConfiguration.initial,
+    math.Random? random,
+    IslandMapViewport viewport = defaultMapViewport,
+    int maxAttempts = defaultMapGenerationAttempts,
+    int? maxRetries,
+    int maxPairAttempts = defaultPairPlacementAttempts,
+    int? maxPairRetries,
+  }) {
+    final islands = tryGenerateIslands(
+      configuration: configuration,
+      random: random,
+      viewport: viewport,
+      maxAttempts: maxAttempts,
+      maxRetries: maxRetries,
+      maxPairAttempts: maxPairAttempts,
+      maxPairRetries: maxPairRetries,
+    );
+    if (islands == null) {
+      return null;
+    }
+    return _initialState(
+      configuration: configuration,
+      phase: GamePhase.configuration,
+      elapsedMs: 0,
+      islands: islands,
       selectedIslandId: null,
       movingForces: const <MovingForce>[],
       result: null,
@@ -218,8 +265,11 @@ final class GameRules {
         'must have positive dimensions',
       );
     }
-    if (viewport.width < headquartersWidgetSize ||
-        viewport.height < headquartersWidgetSize) {
+    final playerHeadquarters = viewport.rectFor(_playerHeadquarters);
+    final cpuHeadquarters = viewport.rectFor(_cpuHeadquarters);
+    if (!playerHeadquarters.isWithin(viewport) ||
+        !cpuHeadquarters.isWithin(viewport) ||
+        playerHeadquarters.overlaps(cpuHeadquarters)) {
       return null;
     }
 
@@ -580,6 +630,28 @@ final class GameRules {
       currentForces: 0,
       durability: size.neutralDurability ?? 0,
       capacity: size.capacity,
+    );
+  }
+
+  static GameState _initialState({
+    required GameConfiguration configuration,
+    required GamePhase phase,
+    required int elapsedMs,
+    required List<IslandState> islands,
+    required int? selectedIslandId,
+    required List<MovingForce> movingForces,
+    required GameResult? result,
+    required int countdownRemainingMs,
+  }) {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: movingForces,
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
     );
   }
 

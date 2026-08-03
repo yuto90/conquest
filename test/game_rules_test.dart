@@ -415,6 +415,30 @@ void main() {
     );
   });
 
+  test(
+    'returns a bounded failure when fixed headquarters cannot be separated',
+    () {
+      const viewport = IslandMapViewport(width: 180, height: 180);
+
+      expect(
+        rules.tryGenerateIslands(
+          configuration: GameConfiguration(totalIslandCount: 6),
+          random: Random(1),
+          viewport: viewport,
+        ),
+        isNull,
+      );
+      expect(
+        () => rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: 6),
+          random: Random(1),
+          viewport: viewport,
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
   test('countdown self-transitions preserve remaining time', () {
     final initial = rules.initialState(random: Random(5));
     final countdown = rules.startCountdown(initial, durationMs: 1000);

@@ -20,15 +20,25 @@ final gameConfigurationProvider = Provider<GameConfiguration>(
 
 final gameRulesProvider = Provider<GameRules>((ref) => const GameRules());
 
+/// The renderer supplies the SafeArea-sized layout viewport before the
+/// controller is created.  Keeping it as a provider makes the map generator
+/// and Home use one source of truth without coupling GameRules to Flutter.
+final mapViewportProvider = Provider<IslandMapViewport>(
+  (ref) => GameRules.defaultMapViewport,
+);
+
 @riverpod
 class GameController extends _$GameController {
-  late final GameLoop _gameLoop;
-  late final Random _random;
-  late final GameClock _clock;
-  late final GameRules _rules;
+  late GameLoop _gameLoop;
+  late Random _random;
+  late GameClock _clock;
+  late GameRules _rules;
 
   var _disposed = false;
   int? _lastTickMs;
+  IslandMapViewport? _cachedViewport;
+  GameConfiguration? _cachedConfiguration;
+  GameState? _cachedInitialState;
 
   @override
   GameState build() {
@@ -36,15 +46,14 @@ class GameController extends _$GameController {
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
     _rules = ref.read(gameRulesProvider);
+    final viewport = ref.watch(mapViewportProvider);
+    final configuration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
       _disposed = true;
       _gameLoop.stop();
     });
 
-    return _rules.initialState(
-      configuration: ref.read(gameConfigurationProvider),
-      random: _random,
-    );
+    return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 
   /// Starts a match and the production/manual loop.  The first screen in
@@ -127,7 +136,37 @@ class GameController extends _$GameController {
     final configuration = state.configuration.copyWith(
       totalIslandCount: totalIslandCount,
     );
-    state = _rules.initialState(configuration: configuration, random: _random);
+    state = _initialStateFor(
+      configuration: configuration,
+      viewport: ref.read(mapViewportProvider),
+    );
+  }
+
+  GameState _initialStateFor({
+    required GameConfiguration configuration,
+    required IslandMapViewport viewport,
+  }) {
+    if (_cachedInitialState != null &&
+        _cachedConfiguration == configuration &&
+        _cachedViewport == viewport) {
+      return _cachedInitialState!;
+    }
+
+    final nextState =
+        _rules.tryInitialState(
+          configuration: configuration,
+          random: _random,
+          viewport: viewport,
+        ) ??
+        GameState(
+          configuration: configuration,
+          phase: GamePhase.configuration,
+          elapsedMs: 0,
+        );
+    _cachedConfiguration = configuration;
+    _cachedViewport = viewport;
+    _cachedInitialState = nextState;
+    return nextState;
   }
 
   /// Selects a player island and creates (or retargets the legacy first)
