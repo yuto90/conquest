@@ -79,9 +79,15 @@ class GameController extends _$GameController {
     if (previousState != null &&
         previousState.phase != GamePhase.configuration) {
       _cachedViewport = viewport;
-      if (previousState.phase == GamePhase.playing && !_gameLoop.isRunning) {
+      final shouldResumeLoop =
+          previousState.phase == GamePhase.startCountdown ||
+          previousState.phase == GamePhase.resumeCountdown ||
+          previousState.phase == GamePhase.playing;
+      if (shouldResumeLoop && !_gameLoop.isRunning) {
         // A dependency rebuild runs the disposal callback before build. Keep
-        // an in-progress match alive by resuming its loop after rebuilding.
+        // an in-progress match or countdown alive by resuming its loop after
+        // rebuilding. Reset the wall-clock baseline so time spent rebuilding
+        // cannot advance the game past the countdown boundary.
         _lastTickMs = _clock.nowMs();
         _gameLoop.start(_tick);
       }

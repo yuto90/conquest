@@ -376,6 +376,56 @@ void main() {
     },
   );
 
+  testWidgets('continues the start countdown after a viewport change', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.binding.setSurfaceSize(const Size(320, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    final beforeResize = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    expect(
+      beforeResize.read(gameControllerProvider).phase,
+      GamePhase.startCountdown,
+    );
+    expect(
+      beforeResize.read(gameControllerProvider).countdownRemainingMs,
+      3000,
+    );
+    expect(loop.isRunning, isTrue);
+
+    await tester.binding.setSurfaceSize(const Size(321, 500));
+    await tester.pump();
+
+    final afterResize = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    expect(
+      afterResize.read(gameControllerProvider).phase,
+      GamePhase.startCountdown,
+    );
+    expect(afterResize.read(gameControllerProvider).countdownRemainingMs, 3000);
+    expect(loop.isRunning, isTrue);
+
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    expect(afterResize.read(gameControllerProvider).phase, GamePhase.playing);
+  });
+
   testWidgets('preserves an in-progress game after the viewport changes', (
     tester,
   ) async {
