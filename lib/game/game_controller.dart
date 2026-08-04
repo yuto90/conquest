@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'cpu_strategy.dart';
 import 'game_loop.dart';
 import 'game_rules.dart';
 import 'game_state.dart';
@@ -27,15 +28,27 @@ final mapViewportProvider = Provider<IslandMapViewport>(
   (ref) => GameRules.defaultMapViewport,
 );
 
+/// The standard CPU is injectable as a whole so deterministic tests can use
+/// a seeded strategy or a no-op strategy without changing the game engine.
+final cpuStrategyProvider = Provider<CpuStrategy>((ref) {
+  return CpuStrategy(
+    random: ref.read(randomProvider),
+    rules: ref.read(gameRulesProvider),
+    viewport: ref.watch(mapViewportProvider),
+  );
+});
+
 @riverpod
 class GameController extends _$GameController {
   late GameLoop _gameLoop;
   late Random _random;
   late GameClock _clock;
   late GameRules _rules;
+  late CpuStrategy _cpuStrategy;
 
   var _disposed = false;
   int? _lastTickMs;
+  int? _nextCpuDecisionAtMs;
   IslandMapViewport? _cachedViewport;
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
@@ -50,6 +63,7 @@ class GameController extends _$GameController {
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
     _rules = ref.read(gameRulesProvider);
+    _cpuStrategy = ref.read(cpuStrategyProvider);
     final viewport = ref.watch(mapViewportProvider);
     final providerConfiguration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
@@ -95,12 +109,16 @@ class GameController extends _$GameController {
       return;
     }
 
+    final wasPaused = state.phase == GamePhase.paused;
     // Preserve the existing tap-to-play behavior.  Consumers that need a
     // visible countdown can apply GameRules.tick to the same state instead.
     state = nextState.copyWith(
       phase: GamePhase.playing,
       countdownRemainingMs: 0,
     );
+    if (!wasPaused || _nextCpuDecisionAtMs == null) {
+      _scheduleNextCpuDecision();
+    }
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -127,6 +145,12 @@ class GameController extends _$GameController {
       phase: GamePhase.playing,
       countdownRemainingMs: 0,
     );
+    // Game time is frozen while paused, so preserve the pending judgment's
+    // absolute game-time deadline across resume.  A null deadline only occurs
+    // after a rebuilt controller and needs a fresh injected interval.
+    if (_nextCpuDecisionAtMs == null) {
+      _scheduleNextCpuDecision();
+    }
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -278,10 +302,42 @@ class GameController extends _$GameController {
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
+    if (state.phase == GamePhase.playing) {
+      _runCpuDecisionIfDue();
+    }
     if (nextState.phase == GamePhase.result) {
       _gameLoop.stop();
       _lastTickMs = null;
+      _nextCpuDecisionAtMs = null;
     }
+  }
+
+  void _scheduleNextCpuDecision() {
+    _nextCpuDecisionAtMs = state.elapsedMs + _cpuStrategy.nextDecisionDelayMs();
+  }
+
+  void _runCpuDecisionIfDue() {
+    final nextDecisionAtMs = _nextCpuDecisionAtMs;
+    if (nextDecisionAtMs == null) {
+      _scheduleNextCpuDecision();
+      return;
+    }
+    if (state.elapsedMs < nextDecisionAtMs) {
+      return;
+    }
+
+    final decision = _cpuStrategy.decide(state);
+    if (decision != null) {
+      state = _cpuStrategy.applyDecision(
+        state,
+        decision,
+        movingForceId: _nextMovingForceId,
+      );
+    }
+    // Schedule from the current game time rather than catching up missed
+    // wall-clock callbacks.  This keeps every interval in the documented
+    // range and still makes one judgment produce at most one troop.
+    _scheduleNextCpuDecision();
   }
 
   IslandState? _findIsland(int id) {

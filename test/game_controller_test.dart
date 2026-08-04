@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_state.dart';
@@ -40,6 +41,7 @@ void main() {
       overrides: [
         gameLoopProvider.overrideWithValue(loop),
         randomProvider.overrideWithValue(Random(1)),
+        cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
       ],
     );
   });
