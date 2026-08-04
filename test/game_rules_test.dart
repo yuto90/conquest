@@ -481,6 +481,232 @@ void main() {
     },
   );
 
+  test(
+    'grows player and CPU islands but never neutral durability or forces',
+    () {
+      const playerIsland = IslandState(
+        id: 0,
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 10,
+      );
+      const cpuIsland = IslandState(
+        id: 1,
+        faction: Faction.cpu,
+        size: IslandSize.medium,
+        currentForces: 20,
+      );
+      const neutralIsland = IslandState(
+        id: 2,
+        faction: Faction.neutral,
+        size: IslandSize.large,
+        currentForces: 7,
+        durability: 30,
+      );
+      final state = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: const [playerIsland, cpuIsland, neutralIsland],
+      );
+
+      final next = rules.tick(state, deltaMs: 1000);
+
+      expect(next.islands[0].currentForces, 11);
+      expect(next.islands[1].currentForces, 21);
+      expect(next.islands[2].currentForces, 7);
+      expect(next.islands[2].durability, 30);
+    },
+  );
+
+  test('stops growth at the size and headquarters capacity', () {
+    const islands = [
+      IslandState(
+        id: 0,
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 49,
+      ),
+      IslandState(
+        id: 1,
+        faction: Faction.cpu,
+        size: IslandSize.medium,
+        currentForces: 99,
+      ),
+      IslandState(
+        id: 2,
+        faction: Faction.player,
+        size: IslandSize.large,
+        currentForces: 149,
+      ),
+      IslandState(
+        id: 3,
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 199,
+      ),
+      IslandState(
+        id: 4,
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 50,
+      ),
+      IslandState(
+        id: 5,
+        faction: Faction.cpu,
+        size: IslandSize.medium,
+        currentForces: 100,
+      ),
+      IslandState(
+        id: 6,
+        faction: Faction.player,
+        size: IslandSize.large,
+        currentForces: 150,
+      ),
+      IslandState(
+        id: 7,
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 200,
+      ),
+    ];
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: islands,
+    );
+
+    final next = rules.tick(state, deltaMs: 1000);
+
+    expect(
+      next.islands.map((island) => island.currentForces),
+      orderedEquals([50, 100, 150, 200, 50, 100, 150, 200]),
+    );
+    expect(
+      next.islands.map((island) => island.capacity),
+      orderedEquals([50, 100, 150, 200, 50, 100, 150, 200]),
+    );
+  });
+
+  test('counts one-second boundaries at 999, 1000, and 1001 milliseconds', () {
+    const island = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 0,
+    );
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: const [island],
+    );
+
+    final beforeBoundary = rules.tick(state, deltaMs: 999);
+    expect(beforeBoundary.elapsedMs, 999);
+    expect(beforeBoundary.islands.single.currentForces, 0);
+
+    final atBoundary = rules.tick(beforeBoundary, deltaMs: 1);
+    expect(atBoundary.elapsedMs, 1000);
+    expect(atBoundary.islands.single.currentForces, 1);
+
+    final afterBoundary = rules.tick(atBoundary, deltaMs: 1);
+    expect(afterBoundary.elapsedMs, 1001);
+    expect(afterBoundary.islands.single.currentForces, 1);
+  });
+
+  test('preserves every crossed growth boundary in a long tick', () {
+    const island = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 0,
+    );
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: const [island],
+    );
+
+    final next = rules.tick(state, deltaMs: 3500);
+
+    expect(next.elapsedMs, 3500);
+    expect(next.islands.single.currentForces, 3);
+  });
+
+  test('applies growth before an arrival at the same timestamp', () {
+    const source = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 20,
+      position: IslandPosition(x: -1, y: 0),
+    );
+    const target = IslandState(
+      id: 1,
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 10,
+      position: IslandPosition(x: 1, y: 0),
+    );
+    const force = MovingForce(
+      id: 0,
+      faction: Faction.player,
+      sourceIslandId: 0,
+      destinationIslandId: 1,
+      strength: 5,
+      departureTimeMs: 0,
+      arrivalTimeMs: 1000,
+      durationMs: 1000,
+    );
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: const [source, target],
+      movingForces: const [force],
+    );
+
+    final next = rules.tick(state, deltaMs: 1000);
+
+    expect(next.movingForces, isEmpty);
+    expect(next.islands[1].currentForces, 16);
+  });
+
+  test('does not advance game time or troops outside the playing phase', () {
+    const island = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 10,
+    );
+    final configuration = GameState(
+      phase: GamePhase.configuration,
+      elapsedMs: 0,
+      islands: const [island],
+    );
+    final countdown = rules.startCountdown(configuration, durationMs: 1000);
+    final paused = configuration.copyWith(phase: GamePhase.paused);
+    final resumeCountdown = rules.resumeCountdown(paused, durationMs: 1000);
+    final result = configuration.copyWith(
+      phase: GamePhase.result,
+      result: const GameResult.draw(elapsedMs: 0),
+    );
+
+    for (final state in [
+      configuration,
+      countdown,
+      paused,
+      resumeCountdown,
+      result,
+    ]) {
+      final next = rules.tick(state, deltaMs: 2000);
+      expect(next.elapsedMs, state.elapsedMs, reason: state.phase.name);
+      expect(
+        next.islands.map((island) => island.currentForces),
+        orderedEquals(state.islands.map((island) => island.currentForces)),
+        reason: state.phase.name,
+      );
+    }
+  });
+
   test('a moving force advances by time and arrives deterministically', () {
     const source = IslandState(
       id: 0,
@@ -782,7 +1008,7 @@ void main() {
       expect(next.movingForces, hasLength(1));
       expect(next.movingForces.single.id, second.id);
       expect(next.islands[1].currentForces, 26);
-      expect(next.islands[3].currentForces, 1);
+      expect(next.islands[3].currentForces, 0);
       expect(next.movingForces.single.progress, lessThan(1));
       expect(
         next.movingForces.single.position,

@@ -446,16 +446,21 @@ final class GameRules {
             selectedAtStart.faction != Faction.player ||
             selectedAtStart.currentForces <= 1);
 
-    // Resource ticks are represented here as a deterministic time boundary;
-    // concrete ownership/combat rules can later replace this helper without
-    // changing controller or loop orchestration.
+    // Each crossed boundary is one shared game-time growth event.  Neutral
+    // islands retain their durability and do not receive troop growth.
     final resourceTicks = elapsedMs ~/ 1000 - state.elapsedMs ~/ 1000;
-    for (var tick = 0; tick < resourceTicks; tick++) {
+    if (resourceTicks > 0) {
       islands = [
         for (final island in islands)
-          island.copyWith(
-            currentForces: math.min(island.capacity, island.currentForces + 1),
-          ),
+          if (island.faction == Faction.neutral)
+            island
+          else
+            island.copyWith(
+              currentForces: math.min(
+                island.capacity,
+                island.currentForces + resourceTicks,
+              ),
+            ),
       ];
     }
 
