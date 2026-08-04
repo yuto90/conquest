@@ -190,15 +190,26 @@ class GameController extends _$GameController {
     return nextState;
   }
 
-  /// Selects a player island and creates (or retargets the legacy first)
-  /// moving force.  The state itself supports any number of forces; retaining
-  /// the first-force retarget behavior keeps the PR #3 interaction intact.
+  /// Selects a player island or dispatches a new force to the tapped island.
+  /// Every successful dispatch is appended to the in-flight force list so an
+  /// earlier troop cannot be retargeted or cancelled.
   void tapBase(int baseId) {
     if (_disposed || state.phase != GamePhase.playing) {
       return;
     }
 
     final selectedIslandId = state.selectedIslandId;
+    final selectedSource = selectedIslandId == null
+        ? null
+        : _findIsland(selectedIslandId);
+    if (selectedIslandId != null &&
+        (selectedSource == null ||
+            selectedSource.faction != Faction.player ||
+            selectedSource.currentForces <= 1)) {
+      state = state.clearSelection();
+      return;
+    }
+
     final tappedIsland = _findIsland(baseId);
     if (tappedIsland == null) {
       return;
@@ -218,14 +229,7 @@ class GameController extends _$GameController {
       return;
     }
 
-    final source = _findIsland(selectedIslandId);
-    if (source == null ||
-        source.faction != Faction.player ||
-        source.currentForces <= 1) {
-      state = state.clearSelection();
-      return;
-    }
-
+    final source = selectedSource!;
     final strength = source.currentForces ~/ 2;
     if (strength <= 0) {
       state = state.clearSelection();
@@ -238,31 +242,21 @@ class GameController extends _$GameController {
       currentForces: source.currentForces - strength,
     );
 
-    final existingIndex = state.movingForces.indexWhere(
-      (force) => force.sourceIslandId == source.id,
-    );
     final movingForces = [...state.movingForces];
     final nextForce = _rules.createMovingForce(
-      id: existingIndex >= 0
-          ? movingForces[existingIndex].id
-          : _nextMovingForceId,
+      id: _nextMovingForceId,
       faction: Faction.player,
       source: source,
       destination: tappedIsland,
       strength: strength,
       departureTimeMs: state.elapsedMs,
+      viewport: ref.read(mapViewportProvider),
     );
-    if (existingIndex >= 0) {
-      movingForces[existingIndex] = nextForce;
-    } else {
-      movingForces.add(nextForce);
-    }
+    movingForces.add(nextForce);
 
-    state = state.copyWith(
-      islands: islands,
-      movingForces: movingForces,
-      selectedIslandId: baseId == source.id ? null : selectedIslandId,
-    );
+    state = state
+        .copyWith(islands: islands, movingForces: movingForces)
+        .clearSelection();
   }
 
   void _tick() {

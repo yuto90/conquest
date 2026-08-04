@@ -114,13 +114,95 @@ void main() {
     controller.tapBase(1);
     final state = container.read(gameControllerProvider);
 
-    expect(state.selectedBaseId, 0);
+    expect(state.selectedBaseId, isNull);
     expect(state.movement, isNotNull);
     expect(state.movement!.sourceBaseId, 0);
     expect(state.movement!.targetBaseId, 1);
     expect(state.movement!.scale, 50);
     expect(state.bases[0].scale, 50);
   });
+
+  test(
+    'rejects non-player sources and deselects a source when tapped again',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+
+      controller.tapBase(2);
+      expect(container.read(gameControllerProvider).selectedBaseId, isNull);
+
+      controller.tapBase(0);
+      expect(container.read(gameControllerProvider).selectedBaseId, 0);
+
+      controller.tapBase(0);
+      expect(container.read(gameControllerProvider).selectedBaseId, isNull);
+    },
+  );
+
+  test(
+    'uses force at destination tap time and clears an invalid selection',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      controller.tapBase(0);
+
+      final selected = container.read(gameControllerProvider);
+      final changedIslands = [
+        for (final island in selected.islands)
+          island.id == 0 ? island.copyWith(currentForces: 7) : island,
+      ];
+      controller.state = selected.copyWith(islands: changedIslands);
+      controller.tapBase(2);
+
+      final dispatched = container.read(gameControllerProvider);
+      expect(dispatched.movingForces.single.strength, 3);
+      expect(dispatched.islands.first.currentForces, 4);
+      expect(dispatched.selectedIslandId, isNull);
+
+      controller.tapBase(0);
+      final invalidated = container.read(gameControllerProvider);
+      controller.state = invalidated.copyWith(
+        islands: [
+          for (final island in invalidated.islands)
+            island.id == 0 ? island.copyWith(currentForces: 1) : island,
+        ],
+      );
+      loop.tick();
+
+      expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+    },
+  );
+
+  test(
+    'dispatches floor half for zero, one, even, odd, and maximum forces',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      final playing = container.read(gameControllerProvider);
+
+      for (final force in [0, 1, 2, 5, 200]) {
+        controller.state = playing.copyWith(
+          islands: [
+            for (final island in playing.islands)
+              island.id == 0 ? island.copyWith(currentForces: force) : island,
+          ],
+        );
+        controller.tapBase(0);
+        controller.tapBase(2);
+
+        final state = container.read(gameControllerProvider);
+        final expectedDispatch = force ~/ 2;
+        if (expectedDispatch == 0) {
+          expect(state.movingForces, isEmpty, reason: 'force=$force');
+          expect(state.selectedIslandId, isNull, reason: 'force=$force');
+        } else {
+          expect(state.movingForces.single.strength, expectedDispatch);
+          expect(state.islands.first.currentForces, force - expectedDispatch);
+          expect(state.selectedIslandId, isNull, reason: 'force=$force');
+        }
+      }
+    },
+  );
 
   test('preserves a selected source across ticks before destination tap', () {
     final controller = container.read(gameControllerProvider.notifier);
@@ -135,7 +217,7 @@ void main() {
 
     controller.tapBase(1);
     final state = container.read(gameControllerProvider);
-    expect(state.selectedBaseId, 0);
+    expect(state.selectedBaseId, isNull);
     expect(state.movement, isNotNull);
   });
 
@@ -172,17 +254,62 @@ void main() {
     );
   });
 
-  test('preserves retargeting and re-halving while moving', () {
+  test('appends consecutive dispatches from one source', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
     controller.tapBase(0);
     controller.tapBase(1);
+    final first = container.read(gameControllerProvider).movingForces.single;
+
+    controller.tapBase(0);
     controller.tapBase(2);
 
     final state = container.read(gameControllerProvider);
-    expect(state.movement!.targetBaseId, 2);
-    expect(state.movement!.scale, 25);
+    expect(state.movingForces, hasLength(2));
+    expect(state.movingForces[0], first);
+    expect(state.movingForces[0].targetBaseId, 1);
+    expect(state.movingForces[0].scale, 50);
+    expect(state.movingForces[1].targetBaseId, 2);
+    expect(state.movingForces[1].scale, 25);
+    expect(state.movingForces[1].id, isNot(state.movingForces[0].id));
     expect(state.bases[0].scale, 25);
+    expect(state.selectedIslandId, isNull);
+  });
+
+  test('keeps troops from different sources independent', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+
+    final initial = container.read(gameControllerProvider);
+    controller.state = initial.copyWith(
+      islands: [
+        for (final island in initial.islands)
+          if (island.id == 2)
+            island.copyWith(faction: Faction.player, currentForces: 40)
+          else
+            island,
+      ],
+    );
+
+    controller.tapBase(0);
+    controller.tapBase(2);
+    controller.tapBase(2);
+    controller.tapBase(3);
+
+    final state = container.read(gameControllerProvider);
+    expect(state.movingForces, hasLength(2));
+    expect(
+      state.movingForces.map((force) => force.sourceIslandId),
+      orderedEquals([0, 2]),
+    );
+    expect(
+      state.movingForces.map((force) => force.destinationIslandId),
+      orderedEquals([2, 3]),
+    );
+    expect(
+      state.movingForces.map((force) => force.strength),
+      orderedEquals([50, 20]),
+    );
   });
 
   test('stops the loop when the provider is disposed', () {

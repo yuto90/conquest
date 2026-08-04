@@ -202,7 +202,7 @@ void main() {
       expect(before.islands, hasLength(6));
       expect(before.elapsedMs, greaterThan(0));
       expect(before.movingForces, isNotEmpty);
-      expect(before.selectedIslandId, 0);
+      expect(before.selectedIslandId, isNull);
 
       await tester.binding.setSurfaceSize(const Size(321, 500));
       await tester.pump();
@@ -215,7 +215,7 @@ void main() {
       expect(after.islands, hasLength(6));
       expect(after.elapsedMs, before.elapsedMs);
       expect(after.movingForces, before.movingForces);
-      expect(after.selectedIslandId, before.selectedIslandId);
+      expect(after.selectedIslandId, isNull);
       expect(loop.isRunning, isTrue);
 
       loop.tick();
@@ -265,7 +265,7 @@ void main() {
     expect(after.phase, GamePhase.playing);
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.islands, before.islands);
-    expect(after.selectedIslandId, before.selectedIslandId);
+    expect(after.selectedIslandId, isNull);
     expect(after.movingForces, before.movingForces);
     expect(loop.isRunning, isTrue);
 

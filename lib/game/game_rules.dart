@@ -48,6 +48,31 @@ final class IslandMapViewport {
       bottom: top + widgetSize,
     );
   }
+
+  /// Returns the screen-space distance travelled by a moving-force widget
+  /// between two normalized alignment positions.  [Align] positions the
+  /// center using `(viewport - child) * alignment / 2`, so each axis uses the
+  /// available travel span for the 30px troop widget rather than the raw
+  /// normalized coordinate span.
+  double movingForceDistance(
+    IslandPosition source,
+    IslandPosition destination,
+  ) {
+    final horizontalSpan = width - GameRules.movingForceWidgetSize;
+    final verticalSpan = height - GameRules.movingForceWidgetSize;
+    final deltaX = horizontalSpan * (destination.x - source.x) / 2;
+    final deltaY = verticalSpan * (destination.y - source.y) / 2;
+    return math.sqrt(deltaX * deltaX + deltaY * deltaY);
+  }
+
+  /// The screen-space diagonal available to a moving-force widget.
+  double get movingForceScreenDiagonal {
+    final horizontalSpan = width - GameRules.movingForceWidgetSize;
+    final verticalSpan = height - GameRules.movingForceWidgetSize;
+    return math.sqrt(
+      horizontalSpan * horizontalSpan + verticalSpan * verticalSpan,
+    );
+  }
 }
 
 /// A renderer-independent rectangle for one island's square widget.
@@ -102,6 +127,7 @@ final class GameRules {
   /// in the API so a future renderer can give each variant its own size.
   static const headquartersWidgetSize = 100.0;
   static const neutralWidgetSize = 50.0;
+  static const movingForceWidgetSize = 30.0;
 
   /// A layout-independent fallback for state creation before Flutter layout
   /// constraints are available.  Callers with a real viewport should pass it
@@ -394,12 +420,31 @@ final class GameRules {
       );
     }
 
-    if (state.phase != GamePhase.playing || deltaMs == 0) {
+    if (state.phase != GamePhase.playing) {
       return state;
     }
 
     final elapsedMs = state.elapsedMs + deltaMs;
     var islands = [...state.islands];
+
+    // Validate an existing selection before applying resource ticks.  A
+    // source that was already exhausted or lost before this tick must not be
+    // revived by the same tick's regeneration.
+    final selectedIslandId = state.selectedIslandId;
+    IslandState? selectedAtStart;
+    if (selectedIslandId != null) {
+      for (final island in islands) {
+        if (island.id == selectedIslandId) {
+          selectedAtStart = island;
+          break;
+        }
+      }
+    }
+    final selectionInvalidAtStart =
+        selectedIslandId != null &&
+        (selectedAtStart == null ||
+            selectedAtStart.faction != Faction.player ||
+            selectedAtStart.currentForces <= 1);
 
     // Resource ticks are represented here as a deterministic time boundary;
     // concrete ownership/combat rules can later replace this helper without
@@ -417,8 +462,14 @@ final class GameRules {
     final remainingForces = <MovingForce>[];
     for (final force in state.movingForces) {
       final duration = math.max(1, force.durationMs);
-      final nextProgress = math.min(1.0, force.progress + deltaMs / duration);
-      if (nextProgress >= 1.0) {
+      final elapsedSinceDeparture = elapsedMs - force.departureTimeMs;
+      final nextProgress = elapsedSinceDeparture <= 0
+          ? 0.0
+          : math.min(1.0, elapsedSinceDeparture / duration);
+      final atArrivalBoundary =
+          elapsedMs >= force.arrivalTimeMs &&
+          elapsedMs >= force.departureTimeMs;
+      if (nextProgress >= 1.0 || atArrivalBoundary) {
         final targetIndex = islands.indexWhere(
           (island) => island.id == force.destinationIslandId,
         );
@@ -467,29 +518,25 @@ final class GameRules {
     );
 
     // A selected source remains active while the player is choosing a
-    // destination.  Only clear it after an existing dispatch has completed,
-    // or when the source can no longer dispatch under the current rules.
-    final selectedIsland = nextState.selectedIslandId == null
-        ? null
-        : nextState.islands.firstWhere(
-            (island) => island.id == nextState.selectedIslandId,
-            orElse: () => const IslandState(
-              id: -1,
-              position: IslandPosition(x: 0, y: 0),
-              faction: Faction.neutral,
-            ),
-          );
+    // destination.  Clear it only when the source can no longer dispatch
+    // under the current rules; an unrelated troop arrival must not affect it.
+    final nextSelectedIslandId = nextState.selectedIslandId;
+    if (nextSelectedIslandId == null) {
+      return nextState;
+    }
+    IslandState? selectedIsland;
+    for (final island in nextState.islands) {
+      if (island.id == nextSelectedIslandId) {
+        selectedIsland = island;
+        break;
+      }
+    }
     final selectionInvalid =
-        nextState.selectedIslandId != null &&
-        (selectedIsland == null ||
-            selectedIsland.id == -1 ||
-            selectedIsland.faction != Faction.player ||
-            selectedIsland.currentForces <= 1);
-    final dispatchCompleted =
-        state.movingForces.isNotEmpty && remainingForces.isEmpty;
-    return dispatchCompleted || selectionInvalid
-        ? nextState.clearSelection()
-        : nextState;
+        selectionInvalidAtStart ||
+        selectedIsland == null ||
+        selectedIsland.faction != Faction.player ||
+        selectedIsland.currentForces <= 1;
+    return selectionInvalid ? nextState.clearSelection() : nextState;
   }
 
   MovingForce createMovingForce({
@@ -499,15 +546,16 @@ final class GameRules {
     required IslandState destination,
     required int strength,
     int departureTimeMs = 0,
+    IslandMapViewport viewport = defaultMapViewport,
   }) {
-    final distance = math.sqrt(
-      math.pow(destination.x - source.x, 2) +
-          math.pow(destination.y - source.y, 2),
+    final distance = viewport.movingForceDistance(
+      source.position,
+      destination.position,
     );
-    final durationMs = math.max(
-      1,
-      (movementDurationMs * distance / math.sqrt(8)).round(),
-    );
+    final screenDiagonal = viewport.movingForceScreenDiagonal;
+    final durationMs = screenDiagonal <= 0
+        ? 1
+        : math.max(1, (movementDurationMs * distance / screenDiagonal).round());
     return MovingForce(
       id: id,
       faction: faction,
