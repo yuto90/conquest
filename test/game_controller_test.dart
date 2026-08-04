@@ -238,21 +238,24 @@ void main() {
     expect(state.bases[1].scale, 155);
   });
 
-  test('increments every base after one second', () {
-    final controller = container.read(gameControllerProvider.notifier);
-    controller.startGame();
+  test(
+    'increments owned bases after one second without growing neutral bases',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
 
-    for (var i = 0; i < 20; i++) {
-      loop.tick();
-    }
+      for (var i = 0; i < 20; i++) {
+        loop.tick();
+      }
 
-    final state = container.read(gameControllerProvider);
-    expect(state.elapsedMs, 1000);
-    expect(
-      state.bases.every((base) => base.scale == (base.id < 2 ? 101 : 1)),
-      isTrue,
-    );
-  });
+      final state = container.read(gameControllerProvider);
+      expect(state.elapsedMs, 1000);
+      expect(
+        state.bases.every((base) => base.scale == (base.id < 2 ? 101 : 0)),
+        isTrue,
+      );
+    },
+  );
 
   test('appends consecutive dispatches from one source', () {
     final controller = container.read(gameControllerProvider.notifier);
