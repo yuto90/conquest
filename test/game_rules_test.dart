@@ -1676,6 +1676,69 @@ void main() {
     },
   );
 
+  test(
+    'keeps a cleared selection cleared after later arrivals in one tick',
+    () {
+      const selected = IslandState(
+        id: 0,
+        position: IslandPosition(x: 0, y: 0),
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 5,
+        capacity: 50,
+      );
+      const playerSource = IslandState(
+        id: 1,
+        position: IslandPosition(x: -1, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 50,
+        capacity: 200,
+      );
+      const cpuSource = IslandState(
+        id: 2,
+        position: IslandPosition(x: 1, y: 0),
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 50,
+        capacity: 200,
+      );
+
+      final next = rules.tick(
+        GameState(
+          phase: GamePhase.playing,
+          elapsedMs: 0,
+          selectedIslandId: selected.id,
+          islands: const [selected, playerSource, cpuSource],
+          movingForces: const [
+            MovingForce(
+              id: 0,
+              faction: Faction.cpu,
+              sourceIslandId: 2,
+              destinationIslandId: 0,
+              strength: 10,
+              arrivalTimeMs: 100,
+              durationMs: 100,
+            ),
+            MovingForce(
+              id: 1,
+              faction: Faction.player,
+              sourceIslandId: 1,
+              destinationIslandId: 0,
+              strength: 10,
+              arrivalTimeMs: 200,
+              durationMs: 200,
+            ),
+          ],
+        ),
+        deltaMs: 200,
+      );
+
+      expect(next.islands.first.faction, Faction.player);
+      expect(next.selectedIslandId, isNull);
+    },
+  );
+
   test('controller uses an injected clock with a manual loop', () {
     final clock = FixedClock();
     final loop = ManualGameLoop();

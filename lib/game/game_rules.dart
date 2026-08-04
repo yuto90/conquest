@@ -464,6 +464,7 @@ final class GameRules {
     }
 
     final arrivalTimes = arrivalsByTime.keys.toList()..sort();
+    var stateAtCurrentTime = state;
     for (final arrivalTime in arrivalTimes) {
       final eventTime = math.max(startMs, arrivalTime);
       islands = _applyGrowth(islands, fromMs: currentMs, toMs: eventTime);
@@ -475,7 +476,7 @@ final class GameRules {
       islands = _resolveArrivalGroup(islands, group);
 
       final eventState = _stateAtTime(
-        state,
+        stateAtCurrentTime,
         elapsedMs: currentMs,
         islands: islands,
         movingForces: _updateMovingForcePositions(
@@ -485,6 +486,7 @@ final class GameRules {
         ),
         selectionInvalidAtStart: selectionInvalidAtStart,
       );
+      stateAtCurrentTime = eventState;
       final result = _resultFor(
         elapsedMs: currentMs,
         islands: eventState.islands,
@@ -497,7 +499,7 @@ final class GameRules {
 
     islands = _applyGrowth(islands, fromMs: currentMs, toMs: endMs);
     final nextState = _stateAtTime(
-      state,
+      stateAtCurrentTime,
       elapsedMs: endMs,
       islands: islands,
       movingForces: _updateMovingForcePositions(
