@@ -571,6 +571,110 @@ void main() {
     },
   );
 
+  test('uses portrait screen distance for duration and arrival boundaries', () {
+    const viewport = IslandMapViewport(width: 390, height: 844);
+    const horizontalSource = IslandState(
+      id: 0,
+      position: IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      currentForces: 20,
+      capacity: 200,
+    );
+    const horizontalTarget = IslandState(
+      id: 1,
+      position: IslandPosition(x: 1, y: 0),
+      faction: Faction.neutral,
+      capacity: 50,
+    );
+    const verticalSource = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0, y: -1),
+      faction: Faction.player,
+      currentForces: 20,
+      capacity: 200,
+    );
+    const verticalTarget = IslandState(
+      id: 3,
+      position: IslandPosition(x: 0, y: 0),
+      faction: Faction.neutral,
+      capacity: 50,
+    );
+    const diagonalSource = IslandState(
+      id: 4,
+      position: IslandPosition(x: -1, y: -1),
+      faction: Faction.player,
+      currentForces: 20,
+      capacity: 200,
+    );
+    const diagonalTarget = IslandState(
+      id: 5,
+      position: IslandPosition(x: 1, y: 1),
+      faction: Faction.neutral,
+      capacity: 50,
+    );
+
+    final horizontal = rules.createMovingForce(
+      id: 0,
+      faction: Faction.player,
+      source: horizontalSource,
+      destination: horizontalTarget,
+      strength: 5,
+      viewport: viewport,
+    );
+    final vertical = rules.createMovingForce(
+      id: 1,
+      faction: Faction.player,
+      source: verticalSource,
+      destination: verticalTarget,
+      strength: 5,
+      viewport: viewport,
+    );
+    final diagonal = rules.createMovingForce(
+      id: 2,
+      faction: Faction.player,
+      source: diagonalSource,
+      destination: diagonalTarget,
+      strength: 5,
+      viewport: viewport,
+    );
+
+    expect(
+      viewport.movingForceDistance(
+        horizontalSource.position,
+        horizontalTarget.position,
+      ),
+      closeTo(360, 1e-12),
+    );
+    expect(
+      viewport.movingForceDistance(
+        verticalSource.position,
+        verticalTarget.position,
+      ),
+      closeTo(407, 1e-12),
+    );
+    expect(
+      viewport.movingForceDistance(
+        diagonalSource.position,
+        diagonalTarget.position,
+      ),
+      closeTo(viewport.movingForceScreenDiagonal, 1e-12),
+    );
+    expect(vertical.durationMs, greaterThan(horizontal.durationMs));
+    expect(diagonal.durationMs, GameRules.movementDurationMs);
+
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: [verticalSource, verticalTarget],
+      movingForces: [vertical],
+    );
+    final beforeArrival = rules.tick(state, deltaMs: vertical.durationMs - 1);
+    expect(beforeArrival.movingForces, hasLength(1));
+
+    final atArrival = rules.tick(beforeArrival, deltaMs: 1);
+    expect(atArrival.movingForces, isEmpty);
+  });
+
   test(
     'keeps a troop until the tick before arrival and removes it at arrival',
     () {

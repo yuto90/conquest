@@ -48,6 +48,31 @@ final class IslandMapViewport {
       bottom: top + widgetSize,
     );
   }
+
+  /// Returns the screen-space distance travelled by a moving-force widget
+  /// between two normalized alignment positions.  [Align] positions the
+  /// center using `(viewport - child) * alignment / 2`, so each axis uses the
+  /// available travel span for the 30px troop widget rather than the raw
+  /// normalized coordinate span.
+  double movingForceDistance(
+    IslandPosition source,
+    IslandPosition destination,
+  ) {
+    final horizontalSpan = width - GameRules.movingForceWidgetSize;
+    final verticalSpan = height - GameRules.movingForceWidgetSize;
+    final deltaX = horizontalSpan * (destination.x - source.x) / 2;
+    final deltaY = verticalSpan * (destination.y - source.y) / 2;
+    return math.sqrt(deltaX * deltaX + deltaY * deltaY);
+  }
+
+  /// The screen-space diagonal available to a moving-force widget.
+  double get movingForceScreenDiagonal {
+    final horizontalSpan = width - GameRules.movingForceWidgetSize;
+    final verticalSpan = height - GameRules.movingForceWidgetSize;
+    return math.sqrt(
+      horizontalSpan * horizontalSpan + verticalSpan * verticalSpan,
+    );
+  }
 }
 
 /// A renderer-independent rectangle for one island's square widget.
@@ -102,6 +127,7 @@ final class GameRules {
   /// in the API so a future renderer can give each variant its own size.
   static const headquartersWidgetSize = 100.0;
   static const neutralWidgetSize = 50.0;
+  static const movingForceWidgetSize = 30.0;
 
   /// A layout-independent fallback for state creation before Flutter layout
   /// constraints are available.  Callers with a real viewport should pass it
@@ -520,15 +546,16 @@ final class GameRules {
     required IslandState destination,
     required int strength,
     int departureTimeMs = 0,
+    IslandMapViewport viewport = defaultMapViewport,
   }) {
-    final distance = math.sqrt(
-      math.pow(destination.x - source.x, 2) +
-          math.pow(destination.y - source.y, 2),
+    final distance = viewport.movingForceDistance(
+      source.position,
+      destination.position,
     );
-    final durationMs = math.max(
-      1,
-      (movementDurationMs * distance / math.sqrt(8)).round(),
-    );
+    final screenDiagonal = viewport.movingForceScreenDiagonal;
+    final durationMs = screenDiagonal <= 0
+        ? 1
+        : math.max(1, (movementDurationMs * distance / screenDiagonal).round());
     return MovingForce(
       id: id,
       faction: faction,

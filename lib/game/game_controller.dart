@@ -250,6 +250,7 @@ class GameController extends _$GameController {
       destination: tappedIsland,
       strength: strength,
       departureTimeMs: state.elapsedMs,
+      viewport: ref.read(mapViewportProvider),
     );
     movingForces.add(nextForce);
 
