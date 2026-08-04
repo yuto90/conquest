@@ -391,6 +391,21 @@ final class CpuStrategy {
           destination: target,
           strength: strength,
         );
+        // Do not spend a fresh troop on a target that known CPU arrivals
+        // already capture by this time.  A candidate remains eligible when
+        // those arrivals alone leave the target uncaptured, so simultaneous
+        // forces are still evaluated as one arrival-time combat.
+        final predictedWithoutCandidate = forecast(
+          state,
+          atMs: candidate.arrivalTimeMs,
+        );
+        final targetWithoutCandidate = _findIsland(
+          predictedWithoutCandidate.islands,
+          target.id,
+        );
+        if (targetWithoutCandidate?.faction == Faction.cpu) {
+          continue;
+        }
         final predicted = _forecastWithCandidate(
           state,
           source: source,

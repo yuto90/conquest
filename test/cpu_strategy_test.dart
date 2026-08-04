@@ -138,6 +138,35 @@ void main() {
     expect(decision!.destinationIslandId, 2);
   });
 
+  test('does not reprioritize an enemy already captured by a CPU troop', () {
+    final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
+    final state = _playing(
+      islands: [
+        _island(id: 1, faction: Faction.cpu, forces: 20, x: 0, y: 0),
+        _island(id: 4, faction: Faction.cpu, forces: 20, x: 0.2, y: 0.2),
+        _island(id: 2, faction: Faction.player, forces: 10, x: 0.1, y: 0.1),
+        _island(id: 3, faction: Faction.player, forces: 4, x: 0.8, y: 0.8),
+      ],
+      movingForces: [
+        MovingForce(
+          id: 90,
+          faction: Faction.cpu,
+          sourceIslandId: 4,
+          destinationIslandId: 2,
+          strength: 20,
+          departureTimeMs: 0,
+          arrivalTimeMs: 100,
+          durationMs: 100,
+        ),
+      ],
+    );
+
+    final decision = strategy.decide(state);
+
+    expect(decision, isNotNull);
+    expect(decision!.destinationIslandId, 3);
+  });
+
   test('chooses the least-force sufficient source, then the nearer source', () {
     final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
     final state = _playing(
