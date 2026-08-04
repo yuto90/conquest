@@ -521,6 +521,209 @@ void main() {
     expect(arrived.islands.last.currentForces, 32);
   });
 
+  test(
+    'movement duration is proportional to distance with a five-second diagonal',
+    () {
+      const source = IslandState(
+        id: 0,
+        position: IslandPosition(x: -1, y: -1),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 40,
+        capacity: 200,
+      );
+      const diagonalTarget = IslandState(
+        id: 1,
+        position: IslandPosition(x: 1, y: 1),
+        faction: Faction.neutral,
+        size: IslandSize.small,
+        capacity: 50,
+      );
+      const nearTarget = IslandState(
+        id: 2,
+        position: IslandPosition(x: 0, y: -1),
+        faction: Faction.neutral,
+        size: IslandSize.small,
+        capacity: 50,
+      );
+
+      final diagonal = rules.createMovingForce(
+        id: 10,
+        faction: Faction.player,
+        source: source,
+        destination: diagonalTarget,
+        strength: 20,
+        departureTimeMs: 1200,
+      );
+      final near = rules.createMovingForce(
+        id: 11,
+        faction: Faction.player,
+        source: source,
+        destination: nearTarget,
+        strength: 20,
+        departureTimeMs: 1200,
+      );
+
+      expect(diagonal.durationMs, 5000);
+      expect(diagonal.arrivalTimeMs, 6200);
+      expect(near.durationMs, lessThan(diagonal.durationMs));
+      expect(near.arrivalTimeMs, 1200 + near.durationMs);
+    },
+  );
+
+  test(
+    'keeps a troop until the tick before arrival and removes it at arrival',
+    () {
+      const source = IslandState(
+        id: 0,
+        position: IslandPosition(x: -1, y: -1),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 40,
+        capacity: 200,
+      );
+      const target = IslandState(
+        id: 1,
+        position: IslandPosition(x: 1, y: 1),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 10,
+        capacity: 200,
+      );
+      final force = rules.createMovingForce(
+        id: 0,
+        faction: Faction.player,
+        source: source,
+        destination: target,
+        strength: 15,
+      );
+      final state = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: [source, target],
+        movingForces: [force],
+      );
+
+      final beforeArrival = rules.tick(state, deltaMs: force.durationMs - 1);
+      expect(beforeArrival.movingForces, hasLength(1));
+      expect(beforeArrival.movingForces.single.progress, lessThan(1));
+      expect(
+        beforeArrival.movingForces.single.arrivalTimeMs,
+        force.arrivalTimeMs,
+      );
+
+      final atArrival = rules.tick(beforeArrival, deltaMs: 1);
+      expect(atArrival.movingForces, isEmpty);
+      expect(atArrival.islands.last.currentForces, 30);
+    },
+  );
+
+  test(
+    'updates multiple troops independently without in-flight collisions',
+    () {
+      const firstSource = IslandState(
+        id: 0,
+        position: IslandPosition(x: -1, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 40,
+        capacity: 200,
+      );
+      const firstTarget = IslandState(
+        id: 1,
+        position: IslandPosition(x: 0, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 10,
+        capacity: 200,
+      );
+      const secondSource = IslandState(
+        id: 2,
+        position: IslandPosition(x: 0, y: -1),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 40,
+        capacity: 200,
+      );
+      const secondTarget = IslandState(
+        id: 3,
+        position: IslandPosition(x: 0, y: 1),
+        faction: Faction.neutral,
+        size: IslandSize.small,
+        capacity: 50,
+      );
+      final first = rules.createMovingForce(
+        id: 0,
+        faction: Faction.player,
+        source: firstSource,
+        destination: firstTarget,
+        strength: 15,
+      );
+      final second = rules.createMovingForce(
+        id: 1,
+        faction: Faction.player,
+        source: secondSource,
+        destination: secondTarget,
+        strength: 7,
+      );
+      final state = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        selectedIslandId: 2,
+        islands: [firstSource, firstTarget, secondSource, secondTarget],
+        movingForces: [first, second],
+      );
+
+      final next = rules.tick(state, deltaMs: first.durationMs);
+      expect(next.movingForces, hasLength(1));
+      expect(next.movingForces.single.id, second.id);
+      expect(next.islands[1].currentForces, 26);
+      expect(next.islands[3].currentForces, 1);
+      expect(next.movingForces.single.progress, lessThan(1));
+      expect(
+        next.movingForces.single.position,
+        const IslandPosition(x: 0, y: 0),
+      );
+      expect(next.selectedIslandId, 2);
+    },
+  );
+
+  test(
+    'invalidates a selected source when ownership or force becomes invalid',
+    () {
+      const source = IslandState(
+        id: 0,
+        position: IslandPosition(x: 0, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 10,
+        capacity: 200,
+      );
+      const target = IslandState(
+        id: 1,
+        position: IslandPosition(x: 1, y: 1),
+        faction: Faction.neutral,
+        size: IslandSize.small,
+        capacity: 50,
+      );
+      final ownershipChanged = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 100,
+        selectedIslandId: 0,
+        islands: [
+          source.copyWith(faction: Faction.cpu),
+          target,
+        ],
+      );
+      final forceExhausted = ownershipChanged.copyWith(
+        islands: [source.copyWith(currentForces: 1), target],
+      );
+
+      expect(rules.tick(ownershipChanged, deltaMs: 0).selectedIslandId, isNull);
+      expect(rules.tick(forceExhausted, deltaMs: 0).selectedIslandId, isNull);
+    },
+  );
+
   test('controller uses an injected clock with a manual loop', () {
     final clock = FixedClock();
     final loop = ManualGameLoop();
