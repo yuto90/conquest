@@ -106,4 +106,40 @@ void main() {
     loop.tick();
     expect(container.read(gameControllerProvider), paused);
   });
+
+  test('retains a pending CPU deadline across the resume countdown', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    for (var index = 0; index < 29; index++) {
+      loop.tick();
+    }
+    expect(container.read(gameControllerProvider).elapsedMs, 1450);
+    expect(
+      container
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+
+    controller.pauseGame();
+    controller.resumeGame();
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.resumeCountdown,
+    );
+    completeStartCountdown(loop);
+    expect(container.read(gameControllerProvider).elapsedMs, 1450);
+
+    loop.tick();
+    expect(
+      container
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      hasLength(1),
+    );
+  });
 }

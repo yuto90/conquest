@@ -296,8 +296,10 @@ class GameController extends _$GameController {
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
     if (state.phase == GamePhase.playing) {
-      if (phaseBeforeTick == GamePhase.startCountdown ||
-          phaseBeforeTick == GamePhase.resumeCountdown) {
+      if (phaseBeforeTick == GamePhase.startCountdown) {
+        // The initial match has no pending CPU deadline yet.  A resume
+        // countdown intentionally skips this branch so its frozen, absolute
+        // deadline remains unchanged across the pause interval.
         _scheduleNextCpuDecision();
       }
       _runCpuDecisionIfDue();
