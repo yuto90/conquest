@@ -405,7 +405,13 @@ final class GameRules {
     return state.finishWithResult(result);
   }
 
-  /// Advances countdowns and the time-based foundation state.
+  /// Advances countdowns, growth, movement, and arrival events.
+  ///
+  /// Arrivals are handled as chronological event groups.  Growth boundaries
+  /// are applied immediately before an arrival at the same timestamp, while
+  /// all arrivals in one timestamp are removed and resolved together.  This
+  /// keeps the result independent of the order in which moving forces happen
+  /// to be stored in the state list.
   GameState tick(GameState state, {required int deltaMs}) {
     if (deltaMs < 0) {
       throw ArgumentError.value(deltaMs, 'deltaMs', 'must not be negative');
@@ -424,8 +430,11 @@ final class GameRules {
       return state;
     }
 
-    final elapsedMs = state.elapsedMs + deltaMs;
+    final startMs = state.elapsedMs;
+    final endMs = startMs + deltaMs;
+    var currentMs = startMs;
     var islands = [...state.islands];
+    final remainingForces = [...state.movingForces];
 
     // Validate an existing selection before applying resource ticks.  A
     // source that was already exhausted or lost before this tick must not be
@@ -446,50 +455,198 @@ final class GameRules {
             selectedAtStart.faction != Faction.player ||
             selectedAtStart.currentForces <= 1);
 
-    // Each crossed boundary is one shared game-time growth event.  Neutral
-    // islands retain their durability and do not receive troop growth.
-    final resourceTicks = elapsedMs ~/ 1000 - state.elapsedMs ~/ 1000;
-    if (resourceTicks > 0) {
-      islands = [
-        for (final island in islands)
-          if (island.faction == Faction.neutral)
-            island
-          else
-            island.copyWith(
-              currentForces: math.min(
-                island.capacity,
-                island.currentForces + resourceTicks,
-              ),
-            ),
-      ];
+    final arrivalsByTime = <int, List<MovingForce>>{};
+    for (final force in remainingForces) {
+      final eventTime = math.max(force.arrivalTimeMs, force.departureTimeMs);
+      if (eventTime <= endMs) {
+        arrivalsByTime.putIfAbsent(eventTime, () => []).add(force);
+      }
     }
 
-    final remainingForces = <MovingForce>[];
-    for (final force in state.movingForces) {
+    final arrivalTimes = arrivalsByTime.keys.toList()..sort();
+    for (final arrivalTime in arrivalTimes) {
+      final eventTime = math.max(startMs, arrivalTime);
+      islands = _applyGrowth(islands, fromMs: currentMs, toMs: eventTime);
+      currentMs = eventTime;
+
+      final group = arrivalsByTime[arrivalTime]!;
+      final groupIds = group.map((force) => force.id).toSet();
+      remainingForces.removeWhere((force) => groupIds.contains(force.id));
+      islands = _resolveArrivalGroup(islands, group);
+
+      final eventState = _stateAtTime(
+        state,
+        elapsedMs: currentMs,
+        islands: islands,
+        movingForces: _updateMovingForcePositions(
+          remainingForces,
+          islands,
+          currentMs,
+        ),
+        selectionInvalidAtStart: selectionInvalidAtStart,
+      );
+      final result = _resultFor(
+        elapsedMs: currentMs,
+        islands: eventState.islands,
+        movingForces: eventState.movingForces,
+      );
+      if (result != null) {
+        return eventState.finishWithResult(result);
+      }
+    }
+
+    islands = _applyGrowth(islands, fromMs: currentMs, toMs: endMs);
+    final nextState = _stateAtTime(
+      state,
+      elapsedMs: endMs,
+      islands: islands,
+      movingForces: _updateMovingForcePositions(
+        remainingForces,
+        islands,
+        endMs,
+      ),
+      selectionInvalidAtStart: selectionInvalidAtStart,
+    );
+
+    final result = _resultFor(
+      elapsedMs: endMs,
+      islands: nextState.islands,
+      movingForces: nextState.movingForces,
+    );
+    if (result != null) {
+      return nextState.finishWithResult(result);
+    }
+
+    return nextState;
+  }
+
+  /// Resolves one arriving faction against an island.
+  ///
+  /// A neutral island uses [IslandState.durability] as its defense value;
+  /// owned islands use [IslandState.currentForces].  Strictly greater attack
+  /// strength captures the island, while equal strength leaves the owner in
+  /// place with a zero value.
+  IslandState resolveArrival(
+    IslandState island,
+    Faction faction,
+    int strength,
+  ) {
+    if (strength <= 0 || faction == Faction.neutral) {
+      return island;
+    }
+
+    if (island.faction == faction) {
+      return island.copyWith(
+        currentForces: math.min(
+          island.capacity,
+          island.currentForces + strength,
+        ),
+      );
+    }
+
+    if (island.faction == Faction.neutral) {
+      final defense = math.max(0, island.durability);
+      if (strength > defense) {
+        return island.copyWith(
+          faction: faction,
+          currentForces: math.min(island.capacity, strength - defense),
+          durability: 0,
+        );
+      }
+      return island.copyWith(currentForces: 0, durability: defense - strength);
+    }
+
+    final defense = math.max(0, island.currentForces);
+    if (strength > defense) {
+      return island.copyWith(
+        faction: faction,
+        currentForces: math.min(island.capacity, strength - defense),
+        durability: 0,
+      );
+    }
+    return island.copyWith(currentForces: defense - strength);
+  }
+
+  List<IslandState> _resolveArrivalGroup(
+    List<IslandState> islands,
+    List<MovingForce> group,
+  ) {
+    final arrivalsByTarget = <int, Map<Faction, int>>{};
+    for (final force in group) {
+      if (force.strength <= 0 || force.faction == Faction.neutral) {
+        continue;
+      }
+      final byFaction = arrivalsByTarget.putIfAbsent(
+        force.destinationIslandId,
+        () => <Faction, int>{},
+      );
+      byFaction[force.faction] =
+          (byFaction[force.faction] ?? 0) + force.strength;
+    }
+
+    final nextIslands = [...islands];
+    for (final entry in arrivalsByTarget.entries) {
+      final targetIndex = nextIslands.indexWhere(
+        (island) => island.id == entry.key,
+      );
+      if (targetIndex < 0) {
+        continue;
+      }
+      final playerStrength = entry.value[Faction.player] ?? 0;
+      final cpuStrength = entry.value[Faction.cpu] ?? 0;
+      if (playerStrength == cpuStrength) {
+        continue;
+      }
+      final faction = playerStrength > cpuStrength
+          ? Faction.player
+          : Faction.cpu;
+      final strength = playerStrength > cpuStrength
+          ? playerStrength - cpuStrength
+          : cpuStrength - playerStrength;
+      nextIslands[targetIndex] = resolveArrival(
+        nextIslands[targetIndex],
+        faction,
+        strength,
+      );
+    }
+    return nextIslands;
+  }
+
+  List<IslandState> _applyGrowth(
+    List<IslandState> islands, {
+    required int fromMs,
+    required int toMs,
+  }) {
+    final resourceTicks = toMs ~/ 1000 - fromMs ~/ 1000;
+    if (resourceTicks <= 0) {
+      return islands;
+    }
+    return [
+      for (final island in islands)
+        if (island.faction == Faction.neutral)
+          island
+        else
+          island.copyWith(
+            currentForces: math.min(
+              island.capacity,
+              island.currentForces + resourceTicks,
+            ),
+          ),
+    ];
+  }
+
+  List<MovingForce> _updateMovingForcePositions(
+    List<MovingForce> movingForces,
+    List<IslandState> islands,
+    int elapsedMs,
+  ) {
+    final nextForces = <MovingForce>[];
+    for (final force in movingForces) {
       final duration = math.max(1, force.durationMs);
       final elapsedSinceDeparture = elapsedMs - force.departureTimeMs;
       final nextProgress = elapsedSinceDeparture <= 0
           ? 0.0
           : math.min(1.0, elapsedSinceDeparture / duration);
-      final atArrivalBoundary =
-          elapsedMs >= force.arrivalTimeMs &&
-          elapsedMs >= force.departureTimeMs;
-      if (nextProgress >= 1.0 || atArrivalBoundary) {
-        final targetIndex = islands.indexWhere(
-          (island) => island.id == force.destinationIslandId,
-        );
-        if (targetIndex >= 0) {
-          final target = islands[targetIndex];
-          islands[targetIndex] = target.copyWith(
-            currentForces: math.min(
-              target.capacity,
-              target.currentForces + force.strength,
-            ),
-          );
-        }
-        continue;
-      }
-
       final source = islands.firstWhere(
         (island) => island.id == force.sourceIslandId,
         orElse: () => const IslandState(
@@ -506,7 +663,7 @@ final class GameRules {
         x: source.x + (target.x - source.x) * nextProgress,
         y: source.y + (target.y - source.y) * nextProgress,
       );
-      remainingForces.add(
+      nextForces.add(
         force.copyWith(
           position: nextPosition,
           progress: nextProgress,
@@ -515,11 +672,20 @@ final class GameRules {
         ),
       );
     }
+    return nextForces;
+  }
 
+  GameState _stateAtTime(
+    GameState state, {
+    required int elapsedMs,
+    required List<IslandState> islands,
+    required List<MovingForce> movingForces,
+    required bool selectionInvalidAtStart,
+  }) {
     final nextState = state.copyWith(
       elapsedMs: elapsedMs,
       islands: islands,
-      movingForces: remainingForces,
+      movingForces: movingForces,
     );
 
     // A selected source remains active while the player is choosing a
@@ -542,6 +708,34 @@ final class GameRules {
         selectedIsland.faction != Faction.player ||
         selectedIsland.currentForces <= 1;
     return selectionInvalid ? nextState.clearSelection() : nextState;
+  }
+
+  GameResult? _resultFor({
+    required int elapsedMs,
+    required List<IslandState> islands,
+    required List<MovingForce> movingForces,
+  }) {
+    final playerAlive =
+        islands.any((island) => island.faction == Faction.player) ||
+        movingForces.any(
+          (force) => force.faction == Faction.player && force.strength > 0,
+        );
+    final cpuAlive =
+        islands.any((island) => island.faction == Faction.cpu) ||
+        movingForces.any(
+          (force) => force.faction == Faction.cpu && force.strength > 0,
+        );
+
+    if (playerAlive && cpuAlive) {
+      return null;
+    }
+    if (!playerAlive && !cpuAlive) {
+      return GameResult.draw(elapsedMs: elapsedMs);
+    }
+    if (!playerAlive) {
+      return GameResult.defeat(elapsedMs: elapsedMs, winner: Faction.cpu);
+    }
+    return GameResult.victory(elapsedMs: elapsedMs, winner: Faction.player);
   }
 
   MovingForce createMovingForce({

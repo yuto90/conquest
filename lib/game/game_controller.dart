@@ -276,7 +276,12 @@ class GameController extends _$GameController {
         ? 0
         : now - previous;
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
-    state = _rules.tick(state, deltaMs: deltaMs);
+    final nextState = _rules.tick(state, deltaMs: deltaMs);
+    state = nextState;
+    if (nextState.phase == GamePhase.result) {
+      _gameLoop.stop();
+      _lastTickMs = null;
+    }
   }
 
   IslandState? _findIsland(int id) {
