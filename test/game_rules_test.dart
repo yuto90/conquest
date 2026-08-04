@@ -1753,7 +1753,9 @@ void main() {
 
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
-    clock.value = 125;
+    clock.value = 3000;
+    loop.tick();
+    clock.value = 3125;
     loop.tick();
 
     expect(container.read(gameControllerProvider).elapsedMs, 125);

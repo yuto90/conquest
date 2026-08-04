@@ -19,6 +19,12 @@ final class ZeroRandom implements Random {
   int nextInt(int max) => 0;
 }
 
+void completeStartCountdown(ManualGameLoop loop) {
+  for (var index = 0; index < 60; index++) {
+    loop.tick();
+  }
+}
+
 void main() {
   late ManualGameLoop loop;
   late ProviderContainer container;
@@ -44,6 +50,7 @@ void main() {
   test('dispatches at most one CPU troop per due judgment', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
 
     for (var index = 0; index < 29; index++) {
       loop.tick();

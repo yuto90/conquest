@@ -91,10 +91,12 @@ class GameController extends _$GameController {
     return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 
-  /// Starts a match and the production/manual loop.  The first screen in
-  /// PR #3 started immediately on tap; the countdown phase remains available
-  /// through [GameRules.startCountdown] while this compatibility entry point
-  /// keeps that startup behavior unchanged.
+  /// Starts a match and the production/manual loop.
+  ///
+  /// The generated map remains visible while [GamePhase.startCountdown] is
+  /// active.  The rules engine does not advance game time, move forces, grow
+  /// islands, or run CPU decisions during that phase; the first playing tick
+  /// after the countdown is the shared start boundary for every subsystem.
   void startGame() {
     if (_disposed || state.phase == GamePhase.playing) {
       return;
@@ -109,16 +111,7 @@ class GameController extends _$GameController {
       return;
     }
 
-    final wasPaused = state.phase == GamePhase.paused;
-    // Preserve the existing tap-to-play behavior.  Consumers that need a
-    // visible countdown can apply GameRules.tick to the same state instead.
-    state = nextState.copyWith(
-      phase: GamePhase.playing,
-      countdownRemainingMs: 0,
-    );
-    if (!wasPaused || _nextCpuDecisionAtMs == null) {
-      _scheduleNextCpuDecision();
-    }
+    state = nextState;
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -140,17 +133,10 @@ class GameController extends _$GameController {
     if (nextState == state) {
       return;
     }
-    // See startGame: preserve the established immediate-resume UI behavior.
-    state = nextState.copyWith(
-      phase: GamePhase.playing,
-      countdownRemainingMs: 0,
-    );
+    state = nextState;
     // Game time is frozen while paused, so preserve the pending judgment's
     // absolute game-time deadline across resume.  A null deadline only occurs
     // after a rebuilt controller and needs a fresh injected interval.
-    if (_nextCpuDecisionAtMs == null) {
-      _scheduleNextCpuDecision();
-    }
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -300,9 +286,14 @@ class GameController extends _$GameController {
         ? 0
         : now - previous;
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
+    final phaseBeforeTick = state.phase;
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
     if (state.phase == GamePhase.playing) {
+      if (phaseBeforeTick == GamePhase.startCountdown ||
+          phaseBeforeTick == GamePhase.resumeCountdown) {
+        _scheduleNextCpuDecision();
+      }
       _runCpuDecisionIfDue();
     }
     if (nextState.phase == GamePhase.result) {

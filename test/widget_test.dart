@@ -26,15 +26,44 @@ class ManualWidgetGameLoop implements GameLoop {
 }
 
 void main() {
-  testWidgets('shows the ready screen and ten bases', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+  testWidgets('offers every island-count preset with ten selected initially', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
 
-    expect(find.byType(Scaffold), findsOneWidget);
-    expect(find.text('T A P  T O  P L A Y'), findsOneWidget);
-    expect(find.byType(ElevatedButton), findsNWidgets(10));
+    for (final count in GameConfiguration.allowedIslandCounts) {
+      expect(find.byKey(ValueKey('island-count-$count')), findsOneWidget);
+    }
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-count-10'))),
+    );
+    expect(
+      container.read(gameControllerProvider).configuration.totalIslandCount,
+      10,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const ValueKey('island-count-10')))
+          .selected,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('island-count-6')));
+    await tester.pump();
+
+    expect(
+      container.read(gameControllerProvider).configuration.totalIslandCount,
+      6,
+    );
+    expect(container.read(gameControllerProvider).islands, hasLength(6));
   });
 
-  testWidgets('renders and clears a moving tank through Riverpod state', (
+  testWidgets('shows the map before countdown and starts exactly at zero', (
     tester,
   ) async {
     final loop = ManualWidgetGameLoop();
@@ -48,20 +77,138 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('T A P  T O  P L A Y'));
-    await tester.pump();
-    await tester.tap(find.byType(ElevatedButton).at(0));
-    await tester.tap(find.byType(ElevatedButton).at(1));
-    await tester.pump();
+    expect(find.byKey(const ValueKey('island-0')), findsOneWidget);
+    expect(find.text('3'), findsNothing);
 
-    expect(find.byKey(const ValueKey('tank')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    expect(find.text('3'), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-0')), findsOneWidget);
 
-    for (var i = 0; i < 100; i++) {
+    for (var index = 0; index < 59; index++) {
       loop.tick();
     }
     await tester.pump();
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('2'), findsNothing);
 
-    expect(find.byKey(const ValueKey('tank')), findsNothing);
+    loop.tick();
+    await tester.pump();
+    expect(find.text('START'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final state = container.read(gameControllerProvider);
+    expect(state.phase, GamePhase.playing);
+    expect(state.elapsedMs, 0);
+  });
+
+  testWidgets('shows the generated map and configuration controls', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+
+    expect(find.byType(Scaffold), findsOneWidget);
+    expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-9')), findsOneWidget);
+  });
+
+  testWidgets('exposes faction, size, and numeric values semantically', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
+      contains('Player headquarters, forces 100 of 200'),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-1'))).label,
+      contains('CPU headquarters, forces 100 of 200'),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-2'))).label,
+      contains('Neutral small island, durability 10'),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const ValueKey('island-button-2'))).width,
+      50,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('island-button-6'))).width,
+      64,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('island-button-8'))).width,
+      80,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('island-button-0'))).width,
+      100,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('keeps every island-count preset physically operable', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    for (final count in GameConfiguration.allowedIslandCounts) {
+      controller.selectIslandCount(count);
+      await tester.pump();
+      final state = container.read(gameControllerProvider);
+      expect(state.islands, hasLength(count));
+
+      final rectangles = [
+        for (final island in state.islands)
+          (
+            topLeft: tester.getTopLeft(
+              find.byKey(ValueKey('island-button-${island.id}')),
+            ),
+            size: tester.getSize(
+              find.byKey(ValueKey('island-button-${island.id}')),
+            ),
+          ),
+      ];
+      for (var first = 0; first < rectangles.length; first++) {
+        final firstRect = Rect.fromLTWH(
+          rectangles[first].topLeft.dx,
+          rectangles[first].topLeft.dy,
+          rectangles[first].size.width,
+          rectangles[first].size.height,
+        );
+        for (var second = first + 1; second < rectangles.length; second++) {
+          final secondRect = Rect.fromLTWH(
+            rectangles[second].topLeft.dx,
+            rectangles[second].topLeft.dy,
+            rectangles[second].size.width,
+            rectangles[second].size.height,
+          );
+          expect(firstRect.overlaps(secondRect), isFalse);
+        }
+      }
+    }
   });
 
   testWidgets('keeps headquarters inside the SafeArea insets', (tester) async {
@@ -82,10 +229,10 @@ void main() {
       ),
     );
 
-    final buttons = find.byType(ElevatedButton);
-    expect(buttons, findsNWidgets(10));
-    expect(tester.getTopLeft(buttons.at(1)).dy, closeTo(24, 1e-6));
-    expect(tester.getBottomRight(buttons.at(0)).dy, closeTo(484, 1e-6));
+    final cpu = find.byKey(const ValueKey('island-button-1'));
+    final player = find.byKey(const ValueKey('island-button-0'));
+    expect(tester.getTopLeft(cpu).dy, closeTo(24, 1e-6));
+    expect(tester.getBottomRight(player).dy, closeTo(484, 1e-6));
   });
 
   testWidgets('generates using the actual sub-320 layout constraints', (
@@ -191,6 +338,9 @@ void main() {
       controller.selectIslandCount(6);
       await tester.pump();
       controller.startGame();
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
       controller.tapBase(0);
       controller.tapBase(1);
       loop.tick();
@@ -242,10 +392,14 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('T A P  T O  P L A Y'));
+    await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
-    await tester.tap(find.byType(ElevatedButton).at(0));
-    await tester.tap(find.byType(ElevatedButton).at(1));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('island-button-0')));
+    await tester.tap(find.byKey(const ValueKey('island-button-1')));
     loop.tick();
     await tester.pump();
 
