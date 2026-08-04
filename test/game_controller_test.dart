@@ -235,7 +235,51 @@ void main() {
     expect(state.movement, isNull);
     expect(state.selectedBaseId, isNull);
     expect(state.bases[0].scale, 55);
-    expect(state.bases[1].scale, 155);
+    expect(state.bases[1].scale, 55);
+  });
+
+  test('stops the game loop when arrival resolution finalizes a result', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    controller.state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: const [
+        IslandState(
+          id: 0,
+          faction: Faction.player,
+          size: IslandSize.small,
+          currentForces: 1,
+          capacity: 50,
+        ),
+        IslandState(
+          id: 1,
+          faction: Faction.cpu,
+          size: IslandSize.small,
+          currentForces: 100,
+          capacity: 50,
+        ),
+      ],
+      movingForces: const [
+        MovingForce(
+          id: 0,
+          faction: Faction.cpu,
+          sourceIslandId: 1,
+          destinationIslandId: 0,
+          strength: 2,
+          arrivalTimeMs: 0,
+          durationMs: 1,
+        ),
+      ],
+    );
+
+    loop.tick();
+
+    final result = container.read(gameControllerProvider);
+    expect(result.phase, GamePhase.result);
+    expect(result.result?.type, GameResultType.defeat);
+    expect(loop.isRunning, isFalse);
+    expect(loop.stopCount, 1);
   });
 
   test(

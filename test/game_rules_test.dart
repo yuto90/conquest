@@ -594,23 +594,29 @@ void main() {
       size: IslandSize.small,
       currentForces: 0,
     );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 0,
+    );
     final state = GameState(
       phase: GamePhase.playing,
       elapsedMs: 0,
-      islands: const [island],
+      islands: const [island, cpu],
     );
 
     final beforeBoundary = rules.tick(state, deltaMs: 999);
     expect(beforeBoundary.elapsedMs, 999);
-    expect(beforeBoundary.islands.single.currentForces, 0);
+    expect(beforeBoundary.islands.first.currentForces, 0);
 
     final atBoundary = rules.tick(beforeBoundary, deltaMs: 1);
     expect(atBoundary.elapsedMs, 1000);
-    expect(atBoundary.islands.single.currentForces, 1);
+    expect(atBoundary.islands.first.currentForces, 1);
 
     final afterBoundary = rules.tick(atBoundary, deltaMs: 1);
     expect(afterBoundary.elapsedMs, 1001);
-    expect(afterBoundary.islands.single.currentForces, 1);
+    expect(afterBoundary.islands.first.currentForces, 1);
   });
 
   test('preserves every crossed growth boundary in a long tick', () {
@@ -620,16 +626,22 @@ void main() {
       size: IslandSize.headquarters,
       currentForces: 0,
     );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 0,
+    );
     final state = GameState(
       phase: GamePhase.playing,
       elapsedMs: 0,
-      islands: const [island],
+      islands: const [island, cpu],
     );
 
     final next = rules.tick(state, deltaMs: 3500);
 
     expect(next.elapsedMs, 3500);
-    expect(next.islands.single.currentForces, 3);
+    expect(next.islands.first.currentForces, 3);
   });
 
   test('applies growth before an arrival at the same timestamp', () {
@@ -724,6 +736,13 @@ void main() {
       currentForces: 10,
       capacity: 200,
     );
+    const cpu = IslandState(
+      id: 2,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 0,
+      capacity: 200,
+    );
     final force = rules.createMovingForce(
       id: 0,
       faction: Faction.player,
@@ -734,7 +753,7 @@ void main() {
     final state = GameState(
       phase: GamePhase.playing,
       elapsedMs: 0,
-      islands: [source, target],
+      islands: [source, target, cpu],
       movingForces: [force],
     );
 
@@ -744,7 +763,7 @@ void main() {
 
     final arrived = rules.tick(halfway, deltaMs: force.durationMs);
     expect(arrived.movingForces, isEmpty);
-    expect(arrived.islands.last.currentForces, 32);
+    expect(arrived.islands[1].currentForces, 32);
   });
 
   test(
@@ -825,6 +844,13 @@ void main() {
       faction: Faction.neutral,
       capacity: 50,
     );
+    const cpu = IslandState(
+      id: 99,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 0,
+      capacity: 200,
+    );
     const diagonalSource = IslandState(
       id: 4,
       position: IslandPosition(x: -1, y: -1),
@@ -891,7 +917,7 @@ void main() {
     final state = GameState(
       phase: GamePhase.playing,
       elapsedMs: 0,
-      islands: [verticalSource, verticalTarget],
+      islands: [verticalSource, verticalTarget, cpu],
       movingForces: [vertical],
     );
     final beforeArrival = rules.tick(state, deltaMs: vertical.durationMs - 1);
@@ -920,6 +946,13 @@ void main() {
         currentForces: 10,
         capacity: 200,
       );
+      const cpu = IslandState(
+        id: 2,
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 0,
+        capacity: 200,
+      );
       final force = rules.createMovingForce(
         id: 0,
         faction: Faction.player,
@@ -930,7 +963,7 @@ void main() {
       final state = GameState(
         phase: GamePhase.playing,
         elapsedMs: 0,
-        islands: [source, target],
+        islands: [source, target, cpu],
         movingForces: [force],
       );
 
@@ -944,7 +977,7 @@ void main() {
 
       final atArrival = rules.tick(beforeArrival, deltaMs: 1);
       expect(atArrival.movingForces, isEmpty);
-      expect(atArrival.islands.last.currentForces, 30);
+      expect(atArrival.islands[1].currentForces, 30);
     },
   );
 
@@ -1019,6 +1052,595 @@ void main() {
   );
 
   test(
+    'reinforcement adds arrival strength and clamps every island capacity',
+    () {
+      const source = IslandState(
+        id: 0,
+        position: IslandPosition(x: -1, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 100,
+        capacity: 200,
+      );
+      const enemy = IslandState(
+        id: 99,
+        position: IslandPosition(x: 1, y: 1),
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 100,
+        capacity: 200,
+      );
+
+      for (final size in IslandSize.values) {
+        final current = size.capacity - 1;
+        final target = IslandState(
+          id: 1,
+          position: const IslandPosition(x: 1, y: 0),
+          faction: Faction.player,
+          size: size,
+          currentForces: current,
+          capacity: size.capacity,
+        );
+        final force = MovingForce(
+          id: size.index,
+          faction: Faction.player,
+          sourceIslandId: source.id,
+          destinationIslandId: target.id,
+          strength: 1,
+          departureTimeMs: 0,
+          arrivalTimeMs: 0,
+          durationMs: 1,
+        );
+        final next = rules.tick(
+          GameState(
+            phase: GamePhase.playing,
+            elapsedMs: 0,
+            islands: [source, target, enemy],
+            movingForces: [force],
+          ),
+          deltaMs: 0,
+        );
+        expect(next.islands[1].currentForces, size.capacity);
+        expect(next.islands[1].faction, Faction.player);
+        expect(next.movingForces, isEmpty);
+      }
+
+      const atCapacity = IslandState(
+        id: 1,
+        position: IslandPosition(x: 1, y: 0),
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 50,
+        capacity: 50,
+      );
+      final discarded = rules.tick(
+        GameState(
+          phase: GamePhase.playing,
+          elapsedMs: 0,
+          islands: const [source, atCapacity, enemy],
+          movingForces: const [
+            MovingForce(
+              id: 20,
+              faction: Faction.player,
+              sourceIslandId: 0,
+              destinationIslandId: 1,
+              strength: 20,
+              arrivalTimeMs: 0,
+              durationMs: 1,
+            ),
+          ],
+        ),
+        deltaMs: 0,
+      );
+      expect(discarded.islands[1].currentForces, 50);
+    },
+  );
+
+  test('neutral attacks persist damage and capture only above durability', () {
+    const neutral = IslandState(
+      id: 1,
+      position: const IslandPosition(x: 1, y: 0),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+    const player = IslandState(
+      id: 0,
+      position: const IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    const enemy = IslandState(
+      id: 2,
+      position: const IslandPosition(x: 0, y: 1),
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+
+    GameState attack(int strength, IslandState target) {
+      return GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: [player, target, enemy],
+        movingForces: [
+          MovingForce(
+            id: strength,
+            faction: Faction.player,
+            sourceIslandId: player.id,
+            destinationIslandId: target.id,
+            strength: strength,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      );
+    }
+
+    final below = rules.tick(attack(4, neutral), deltaMs: 0);
+    expect(below.islands[1].faction, Faction.neutral);
+    expect(below.islands[1].durability, 6);
+    expect(below.islands[1].currentForces, 0);
+
+    final equal = rules.tick(attack(10, neutral), deltaMs: 0);
+    expect(equal.islands[1].faction, Faction.neutral);
+    expect(equal.islands[1].durability, 0);
+
+    final damagedThenCaptured = rules.tick(
+      attack(7, below.islands[1]),
+      deltaMs: 0,
+    );
+    expect(damagedThenCaptured.islands[1].faction, Faction.player);
+    expect(damagedThenCaptured.islands[1].currentForces, 1);
+    expect(damagedThenCaptured.islands[1].durability, 0);
+  });
+
+  test('enemy attacks retain defenders on below and equal values', () {
+    const player = IslandState(
+      id: 0,
+      position: IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    const enemy = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0, y: 1),
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    final target = IslandState(
+      id: 1,
+      position: const IslandPosition(x: 1, y: 0),
+      faction: Faction.cpu,
+      size: IslandSize.medium,
+      currentForces: 10,
+      capacity: 100,
+    );
+
+    GameState attack(int strength) {
+      return GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: [player, target, enemy],
+        movingForces: [
+          MovingForce(
+            id: strength,
+            faction: Faction.player,
+            sourceIslandId: player.id,
+            destinationIslandId: target.id,
+            strength: strength,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      );
+    }
+
+    final below = rules.tick(attack(4), deltaMs: 0);
+    expect(below.islands[1].faction, Faction.cpu);
+    expect(below.islands[1].currentForces, 6);
+
+    final equal = rules.tick(attack(10), deltaMs: 0);
+    expect(equal.islands[1].faction, Faction.cpu);
+    expect(equal.islands[1].currentForces, 0);
+
+    final captured = rules.tick(attack(12), deltaMs: 0);
+    expect(captured.islands[1].faction, Faction.player);
+    expect(captured.islands[1].currentForces, 2);
+  });
+
+  test('post-capture survivors are clamped to the target capacity', () {
+    const player = IslandState(
+      id: 0,
+      position: IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    const neutral = IslandState(
+      id: 1,
+      position: IslandPosition(x: 1, y: 0),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+    const enemy = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0, y: 1),
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    final next = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: const [player, neutral, enemy],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.player,
+            sourceIslandId: 0,
+            destinationIslandId: 1,
+            strength: 100,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      ),
+      deltaMs: 0,
+    );
+    expect(next.islands[1].faction, Faction.player);
+    expect(next.islands[1].currentForces, 50);
+  });
+
+  test('simultaneous arrivals cancel by faction before resolving a target', () {
+    const target = IslandState(
+      id: 2,
+      position: const IslandPosition(x: 0, y: 0),
+      faction: Faction.neutral,
+      size: IslandSize.medium,
+      durability: 10,
+      capacity: 100,
+    );
+    const player = IslandState(
+      id: 0,
+      position: const IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    const cpu = IslandState(
+      id: 1,
+      position: const IslandPosition(x: 1, y: 0),
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+
+    GameState simultaneous(int playerStrength, int cpuStrength) {
+      return GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: [player, cpu, target],
+        movingForces: [
+          MovingForce(
+            id: 0,
+            faction: Faction.player,
+            sourceIslandId: player.id,
+            destinationIslandId: target.id,
+            strength: playerStrength,
+            arrivalTimeMs: 1000,
+            durationMs: 1,
+          ),
+          MovingForce(
+            id: 1,
+            faction: Faction.cpu,
+            sourceIslandId: cpu.id,
+            destinationIslandId: target.id,
+            strength: cpuStrength,
+            arrivalTimeMs: 1000,
+            durationMs: 1,
+          ),
+        ],
+      );
+    }
+
+    final playerWins = rules.tick(simultaneous(8, 5), deltaMs: 1000);
+    expect(playerWins.islands[2].faction, Faction.neutral);
+    expect(playerWins.islands[2].durability, 7);
+
+    final cpuWins = rules.tick(simultaneous(5, 20), deltaMs: 1000);
+    expect(cpuWins.islands[2].faction, Faction.cpu);
+    expect(cpuWins.islands[2].currentForces, 5);
+    expect(cpuWins.islands[2].durability, 0);
+
+    final equal = rules.tick(simultaneous(8, 8), deltaMs: 1000);
+    expect(equal.islands[2], target);
+  });
+
+  test('growth is applied before an arrival at the same timestamp', () {
+    const player = IslandState(
+      id: 0,
+      position: IslandPosition(x: -1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 10,
+      capacity: 200,
+    );
+    const target = IslandState(
+      id: 1,
+      position: IslandPosition(x: 1, y: 0),
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 10,
+      capacity: 50,
+    );
+    const enemy = IslandState(
+      id: 2,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    final next = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: const [player, target, enemy],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.player,
+            sourceIslandId: 0,
+            destinationIslandId: 1,
+            strength: 5,
+            arrivalTimeMs: 1000,
+            durationMs: 1000,
+          ),
+        ],
+      ),
+      deltaMs: 1000,
+    );
+    expect(next.islands[1].currentForces, 16);
+  });
+
+  test('result requires no owned islands and no troops in transit', () {
+    const playerIsland = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 1,
+      capacity: 50,
+    );
+    const cpuIsland = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      size: IslandSize.small,
+      currentForces: 1,
+      capacity: 50,
+    );
+
+    final defeat = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 12,
+        islands: [playerIsland, cpuIsland],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 0,
+            strength: 2,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      ),
+      deltaMs: 0,
+    );
+    expect(defeat.phase, GamePhase.result);
+    expect(defeat.result?.type, GameResultType.defeat);
+    expect(defeat.result?.winner, Faction.cpu);
+
+    final victory = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 12,
+        islands: [playerIsland, cpuIsland],
+        movingForces: const [
+          MovingForce(
+            id: 1,
+            faction: Faction.player,
+            sourceIslandId: 0,
+            destinationIslandId: 1,
+            strength: 2,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      ),
+      deltaMs: 0,
+    );
+    expect(victory.phase, GamePhase.result);
+    expect(victory.result?.type, GameResultType.victory);
+    expect(victory.result?.winner, Faction.player);
+
+    final draw = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 12,
+        islands: const [
+          IslandState(
+            id: 2,
+            faction: Faction.neutral,
+            size: IslandSize.small,
+            durability: 10,
+          ),
+        ],
+        movingForces: const [
+          MovingForce(
+            id: 2,
+            faction: Faction.player,
+            sourceIslandId: 0,
+            destinationIslandId: 2,
+            strength: 5,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+          MovingForce(
+            id: 3,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 2,
+            strength: 5,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      ),
+      deltaMs: 0,
+    );
+    expect(draw.phase, GamePhase.result);
+    expect(draw.result?.type, GameResultType.draw);
+  });
+
+  test('an in-transit troop can recapture after the final island is lost', () {
+    const cpu = IslandState(
+      id: 1,
+      position: IslandPosition(x: 1, y: 0),
+      faction: Faction.cpu,
+      size: IslandSize.small,
+      currentForces: 1,
+      capacity: 50,
+    );
+    const playerForce = MovingForce(
+      id: 0,
+      faction: Faction.player,
+      sourceIslandId: 0,
+      destinationIslandId: 1,
+      strength: 2,
+      arrivalTimeMs: 100,
+      durationMs: 100,
+    );
+    final inTransit = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: const [cpu],
+        movingForces: const [playerForce],
+      ),
+      deltaMs: 50,
+    );
+    expect(inTransit.phase, GamePhase.playing);
+    expect(inTransit.movingForces, hasLength(1));
+
+    final next = rules.tick(inTransit, deltaMs: 50);
+    expect(next.phase, GamePhase.result);
+    expect(next.result?.type, GameResultType.victory);
+    expect(next.islands.single.faction, Faction.player);
+    expect(next.islands.single.currentForces, 1);
+  });
+
+  test('losing the headquarters alone does not finalize the match', () {
+    const playerHeadquarters = IslandState(
+      id: 0,
+      faction: Faction.player,
+      size: IslandSize.headquarters,
+      currentForces: 1,
+      capacity: 200,
+    );
+    const playerIsland = IslandState(
+      id: 2,
+      faction: Faction.player,
+      size: IslandSize.small,
+      currentForces: 1,
+      capacity: 50,
+    );
+    const cpuHeadquarters = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      size: IslandSize.headquarters,
+      currentForces: 100,
+      capacity: 200,
+    );
+    final next = rules.tick(
+      GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        islands: const [playerHeadquarters, playerIsland, cpuHeadquarters],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 0,
+            strength: 2,
+            arrivalTimeMs: 0,
+            durationMs: 1,
+          ),
+        ],
+      ),
+      deltaMs: 0,
+    );
+    expect(next.phase, GamePhase.playing);
+    expect(next.islands[0].faction, Faction.cpu);
+    expect(next.islands[1].faction, Faction.player);
+  });
+
+  test('simultaneous elimination is a draw and freezes subsequent ticks', () {
+    const target = IslandState(
+      id: 2,
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+    );
+    final initial = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: const [target],
+      movingForces: const [
+        MovingForce(
+          id: 0,
+          faction: Faction.player,
+          sourceIslandId: 0,
+          destinationIslandId: 2,
+          strength: 5,
+          arrivalTimeMs: 0,
+          durationMs: 1,
+        ),
+        MovingForce(
+          id: 1,
+          faction: Faction.cpu,
+          sourceIslandId: 1,
+          destinationIslandId: 2,
+          strength: 5,
+          arrivalTimeMs: 0,
+          durationMs: 1,
+        ),
+      ],
+    );
+    final result = rules.tick(initial, deltaMs: 0);
+    expect(result.phase, GamePhase.result);
+    expect(result.result?.type, GameResultType.draw);
+    expect(rules.tick(result, deltaMs: 5000), same(result));
+  });
+
+  test(
     'invalidates a selected source when ownership or force becomes invalid',
     () {
       const source = IslandState(
@@ -1051,6 +1673,69 @@ void main() {
 
       expect(rules.tick(ownershipChanged, deltaMs: 0).selectedIslandId, isNull);
       expect(rules.tick(forceExhausted, deltaMs: 0).selectedIslandId, isNull);
+    },
+  );
+
+  test(
+    'keeps a cleared selection cleared after later arrivals in one tick',
+    () {
+      const selected = IslandState(
+        id: 0,
+        position: IslandPosition(x: 0, y: 0),
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 5,
+        capacity: 50,
+      );
+      const playerSource = IslandState(
+        id: 1,
+        position: IslandPosition(x: -1, y: 0),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 50,
+        capacity: 200,
+      );
+      const cpuSource = IslandState(
+        id: 2,
+        position: IslandPosition(x: 1, y: 0),
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 50,
+        capacity: 200,
+      );
+
+      final next = rules.tick(
+        GameState(
+          phase: GamePhase.playing,
+          elapsedMs: 0,
+          selectedIslandId: selected.id,
+          islands: const [selected, playerSource, cpuSource],
+          movingForces: const [
+            MovingForce(
+              id: 0,
+              faction: Faction.cpu,
+              sourceIslandId: 2,
+              destinationIslandId: 0,
+              strength: 10,
+              arrivalTimeMs: 100,
+              durationMs: 100,
+            ),
+            MovingForce(
+              id: 1,
+              faction: Faction.player,
+              sourceIslandId: 1,
+              destinationIslandId: 0,
+              strength: 10,
+              arrivalTimeMs: 200,
+              durationMs: 200,
+            ),
+          ],
+        ),
+        deltaMs: 200,
+      );
+
+      expect(next.islands.first.faction, Faction.player);
+      expect(next.selectedIslandId, isNull);
     },
   );
 
