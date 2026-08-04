@@ -331,35 +331,41 @@ final class CpuStrategy {
     if (enemies.isEmpty) {
       return null;
     }
-    enemies.sort((first, second) {
-      final forces = first.currentForces.compareTo(second.currentForces);
-      if (forces != 0) {
-        return forces;
-      }
-      return first.id.compareTo(second.id);
-    });
-    final target = enemies.first;
-    final fallbackSources = [...sources]
-      ..sort((first, second) {
-        final forces = second.currentForces.compareTo(first.currentForces);
-        if (forces != 0) {
-          return forces;
-        }
-        final distance = _distance(
-          first,
-          target,
-        ).compareTo(_distance(second, target));
-        if (distance != 0) {
-          return distance;
-        }
-        return first.id.compareTo(second.id);
-      });
-    final source = fallbackSources.first;
+    final strongestForce = sources
+        .map((source) => source.currentForces)
+        .reduce(math.max);
+    final weakestForce = enemies
+        .map((enemy) => enemy.currentForces)
+        .reduce(math.min);
+    final fallbackCandidates =
+        [
+          for (final source in sources)
+            if (source.currentForces == strongestForce)
+              for (final target in enemies)
+                if (target.currentForces == weakestForce)
+                  _AttackCandidate(
+                    source: source,
+                    target: target,
+                    strength: source.currentForces ~/ 2,
+                    distance: _distance(source, target),
+                  ),
+        ]..sort((first, second) {
+          final distance = first.distance.compareTo(second.distance);
+          if (distance != 0) {
+            return distance;
+          }
+          final target = first.target.id.compareTo(second.target.id);
+          if (target != 0) {
+            return target;
+          }
+          return first.source.id.compareTo(second.source.id);
+        });
+    final fallback = fallbackCandidates.first;
     return CpuDecision(
       kind: CpuDecisionKind.attack,
-      sourceIslandId: source.id,
-      destinationIslandId: target.id,
-      strength: source.currentForces ~/ 2,
+      sourceIslandId: fallback.source.id,
+      destinationIslandId: fallback.target.id,
+      strength: fallback.strength,
     );
   }
 

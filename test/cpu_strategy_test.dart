@@ -190,6 +190,22 @@ void main() {
     },
   );
 
+  test('uses distance before id for equally weak fallback enemies', () {
+    final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
+    final state = _playing(
+      islands: [
+        _island(id: 1, faction: Faction.cpu, forces: 40, x: 0, y: 0),
+        _island(id: 2, faction: Faction.player, forces: 100, x: 0.9, y: 0.9),
+        _island(id: 3, faction: Faction.player, forces: 100, x: 0.1, y: 0.1),
+      ],
+    );
+
+    final decision = strategy.decide(state);
+
+    expect(decision, isNotNull);
+    expect(decision!.destinationIslandId, 3);
+  });
+
   test('applies exactly one CPU dispatch without changing its abilities', () {
     final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
     final state = _playing(
