@@ -31,6 +31,12 @@ class ManualGameLoop implements GameLoop {
   void tick() => _onTick?.call();
 }
 
+void completeStartCountdown(ManualGameLoop loop) {
+  for (var index = 0; index < 60; index++) {
+    loop.tick();
+  }
+}
+
 void main() {
   late ManualGameLoop loop;
   late ProviderContainer container;
@@ -101,13 +107,54 @@ void main() {
     controller.startGame();
     controller.startGame();
 
-    expect(container.read(gameControllerProvider).phase, GamePhase.playing);
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.startCountdown,
+    );
     expect(loop.startCount, 1);
+  });
+
+  test('holds the generated map during the start countdown', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    final initial = container.read(gameControllerProvider);
+
+    controller.startGame();
+
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.startCountdown,
+    );
+    expect(container.read(gameControllerProvider).countdownRemainingMs, 3000);
+    expect(container.read(gameControllerProvider).elapsedMs, 0);
+
+    controller.tapBase(0);
+    expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+    expect(container.read(gameControllerProvider).movingForces, isEmpty);
+
+    for (var index = 0; index < 59; index++) {
+      loop.tick();
+    }
+    final beforeStart = container.read(gameControllerProvider);
+    expect(beforeStart.phase, GamePhase.startCountdown);
+    expect(beforeStart.countdownRemainingMs, 50);
+    expect(beforeStart.elapsedMs, 0);
+    expect(beforeStart.islands, initial.islands);
+
+    loop.tick();
+    final started = container.read(gameControllerProvider);
+    expect(started.phase, GamePhase.playing);
+    expect(started.countdownRemainingMs, 0);
+    expect(started.elapsedMs, 0);
+    expect(loop.isRunning, isTrue);
+
+    loop.tick();
+    expect(container.read(gameControllerProvider).elapsedMs, 50);
   });
 
   test('selects a source and creates movement on the next tap', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
 
     controller.tapBase(0);
     expect(container.read(gameControllerProvider).selectedBaseId, 0);
@@ -129,6 +176,7 @@ void main() {
     () {
       final controller = container.read(gameControllerProvider.notifier);
       controller.startGame();
+      completeStartCountdown(loop);
 
       controller.tapBase(2);
       expect(container.read(gameControllerProvider).selectedBaseId, isNull);
@@ -146,6 +194,7 @@ void main() {
     () {
       final controller = container.read(gameControllerProvider.notifier);
       controller.startGame();
+      completeStartCountdown(loop);
       controller.tapBase(0);
 
       final selected = container.read(gameControllerProvider);
@@ -180,6 +229,7 @@ void main() {
     () {
       final controller = container.read(gameControllerProvider.notifier);
       controller.startGame();
+      completeStartCountdown(loop);
       final playing = container.read(gameControllerProvider);
 
       for (final force in [0, 1, 2, 5, 200]) {
@@ -209,6 +259,7 @@ void main() {
   test('preserves a selected source across ticks before destination tap', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
     controller.tapBase(0);
 
     loop.tick();
@@ -226,6 +277,7 @@ void main() {
   test('ticks movement and resolves it at the target', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
     controller.tapBase(0);
     controller.tapBase(1);
 
@@ -243,6 +295,7 @@ void main() {
   test('stops the game loop when arrival resolution finalizes a result', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
     controller.state = GameState(
       phase: GamePhase.playing,
       elapsedMs: 0,
@@ -289,6 +342,7 @@ void main() {
     () {
       final controller = container.read(gameControllerProvider.notifier);
       controller.startGame();
+      completeStartCountdown(loop);
 
       for (var i = 0; i < 20; i++) {
         loop.tick();
@@ -306,6 +360,7 @@ void main() {
   test('appends consecutive dispatches from one source', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
     controller.tapBase(0);
     controller.tapBase(1);
     final first = container.read(gameControllerProvider).movingForces.single;
@@ -328,6 +383,7 @@ void main() {
   test('keeps troops from different sources independent', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
+    completeStartCountdown(loop);
 
     final initial = container.read(gameControllerProvider);
     controller.state = initial.copyWith(

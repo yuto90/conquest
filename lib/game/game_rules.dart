@@ -122,11 +122,14 @@ final class GameRules {
   static const mapMinCoordinate = -1.0;
   static const mapMaxCoordinate = 1.0;
 
-  /// These dimensions are shared with [Home]'s `SizedBox` widgets.  Neutral
-  /// island variants currently use the same 50px square; the enum is retained
-  /// in the API so a future renderer can give each variant its own size.
+  /// These dimensions are shared with [Home]'s `SizedBox` widgets.  Distinct
+  /// sizes make the small, medium, large, and headquarters roles visible on
+  /// the board while keeping the small-island footprint compatible with the
+  /// original map envelope.
   static const headquartersWidgetSize = 100.0;
   static const neutralWidgetSize = 50.0;
+  static const mediumIslandWidgetSize = 64.0;
+  static const largeIslandWidgetSize = 80.0;
   static const movingForceWidgetSize = 30.0;
 
   /// A layout-independent fallback for state creation before Flutter layout
@@ -142,9 +145,12 @@ final class GameRules {
   static const defaultPairPlacementAttempts = 128;
 
   static double islandWidgetSize(IslandSize size) {
-    return size == IslandSize.headquarters
-        ? headquartersWidgetSize
-        : neutralWidgetSize;
+    return switch (size) {
+      IslandSize.headquarters => headquartersWidgetSize,
+      IslandSize.small => neutralWidgetSize,
+      IslandSize.medium => mediumIslandWidgetSize,
+      IslandSize.large => largeIslandWidgetSize,
+    };
   }
 
   GameState initialState({
