@@ -1,3 +1,4 @@
+import 'dart:ui' show SemanticsAction, Tristate;
 import 'dart:math';
 
 import 'package:conquest/base.dart';
@@ -159,6 +160,67 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets(
+    'does not advertise island actions while the board is not playable',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      final islandFinder = find.byKey(const ValueKey('island-button-0'));
+      final container = ProviderScope.containerOf(tester.element(islandFinder));
+
+      void expectDisabledIslandSemantics() {
+        final node = tester.getSemantics(islandFinder);
+        final data = node.getSemanticsData();
+        expect(data.flagsCollection.isEnabled, Tristate.isFalse);
+        expect(data.hasAction(SemanticsAction.tap), isFalse);
+        expect(node.hint, isNot(contains('Tap')));
+        expect(node.label, isNot(contains('available dispatch source')));
+        expect(node.label, isNot(contains('selected dispatch source')));
+        expect(node.label, isNot(contains('valid dispatch destination')));
+      }
+
+      // Configuration state renders player-owned islands before interaction
+      // is enabled, even though the island itself has enough forces.
+      expectDisabledIslandSemantics();
+
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+      // The map remains visible during the start countdown, but callbacks are
+      // still disabled until the countdown reaches the playing phase.
+      expectDisabledIslandSemantics();
+
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      final playingNode = tester.getSemantics(islandFinder);
+      final playingData = playingNode.getSemanticsData();
+      expect(playingData.flagsCollection.isEnabled, Tristate.isTrue);
+      expect(tester.widget<Base>(islandFinder).onPressed, isNotNull);
+      expect(playingNode.label, contains('available dispatch source'));
+      expect(playingNode.hint, contains('Tap to select'));
+
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.tapBase(0);
+      controller.pauseGame();
+      await tester.pump();
+      // Pausing disables the callback while preserving the selected state.
+      expectDisabledIslandSemantics();
+      semantics.dispose();
+    },
+  );
 
   testWidgets('shows the selected source and valid destination candidates', (
     tester,

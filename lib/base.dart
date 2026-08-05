@@ -158,7 +158,9 @@ class Base extends StatelessWidget {
     final value = base.faction == Faction.neutral
         ? 'durability ${base.currentDurability}'
         : 'forces ${base.currentForces} of ${base.capacity}';
-    final action = selected
+    final action = onPressed == null
+        ? 'interaction unavailable'
+        : selected
         ? 'selected dispatch source'
         : destinationCandidate
         ? 'valid dispatch destination'
@@ -169,7 +171,10 @@ class Base extends StatelessWidget {
         '${base.currentValue}, $action';
   }
 
-  String get _semanticHint {
+  String? get _semanticHint {
+    if (onPressed == null) {
+      return null;
+    }
     if (selected) {
       return 'Tap again to cancel selection, or choose a valid destination.';
     }
