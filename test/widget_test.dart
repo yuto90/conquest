@@ -1,11 +1,14 @@
+import 'dart:ui' show SemanticsAction, Tristate;
 import 'dart:math';
 
+import 'package:conquest/base.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
+import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -157,6 +160,214 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets(
+    'does not advertise island actions while the board is not playable',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      final islandFinder = find.byKey(const ValueKey('island-button-0'));
+      final container = ProviderScope.containerOf(tester.element(islandFinder));
+
+      void expectDisabledIslandSemantics() {
+        final node = tester.getSemantics(islandFinder);
+        final data = node.getSemanticsData();
+        expect(data.flagsCollection.isEnabled, Tristate.isFalse);
+        expect(data.hasAction(SemanticsAction.tap), isFalse);
+        expect(node.hint, isNot(contains('Tap')));
+        expect(node.label, isNot(contains('available dispatch source')));
+        expect(node.label, isNot(contains('selected dispatch source')));
+        expect(node.label, isNot(contains('valid dispatch destination')));
+      }
+
+      // Configuration state renders player-owned islands before interaction
+      // is enabled, even though the island itself has enough forces.
+      expectDisabledIslandSemantics();
+
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+      // The map remains visible during the start countdown, but callbacks are
+      // still disabled until the countdown reaches the playing phase.
+      expectDisabledIslandSemantics();
+
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      final playingNode = tester.getSemantics(islandFinder);
+      final playingData = playingNode.getSemanticsData();
+      expect(playingData.flagsCollection.isEnabled, Tristate.isTrue);
+      expect(tester.widget<Base>(islandFinder).onPressed, isNotNull);
+      expect(playingNode.label, contains('available dispatch source'));
+      expect(playingNode.hint, contains('Tap to select'));
+
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.tapBase(0);
+      controller.pauseGame();
+      await tester.pump();
+      // Pausing disables the callback while preserving the selected state.
+      expectDisabledIslandSemantics();
+      semantics.dispose();
+    },
+  );
+
+  testWidgets('shows the selected source and valid destination candidates', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('island-button-0')));
+    await tester.pump();
+
+    final source = tester.getSemantics(
+      find.byKey(const ValueKey('island-button-0')),
+    );
+    final destination = tester.getSemantics(
+      find.byKey(const ValueKey('island-button-2')),
+    );
+    expect(
+      tester
+          .widget<Base>(find.byKey(const ValueKey('island-button-0')))
+          .selected,
+      isTrue,
+    );
+    expect(source.label, contains('selected dispatch source'));
+    expect(destination.label, contains('valid dispatch destination'));
+    semantics.dispose();
+  });
+
+  testWidgets('shows unavailable interaction feedback on the board', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('island-button-1')));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('interaction-feedback')), findsOneWidget);
+    expect(find.textContaining('player island'), findsOneWidget);
+  });
+
+  testWidgets(
+    'renders every moving force with faction and strength semantics',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      final islandFinder = find.byKey(const ValueKey('island-button-0'));
+      final container = ProviderScope.containerOf(tester.element(islandFinder));
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      final state = container.read(gameControllerProvider);
+      controller.state = state.copyWith(
+        movingForces: [
+          const MovingForce(
+            id: 101,
+            faction: Faction.player,
+            sourceIslandId: 0,
+            destinationIslandId: 2,
+            strength: 17,
+            position: IslandPosition(x: 0, y: 0),
+          ),
+          const MovingForce(
+            id: 102,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 3,
+            strength: 9,
+            position: IslandPosition(x: 0.25, y: -0.25),
+          ),
+        ],
+      );
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('moving-force-101')), findsOneWidget);
+      expect(find.byKey(const ValueKey('moving-force-102')), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey('moving-force-101')))
+            .label,
+        allOf(
+          contains('Player'),
+          contains('strength 17'),
+          contains('not tappable'),
+        ),
+      );
+      expect(
+        tester
+            .getSemantics(find.byKey(const ValueKey('moving-force-102')))
+            .label,
+        allOf(
+          contains('CPU'),
+          contains('strength 9'),
+          contains('not tappable'),
+        ),
+      );
+      expect(
+        tester.getSemantics(find.byType(MovingForceWidget).first).label,
+        contains('Player moving troop'),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('moving-force-101')),
+        warnIfMissed: false,
+      );
+      await tester.pump();
+      expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+      semantics.dispose();
+    },
+  );
 
   testWidgets('keeps every island-count preset physically operable', (
     tester,

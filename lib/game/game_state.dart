@@ -184,6 +184,17 @@ class IslandState {
   int get forces => currentForces;
   int get currentStrength => currentForces;
 
+  /// The value currently displayed for this island, regardless of whether it
+  /// is an owned island's forces or a neutral island's durability.
+  int get currentValue =>
+      faction == Faction.neutral ? currentDurability : currentForces;
+
+  /// Whether this island can be selected as a player dispatch source.
+  bool get canDispatch => faction == Faction.player && currentForces > 1;
+
+  /// A descriptive alias used by accessibility-facing board code.
+  bool get actionAvailable => canDispatch;
+
   /// Canonical alias for the neutral-island value.
   int get currentDurability => durability;
 
@@ -326,6 +337,13 @@ class MovingForce {
   int get sourceBaseId => sourceIslandId;
   int get targetBaseId => destinationIslandId;
   int get scale => strength;
+
+  /// The value rendered on a moving troop marker.
+  int get currentValue => strength;
+
+  /// Moving troops have no player action of their own.
+  bool get actionAvailable => false;
+  bool get isTappable => false;
 
   MovingForce copyWith({
     int? id,
@@ -482,6 +500,8 @@ final class GameState {
     int? selectedBaseId,
     List<MovingForce>? movingForces,
     MovingForce? movement,
+    String? interactionFeedback,
+    int interactionFeedbackUntilMs = 0,
     GameResult? result,
     int? countdownRemainingMs,
   }) : configuration = configuration ?? GameConfiguration.initial,
@@ -493,6 +513,8 @@ final class GameState {
                  ? const <MovingForce>[]
                  : <MovingForce>[movement]),
        ),
+       interactionFeedback = interactionFeedback,
+       interactionFeedbackUntilMs = interactionFeedbackUntilMs,
        result = result,
        countdownRemainingMs = countdownRemainingMs ?? 0 {
     if ((phase == GamePhase.result) != (result != null)) {
@@ -508,6 +530,8 @@ final class GameState {
   final List<IslandState> islands;
   final int? selectedIslandId;
   final List<MovingForce> movingForces;
+  final String? interactionFeedback;
+  final int interactionFeedbackUntilMs;
   final GameResult? result;
   final int countdownRemainingMs;
 
@@ -515,6 +539,12 @@ final class GameState {
   List<IslandState> get bases => islands;
   int? get selectedBaseId => selectedIslandId;
   MovingForce? get movement => movingForces.isEmpty ? null : movingForces.first;
+
+  bool get hasInteractionFeedback =>
+      interactionFeedback != null && elapsedMs < interactionFeedbackUntilMs;
+
+  /// Compatibility alias for callers that use the shorter feedback name.
+  String? get feedback => interactionFeedback;
 
   bool get isCountdown =>
       phase == GamePhase.startCountdown || phase == GamePhase.resumeCountdown;
@@ -528,6 +558,8 @@ final class GameState {
     int? selectedIslandId,
     int? selectedBaseId,
     List<MovingForce>? movingForces,
+    String? interactionFeedback,
+    int? interactionFeedbackUntilMs,
     GameResult? result,
     int? countdownRemainingMs,
   }) {
@@ -539,6 +571,9 @@ final class GameState {
       selectedIslandId:
           selectedIslandId ?? selectedBaseId ?? this.selectedIslandId,
       movingForces: movingForces ?? this.movingForces,
+      interactionFeedback: interactionFeedback ?? this.interactionFeedback,
+      interactionFeedbackUntilMs:
+          interactionFeedbackUntilMs ?? this.interactionFeedbackUntilMs,
       result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
     );
@@ -554,6 +589,8 @@ final class GameState {
       islands: islands,
       selectedIslandId: selectedIslandId,
       movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
       result: nextResult,
       countdownRemainingMs: 0,
     );
@@ -579,6 +616,8 @@ final class GameState {
       islands: islands,
       selectedIslandId: selectedIslandId,
       movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -594,6 +633,8 @@ final class GameState {
       islands: islands,
       selectedIslandId: null,
       movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -608,6 +649,8 @@ final class GameState {
       islands: islands,
       selectedIslandId: selectedIslandId,
       movingForces: const <MovingForce>[],
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -626,6 +669,8 @@ final class GameState {
       islands: islands,
       selectedIslandId: selectedIslandId,
       movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -639,6 +684,22 @@ final class GameState {
         : copyWith(movingForces: <MovingForce>[movement]);
   }
 
+  /// Removes transient interaction feedback without changing the match.
+  GameState clearInteractionFeedback() {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      movingForces: movingForces,
+      interactionFeedback: null,
+      interactionFeedbackUntilMs: 0,
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
   @override
   bool operator ==(Object other) {
     return other is GameState &&
@@ -648,6 +709,8 @@ final class GameState {
         _listEquals(other.islands, islands) &&
         other.selectedIslandId == selectedIslandId &&
         _listEquals(other.movingForces, movingForces) &&
+        other.interactionFeedback == interactionFeedback &&
+        other.interactionFeedbackUntilMs == interactionFeedbackUntilMs &&
         other.result == result &&
         other.countdownRemainingMs == countdownRemainingMs;
   }
@@ -660,6 +723,8 @@ final class GameState {
     Object.hashAll(islands),
     selectedIslandId,
     Object.hashAll(movingForces),
+    interactionFeedback,
+    interactionFeedbackUntilMs,
     result,
     countdownRemainingMs,
   );

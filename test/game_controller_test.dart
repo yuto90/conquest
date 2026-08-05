@@ -190,6 +190,37 @@ void main() {
     },
   );
 
+  test('reports unavailable feedback for non-player and exhausted sources', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    controller.tapBase(1);
+    var state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, isNull);
+    expect(state.interactionFeedback, contains('player island'));
+
+    controller.tapBase(0);
+    state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, 0);
+    controller.state = state.copyWith(
+      islands: [
+        for (final island in state.islands)
+          island.id == 0 ? island.copyWith(currentForces: 1) : island,
+      ],
+    );
+    controller.tapBase(2);
+
+    state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, isNull);
+    expect(state.interactionFeedback, contains('more than 1'));
+
+    for (var index = 0; index < 30; index++) {
+      loop.tick();
+    }
+    expect(container.read(gameControllerProvider).interactionFeedback, isNull);
+  });
+
   test(
     'uses force at destination tap time and clears an invalid selection',
     () {
@@ -221,7 +252,86 @@ void main() {
       );
       loop.tick();
 
-      expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+      final cleared = container.read(gameControllerProvider);
+      expect(cleared.selectedIslandId, isNull);
+      expect(cleared.interactionFeedback, contains('more than 1'));
+    },
+  );
+
+  test(
+    'shows feedback when a selected source is cleared and reoccupied in one tick',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      completeStartCountdown(loop);
+
+      controller.state = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        selectedIslandId: 0,
+        islands: const [
+          IslandState(
+            id: 0,
+            faction: Faction.player,
+            size: IslandSize.small,
+            currentForces: 3,
+            capacity: 50,
+          ),
+          IslandState(
+            id: 1,
+            faction: Faction.cpu,
+            size: IslandSize.small,
+            currentForces: 10,
+            capacity: 50,
+          ),
+          IslandState(
+            id: 2,
+            faction: Faction.player,
+            size: IslandSize.small,
+            currentForces: 10,
+            capacity: 50,
+          ),
+        ],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 0,
+            strength: 10,
+            arrivalTimeMs: 1,
+            durationMs: 1,
+          ),
+          MovingForce(
+            id: 1,
+            faction: Faction.player,
+            sourceIslandId: 2,
+            destinationIslandId: 0,
+            strength: 9,
+            arrivalTimeMs: 2,
+            durationMs: 1,
+          ),
+        ],
+      );
+
+      loop.tick();
+
+      final afterTick = container.read(gameControllerProvider);
+      final source = afterTick.islands.firstWhere((island) => island.id == 0);
+      expect(afterTick.phase, GamePhase.playing);
+      expect(source.faction, Faction.player);
+      expect(source.currentForces, 2);
+      expect(afterTick.selectedIslandId, isNull);
+      expect(afterTick.interactionFeedback, contains('Dispatch unavailable'));
+      expect(afterTick.hasInteractionFeedback, isTrue);
+
+      for (var index = 0; index < 30; index++) {
+        loop.tick();
+      }
+      expect(
+        container.read(gameControllerProvider).interactionFeedback,
+        isNull,
+      );
     },
   );
 
