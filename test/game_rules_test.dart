@@ -373,7 +373,11 @@ void main() {
         GamePhase.configuration,
         GamePhase.startCountdown,
       },
-      GamePhase.startCountdown: {GamePhase.startCountdown, GamePhase.playing},
+      GamePhase.startCountdown: {
+        GamePhase.startCountdown,
+        GamePhase.playing,
+        GamePhase.paused,
+      },
       GamePhase.playing: {
         GamePhase.playing,
         GamePhase.paused,
@@ -384,7 +388,11 @@ void main() {
         GamePhase.resumeCountdown,
         GamePhase.configuration,
       },
-      GamePhase.resumeCountdown: {GamePhase.resumeCountdown, GamePhase.playing},
+      GamePhase.resumeCountdown: {
+        GamePhase.resumeCountdown,
+        GamePhase.playing,
+        GamePhase.paused,
+      },
       GamePhase.result: {GamePhase.result, GamePhase.configuration},
     };
     for (final from in GamePhase.values) {
