@@ -339,11 +339,13 @@ final class GameRules {
     }
     return switch (from) {
       GamePhase.configuration => to == GamePhase.startCountdown,
-      GamePhase.startCountdown => to == GamePhase.playing,
+      GamePhase.startCountdown =>
+        to == GamePhase.playing || to == GamePhase.paused,
       GamePhase.playing => to == GamePhase.paused || to == GamePhase.result,
       GamePhase.paused =>
         to == GamePhase.resumeCountdown || to == GamePhase.configuration,
-      GamePhase.resumeCountdown => to == GamePhase.playing,
+      GamePhase.resumeCountdown =>
+        to == GamePhase.playing || to == GamePhase.paused,
       GamePhase.result => to == GamePhase.configuration,
     };
   }
@@ -400,7 +402,12 @@ final class GameRules {
   }
 
   GameState pause(GameState state) {
-    return transitionTo(state, GamePhase.paused);
+    if (state.phase != GamePhase.playing &&
+        state.phase != GamePhase.startCountdown &&
+        state.phase != GamePhase.resumeCountdown) {
+      return state;
+    }
+    return state.transitionToPhase(GamePhase.paused);
   }
 
   GameState finish(GameState state, GameResult result) {

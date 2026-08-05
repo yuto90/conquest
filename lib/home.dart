@@ -33,11 +33,39 @@ class Home extends StatelessWidget {
   }
 }
 
-class _GameSurface extends ConsumerWidget {
+class _GameSurface extends ConsumerStatefulWidget {
   const _GameSurface();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GameSurface> createState() => _GameSurfaceState();
+}
+
+class _GameSurfaceState extends ConsumerState<_GameSurface>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.inactive ||
+        lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.hidden ||
+        lifecycleState == AppLifecycleState.detached) {
+      ref.read(gameControllerProvider.notifier).pauseGame();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(gameControllerProvider);
     final controller = ref.read(gameControllerProvider.notifier);
 
@@ -71,8 +99,194 @@ class _GameSurface extends ConsumerWidget {
         ),
         if (state.phase == GamePhase.configuration && state.islands.isNotEmpty)
           _ConfigurationPanel(state: state, onStart: controller.startGame),
+        if (state.phase == GamePhase.playing)
+          _PauseButton(onPressed: controller.pauseGame),
+        if (state.phase == GamePhase.paused)
+          _PauseMenu(
+            onResume: controller.resumeGame,
+            onQuit: () => _confirmQuit(context, controller),
+          ),
+        if (state.phase == GamePhase.result)
+          _ResultPanel(
+            result: state.result!,
+            onReplay: controller.replayGame,
+            onSettings: controller.returnToConfiguration,
+          ),
         _CountdownBanner(state: state),
       ],
+    );
+  }
+
+  Future<void> _confirmQuit(
+    BuildContext context,
+    GameController controller,
+  ) async {
+    final shouldQuit = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Quit match?'),
+          content: const Text('Your current match will not be saved.'),
+          actions: [
+            TextButton(
+              key: const ValueKey('cancel-quit'),
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('CANCEL'),
+            ),
+            TextButton(
+              key: const ValueKey('confirm-quit'),
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('QUIT'),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldQuit == true && mounted) {
+      controller.returnToConfiguration();
+    }
+  }
+}
+
+class _PauseButton extends StatelessWidget {
+  const _PauseButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topRight,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Semantics(
+          button: true,
+          label: 'Pause game',
+          child: ElevatedButton(
+            key: const ValueKey('pause-game'),
+            onPressed: onPressed,
+            child: const Text('PAUSE'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PauseMenu extends StatelessWidget {
+  const _PauseMenu({required this.onResume, required this.onQuit});
+
+  final VoidCallback onResume;
+  final VoidCallback onQuit;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.62),
+      child: Center(
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Game Paused',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  key: const ValueKey('resume-game'),
+                  onPressed: onResume,
+                  child: const Text('RESUME'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  key: const ValueKey('quit-game'),
+                  onPressed: onQuit,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white),
+                  ),
+                  child: const Text('QUIT MATCH'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultPanel extends StatelessWidget {
+  const _ResultPanel({
+    required this.result,
+    required this.onReplay,
+    required this.onSettings,
+  });
+
+  final GameResult result;
+  final VoidCallback onReplay;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = switch (result.type) {
+      GameResultType.victory => 'Victory',
+      GameResultType.defeat => 'Defeat',
+      GameResultType.draw => 'Draw',
+    };
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.62),
+      child: Center(
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.86),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
+                  liveRegion: true,
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  key: const ValueKey('replay-game'),
+                  onPressed: onReplay,
+                  child: const Text('PLAY AGAIN'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  key: const ValueKey('return-settings'),
+                  onPressed: onSettings,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white),
+                  ),
+                  child: const Text('RETURN TO SETTINGS'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

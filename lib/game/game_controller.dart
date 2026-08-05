@@ -123,7 +123,10 @@ class GameController extends _$GameController {
   }
 
   void pauseGame() {
-    if (_disposed || state.phase != GamePhase.playing) {
+    if (_disposed ||
+        (state.phase != GamePhase.playing &&
+            state.phase != GamePhase.startCountdown &&
+            state.phase != GamePhase.resumeCountdown)) {
       return;
     }
     state = _rules.pause(state);
@@ -158,7 +161,51 @@ class GameController extends _$GameController {
     state = nextState;
     _gameLoop.stop();
     _lastTickMs = null;
+    _nextCpuDecisionAtMs = null;
   }
+
+  /// Leaves the current match and shows the island-count configuration again.
+  ///
+  /// A match is intentionally not persisted.  Returning to settings creates
+  /// a fresh map, clears all transient match state, and leaves the loop
+  /// stopped until the player starts another match.
+  void returnToConfiguration() {
+    if (_disposed ||
+        (state.phase != GamePhase.paused && state.phase != GamePhase.result)) {
+      return;
+    }
+
+    _gameLoop.stop();
+    _lastTickMs = null;
+    _nextCpuDecisionAtMs = null;
+    state = _newInitialStateFor(
+      configuration: state.configuration,
+      viewport: ref.read(mapViewportProvider),
+    );
+  }
+
+  /// Alias matching the action's user-facing wording.
+  void returnToSettings() => returnToConfiguration();
+
+  /// Starts a new match with the same island count and a newly generated map.
+  void replayGame() {
+    if (_disposed || state.phase != GamePhase.result) {
+      return;
+    }
+
+    final initial = _newInitialStateFor(
+      configuration: state.configuration,
+      viewport: ref.read(mapViewportProvider),
+    );
+    final countdown = _rules.startCountdown(initial);
+    state = countdown;
+    _nextCpuDecisionAtMs = null;
+    _lastTickMs = _clock.nowMs();
+    _gameLoop.start(_tick);
+  }
+
+  /// Compatibility alias for callers that name the replay action restart.
+  void restartGame() => replayGame();
 
   /// Changes the selected island count before a match starts and regenerates
   /// only the typed initial state.  Concrete map placement remains a later
@@ -189,6 +236,27 @@ class GameController extends _$GameController {
       return _cachedInitialState!;
     }
 
+    final nextState =
+        _rules.tryInitialState(
+          configuration: configuration,
+          random: _random,
+          viewport: viewport,
+        ) ??
+        GameState(
+          configuration: configuration,
+          phase: GamePhase.configuration,
+          elapsedMs: 0,
+        );
+    _cachedConfiguration = configuration;
+    _cachedViewport = viewport;
+    _cachedInitialState = nextState;
+    return nextState;
+  }
+
+  GameState _newInitialStateFor({
+    required GameConfiguration configuration,
+    required IslandMapViewport viewport,
+  }) {
     final nextState =
         _rules.tryInitialState(
           configuration: configuration,

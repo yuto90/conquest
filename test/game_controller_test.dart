@@ -432,4 +432,76 @@ void main() {
     expect(loop.stopCount, 1);
     expect(loop.isRunning, isFalse);
   });
+
+  test('returns a paused match to settings without retaining match state', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    completeStartCountdown(loop);
+    controller.tapBase(0);
+    controller.tapBase(1);
+    loop.tick();
+
+    final beforeQuit = container.read(gameControllerProvider);
+    expect(beforeQuit.phase, GamePhase.playing);
+    expect(beforeQuit.movingForces, isNotEmpty);
+
+    controller.pauseGame();
+    controller.returnToConfiguration();
+
+    final settings = container.read(gameControllerProvider);
+    expect(settings.phase, GamePhase.configuration);
+    expect(settings.configuration, beforeQuit.configuration);
+    expect(settings.elapsedMs, 0);
+    expect(settings.selectedIslandId, isNull);
+    expect(settings.movingForces, isEmpty);
+    expect(settings.result, isNull);
+    expect(
+      settings.islands,
+      hasLength(beforeQuit.configuration.totalIslandCount),
+    );
+    expect(loop.isRunning, isFalse);
+  });
+
+  test('replays a result with the same island count and a new map', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectIslandCount(6);
+    final beforeReplay = container.read(gameControllerProvider);
+    controller.startGame();
+    completeStartCountdown(loop);
+    controller.finish(const GameResult.victory(elapsedMs: 25));
+
+    expect(container.read(gameControllerProvider).phase, GamePhase.result);
+    controller.replayGame();
+
+    final replay = container.read(gameControllerProvider);
+    expect(replay.phase, GamePhase.startCountdown);
+    expect(replay.configuration.totalIslandCount, 6);
+    expect(replay.islands, hasLength(6));
+    expect(replay.elapsedMs, 0);
+    expect(replay.movingForces, isEmpty);
+    expect(replay.islands, isNot(beforeReplay.islands));
+    expect(loop.isRunning, isTrue);
+  });
+
+  test('pauses an in-progress start countdown and resumes safely', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    loop.tick();
+    final countdown = container.read(gameControllerProvider);
+    expect(countdown.phase, GamePhase.startCountdown);
+    expect(countdown.countdownRemainingMs, 2950);
+
+    controller.pauseGame();
+    final paused = container.read(gameControllerProvider);
+    expect(paused.phase, GamePhase.paused);
+    expect(paused.countdownRemainingMs, 0);
+    expect(loop.isRunning, isFalse);
+
+    controller.resumeGame();
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.resumeCountdown,
+    );
+    expect(container.read(gameControllerProvider).countdownRemainingMs, 3000);
+  });
 }

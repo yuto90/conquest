@@ -479,4 +479,122 @@ void main() {
     expect(continued.elapsedMs, greaterThan(after.elapsedMs));
     expect(continued.movingForces.first.progress, greaterThan(0));
   });
+
+  testWidgets(
+    'pauses from the board and requires confirmation before quitting',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('pause-game')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('pause-game')));
+      await tester.pump();
+      expect(find.text('Game Paused'), findsOneWidget);
+      expect(find.byKey(const ValueKey('resume-game')), findsOneWidget);
+      expect(find.byKey(const ValueKey('quit-game')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('quit-game')));
+      await tester.pump();
+      expect(find.text('Quit match?'), findsOneWidget);
+      expect(find.byKey(const ValueKey('confirm-quit')), findsOneWidget);
+      expect(find.byKey(const ValueKey('cancel-quit')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('cancel-quit')));
+      await tester.pump();
+      expect(find.text('Game Paused'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('quit-game')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('confirm-quit')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
+      expect(find.text('Game Paused'), findsNothing);
+    },
+  );
+
+  testWidgets('backgrounding a playing board pauses it automatically', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    loop.tick();
+    await tester.pump();
+    final before = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(find.text('Game Paused'), findsOneWidget);
+    expect(loop.isRunning, isFalse);
+
+    loop.tick();
+    await tester.pump();
+    final after = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider);
+    expect(after, before.copyWith(phase: GamePhase.paused));
+  });
+
+  testWidgets('result screen offers replay and settings actions', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    final islandFinder = find.byKey(const ValueKey('island-0'));
+    final container = ProviderScope.containerOf(tester.element(islandFinder));
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    controller.finish(const GameResult.victory(elapsedMs: 1));
+    await tester.pump();
+
+    expect(find.text('Victory'), findsOneWidget);
+    expect(find.byKey(const ValueKey('replay-game')), findsOneWidget);
+    expect(find.byKey(const ValueKey('return-settings')), findsOneWidget);
+    expect(loop.isRunning, isFalse);
+
+    await tester.tap(find.byKey(const ValueKey('return-settings')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
+    expect(find.text('Victory'), findsNothing);
+  });
 }
