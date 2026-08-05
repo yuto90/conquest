@@ -174,14 +174,18 @@ class _PauseButton extends StatelessWidget {
     return Align(
       alignment: Alignment.topRight,
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Semantics(
-          button: true,
-          label: 'Pause game',
-          child: ElevatedButton(
-            key: const ValueKey('pause-game'),
-            onPressed: onPressed,
-            child: const Text('PAUSE'),
+        padding: const EdgeInsets.all(IslandMapViewport.pauseControlPadding),
+        child: SizedBox(
+          width: IslandMapViewport.pauseButtonWidth,
+          height: IslandMapViewport.pauseButtonHeight,
+          child: Semantics(
+            button: true,
+            label: 'Pause game',
+            child: ElevatedButton(
+              key: const ValueKey('pause-game'),
+              onPressed: onPressed,
+              child: const Text('PAUSE'),
+            ),
           ),
         ),
       ),

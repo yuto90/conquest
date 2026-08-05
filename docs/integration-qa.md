@@ -5,7 +5,7 @@
 
 ## 実施環境
 
-- 実施日時: 2026-08-05 14:29–15:15 JST（05:29–06:15 UTC）
+- 実施日時: 2026-08-05 14:29–16:18 JST（05:29–07:18 UTC）
 - checkout: `codex/issue-15-integration-qa`, 実施開始時のHEAD `74fdb47`
 - host: macOS 26.5.2 / Darwin arm64（`uname -a`: Darwin 25.5.0）
 - Flutter: 3.44.8、Dart 3.12.2（FVM 2.2.6）
@@ -23,6 +23,14 @@
   wall-clock計測も10分以上をassertした。開始画面のSHA-256は
   `423c0c7d7e75ef9c4e7644f3eb3479b445dc081ef9f620245c454c5397c56059`
   （`/tmp/conquest-issue-15-integration-start.png`）。
+- 修正後の再実行は16:06:32 JSTに開始し、16:17:46 JSTごろにrunnerが完了した
+  （テスト内wall-clock `661s`）。`fullyLive` frame policyでフレーム39,421、
+  FrameTiming 40,420、実端末dispatch 62回、pause/resume 3回、結果→再戦10回、
+  Flutter framework error 0件を記録し、exit 0 / `All tests passed!` を確認した。
+- 同再実行の開始直後に12島すべての島矩形とPAUSE hit regionを比較し、PAUSEと交差する島
+  `0`件、全島で中心/四隅のhit-test候補を確認した。実測PAUSE矩形は
+  `Rect.fromLTRB(294.0, 74.0, 390.0, 122.0)`（SafeArea内の共有契約96×48、padding 12）で、
+  マップ生成は保守的な120×72予約矩形を使う。
 - iOS integration_testの実行時にFlutter 3.44.8が追加する
   `FlutterGeneratedPluginSwiftPackage`のpbxproj/scheme移行は、2回目のiOS simulator
   buildで追加diffが発生しないことを確認したため、テスト依存を再現するin-scopeの
@@ -61,7 +69,7 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 | --- | --- | --- |
 | スマートフォン縦向き | PASS | iPhone 17のportrait画面で起動。Safe Area内に本陣と設定パネルを表示。 |
 | 6・8・10・12島の盤面 | PASS | 設定チップを順に選択し、AXで`Island map, N islands`を6/8/10/12すべて確認。 |
-| Safe Areaとタップ領域 | PASS | countdown画面の本陣・中立島がノッチ/下端内側に配置。playing中にプレイヤー本陣をタップできた。 |
+| Safe Areaとタップ領域 | PASS | countdown画面の本陣・中立島がノッチ/下端内側に配置。PAUSEのhit regionと島矩形を実測し、12島すべてが交差なし・hit-test可能。マップ生成も共有120×72予約矩形を除外する。 |
 | 島のサイズ・所属・現在値・上限値 | PASS | AXでheadquarters `forces N of 200`、small/medium/largeの所属、耐久値、上限値を確認。 |
 | 選択・解除・無効フィードバック | PARTIAL | playing中に`selected dispatch source`と有効な移動先表示を確認。解除/無効メッセージの自動テストはPASS。 |
 | 両軍の複数移動部隊 | PASS | playing中にAXでCPU moving troopを複数確認。220部隊の統合自動テストもPASS。 |
@@ -71,9 +79,9 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 | 結果画面 | PASS | CPU進行後に`Defeat`、`PLAY AGAIN`、`RETURN TO SETTINGS`を確認。 |
 | 再戦 | PASS | `PLAY AGAIN`後に同じ10島数の新マップとカウントダウンを確認。 |
 | 色以外の陣営識別 | PASS | AXでPlayer/CPU/Neutralのラベル、`P`/`C`/`N`マーク、数値を確認。 |
-| 長時間試合の操作性・描画安定性 | PASS | iPhone 17 Simulatorで12島をSTARTし、冒頭と10秒間隔の出兵、3回のPAUSE→2秒停止確認→RESUME（約1/5/8分）、結果時の再戦回復分岐を監視。`Future.delayed`で10分以上の実時間を確保し、各観測で`pump`して連続描画を確認。テスト終了はexit 0 / `All tests passed!`、dispatch 2回以上・pause/resume 2回以上・Flutter framework exception 0件をassert。15:14:57 JSTの終盤スクリーンショットでもplaying/PAUSEを確認し、runner teardown後はSimulatorホーム画面へ戻った。 |
+| 長時間試合の操作性・描画安定性 | PASS | iPhone 17 Simulatorで12島をSTARTし、`fullyLive` frame policy、冒頭と10秒間隔の出兵、3回のPAUSE→2秒停止確認→RESUME（約1/5/8分）、結果時の再戦回復分岐を監視。`Future.delayed`で10分以上の実時間を確保し、各観測でフレーム増加をassert。修正後runはwall-clock 661秒、frames 40,421、timings 40,420、dispatch 62回、pause/resume 3回、results/rematches 10/10、Flutter framework exception 0件、exit 0 / `All tests passed!`。初回runの15:14:57 JST終盤スクリーンショットでもplaying/PAUSEを確認し、runner teardown後はSimulatorホーム画面へ戻った。 |
 | バックグラウンド自動一時停止 | 未手動 | Simulatorでのホーム遷移は今回実施せず。`test/widget_test.dart` の`backgrounding a playing board pauses it automatically`でライフサイクル通知を検証。 |
-| 移動先タップによる実端末出兵 | PASS | `integration_test/issue_15_device_qa_test.dart` がiPhone 17上でsource/destinationを実際にtapし、複数dispatchと移動部隊描画をassert。手動AX操作はCPU再描画でIDが更新されたため補完扱い。 |
+| 移動先タップによる実端末出兵 | PASS | `integration_test/issue_15_device_qa_test.dart` がiPhone 17上でsource/destinationを実際にtapし、前後のmoving-force ID・player faction・source/destinationを比較し、生成された`moving-force-<id>` widgetを確認。修正後runでdispatch 62回。手動AX操作はCPU再描画でIDが更新されたため補完扱い。 |
 
 ## `game-rules.md` 対応表
 

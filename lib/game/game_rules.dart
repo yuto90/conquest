@@ -7,6 +7,17 @@ import 'game_state.dart';
 final class IslandMapViewport {
   const IslandMapViewport({required this.width, required this.height});
 
+  /// Shared geometry for the renderer's top-right pause control.  The map
+  /// reserves the button plus its padding so random islands cannot leave only
+  /// a sliver of a tap target visible underneath it on a phone screen.
+  static const pauseControlPadding = 12.0;
+  static const pauseButtonWidth = 96.0;
+  static const pauseButtonHeight = 48.0;
+  static const topRightControlReservedWidth =
+      pauseButtonWidth + pauseControlPadding * 2;
+  static const topRightControlReservedHeight =
+      pauseButtonHeight + pauseControlPadding * 2;
+
   /// A representative portrait viewport used by the regression tests.
   static const reference = IslandMapViewport(width: 390, height: 844);
 
@@ -16,6 +27,17 @@ final class IslandMapViewport {
 
   final double width;
   final double height;
+
+  IslandMapRect get topRightControlExclusion {
+    final reservedWidth = math.min(width, topRightControlReservedWidth);
+    final reservedHeight = math.min(height, topRightControlReservedHeight);
+    return IslandMapRect(
+      left: width - reservedWidth,
+      top: 0,
+      right: width,
+      bottom: reservedHeight,
+    );
+  }
 
   bool get isValid =>
       width.isFinite && height.isFinite && width > 0 && height > 0;
@@ -139,7 +161,7 @@ final class GameRules {
   static const referenceMapViewport = IslandMapViewport.reference;
 
   /// The default retry budget for a complete map generation attempt.
-  static const defaultMapGenerationAttempts = 64;
+  static const defaultMapGenerationAttempts = 1024;
 
   /// The retry budget for placing one symmetric pair during a map attempt.
   static const defaultPairPlacementAttempts = 128;
@@ -859,7 +881,9 @@ final class GameRules {
     List<IslandState> existing,
     IslandMapViewport viewport,
   ) {
-    if (islandRectanglesOverlap(first, second, viewport)) {
+    if (islandRectanglesOverlap(first, second, viewport) ||
+        _islandOverlapsTopRightControl(first, viewport) ||
+        _islandOverlapsTopRightControl(second, viewport)) {
       return false;
     }
     for (final island in existing) {
@@ -869,6 +893,13 @@ final class GameRules {
       }
     }
     return true;
+  }
+
+  static bool _islandOverlapsTopRightControl(
+    IslandState island,
+    IslandMapViewport viewport,
+  ) {
+    return viewport.rectFor(island).overlaps(viewport.topRightControlExclusion);
   }
 
   static bool islandRectanglesOverlap(
