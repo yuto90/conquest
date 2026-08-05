@@ -197,6 +197,16 @@ class GameController extends _$GameController {
       configuration: state.configuration,
       viewport: ref.read(mapViewportProvider),
     );
+    if (initial.islands.length != state.configuration.totalIslandCount) {
+      // Map generation can fail closed for a viewport that cannot fit the
+      // fixed headquarters. Never start a zero-island replay, which would
+      // otherwise resolve immediately as a draw.
+      _gameLoop.stop();
+      _nextCpuDecisionAtMs = null;
+      _lastTickMs = null;
+      state = initial;
+      return;
+    }
     final countdown = _rules.startCountdown(initial);
     state = countdown;
     _nextCpuDecisionAtMs = null;

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
+import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -504,4 +505,41 @@ void main() {
     );
     expect(container.read(gameControllerProvider).countdownRemainingMs, 3000);
   });
+
+  test(
+    'fails closed when replay map generation cannot produce a valid map',
+    () {
+      final failedLoop = ManualGameLoop();
+      final failedContainer = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(failedLoop),
+          mapViewportProvider.overrideWithValue(
+            const IslandMapViewport(width: 180, height: 180),
+          ),
+          randomProvider.overrideWithValue(Random(1)),
+          cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+        ],
+      );
+      addTearDown(failedContainer.dispose);
+
+      final controller = failedContainer.read(gameControllerProvider.notifier);
+      controller.state = GameState(
+        configuration: GameConfiguration(totalIslandCount: 6),
+        phase: GamePhase.result,
+        elapsedMs: 120,
+        result: const GameResult.victory(elapsedMs: 120),
+      );
+
+      controller.replayGame();
+
+      final state = failedContainer.read(gameControllerProvider);
+      expect(state.phase, GamePhase.configuration);
+      expect(state.configuration.totalIslandCount, 6);
+      expect(state.islands, isEmpty);
+      expect(state.movingForces, isEmpty);
+      expect(state.result, isNull);
+      expect(state.elapsedMs, 0);
+      expect(failedLoop.isRunning, isFalse);
+    },
+  );
 }
