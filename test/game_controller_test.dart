@@ -190,6 +190,37 @@ void main() {
     },
   );
 
+  test('reports unavailable feedback for non-player and exhausted sources', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    controller.tapBase(1);
+    var state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, isNull);
+    expect(state.interactionFeedback, contains('player island'));
+
+    controller.tapBase(0);
+    state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, 0);
+    controller.state = state.copyWith(
+      islands: [
+        for (final island in state.islands)
+          island.id == 0 ? island.copyWith(currentForces: 1) : island,
+      ],
+    );
+    controller.tapBase(2);
+
+    state = container.read(gameControllerProvider);
+    expect(state.selectedIslandId, isNull);
+    expect(state.interactionFeedback, contains('more than 1'));
+
+    for (var index = 0; index < 30; index++) {
+      loop.tick();
+    }
+    expect(container.read(gameControllerProvider).interactionFeedback, isNull);
+  });
+
   test(
     'uses force at destination tap time and clears an invalid selection',
     () {
@@ -221,7 +252,9 @@ void main() {
       );
       loop.tick();
 
-      expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+      final cleared = container.read(gameControllerProvider);
+      expect(cleared.selectedIslandId, isNull);
+      expect(cleared.interactionFeedback, contains('more than 1'));
     },
   );
 

@@ -53,6 +53,12 @@ class GameController extends _$GameController {
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
 
+  static const _interactionFeedbackDurationMs = 1500;
+  static const _unavailableSourceMessage =
+      'Choose a player island with more than 1 force.';
+  static const _invalidatedSourceMessage =
+      'Dispatch unavailable: source needs more than 1 force and player ownership.';
+
   @override
   GameState build() {
     // Riverpod may invoke the disposal callbacks while rebuilding this
@@ -301,6 +307,7 @@ class GameController extends _$GameController {
             selectedSource.faction != Faction.player ||
             selectedSource.currentForces <= 1)) {
       state = state.clearSelection();
+      _showInteractionFeedback(_invalidatedSourceMessage);
       return;
     }
 
@@ -312,14 +319,17 @@ class GameController extends _$GameController {
     if (selectedIslandId == null) {
       if (tappedIsland.faction != Faction.player ||
           tappedIsland.currentForces <= 1) {
+        _showInteractionFeedback(_unavailableSourceMessage);
         return;
       }
-      state = state.copyWith(selectedIslandId: baseId);
+      state = state
+          .copyWith(selectedIslandId: baseId)
+          .clearInteractionFeedback();
       return;
     }
 
     if (selectedIslandId == baseId) {
-      state = state.clearSelection();
+      state = state.clearSelection().clearInteractionFeedback();
       return;
     }
 
@@ -327,6 +337,7 @@ class GameController extends _$GameController {
     final strength = source.currentForces ~/ 2;
     if (strength <= 0) {
       state = state.clearSelection();
+      _showInteractionFeedback(_invalidatedSourceMessage);
       return;
     }
 
@@ -350,7 +361,8 @@ class GameController extends _$GameController {
 
     state = state
         .copyWith(islands: islands, movingForces: movingForces)
-        .clearSelection();
+        .clearSelection()
+        .clearInteractionFeedback();
   }
 
   void _tick() {
@@ -371,8 +383,28 @@ class GameController extends _$GameController {
         : now - previous;
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
     final phaseBeforeTick = state.phase;
+    final selectedBeforeTick = state.selectedIslandId;
+    final selectedSourceBeforeTick = selectedBeforeTick == null
+        ? null
+        : _findIsland(selectedBeforeTick);
+    final selectionUnavailableBeforeTick =
+        selectedBeforeTick != null &&
+        (selectedSourceBeforeTick == null ||
+            !selectedSourceBeforeTick.canDispatch);
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
+    if (phaseBeforeTick == GamePhase.playing &&
+        selectedBeforeTick != null &&
+        state.selectedIslandId == null &&
+        state.phase == GamePhase.playing &&
+        (selectionUnavailableBeforeTick ||
+            _selectionSourceIsUnavailable(selectedBeforeTick))) {
+      _showInteractionFeedback(_invalidatedSourceMessage);
+    }
+    if (state.interactionFeedback != null &&
+        state.elapsedMs >= state.interactionFeedbackUntilMs) {
+      state = state.clearInteractionFeedback();
+    }
     if (state.phase == GamePhase.playing) {
       if (phaseBeforeTick == GamePhase.startCountdown) {
         // The initial match has no pending CPU deadline yet.  A resume
@@ -432,5 +464,18 @@ class GameController extends _$GameController {
       maxId = max(maxId, force.id);
     }
     return maxId + 1;
+  }
+
+  void _showInteractionFeedback(String message) {
+    state = state.copyWith(
+      interactionFeedback: message,
+      interactionFeedbackUntilMs:
+          state.elapsedMs + _interactionFeedbackDurationMs,
+    );
+  }
+
+  bool _selectionSourceIsUnavailable(int islandId) {
+    final island = _findIsland(islandId);
+    return island == null || !island.canDispatch;
   }
 }

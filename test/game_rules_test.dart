@@ -48,6 +48,48 @@ void main() {
   });
 
   test(
+    'islands and moving forces expose current values and action availability',
+    () {
+      const player = IslandState(
+        id: 0,
+        faction: Faction.player,
+        currentForces: 8,
+        capacity: 50,
+      );
+      const exhausted = IslandState(
+        id: 1,
+        faction: Faction.player,
+        currentForces: 1,
+        capacity: 50,
+      );
+      const neutral = IslandState(
+        id: 2,
+        faction: Faction.neutral,
+        durability: 7,
+        currentForces: 0,
+        capacity: 50,
+      );
+      const force = MovingForce(
+        id: 3,
+        faction: Faction.cpu,
+        sourceIslandId: 1,
+        destinationIslandId: 0,
+        strength: 4,
+      );
+
+      expect(player.currentValue, 8);
+      expect(player.canDispatch, isTrue);
+      expect(player.actionAvailable, isTrue);
+      expect(exhausted.canDispatch, isFalse);
+      expect(neutral.currentValue, 7);
+      expect(neutral.actionAvailable, isFalse);
+      expect(force.currentValue, 4);
+      expect(force.actionAvailable, isFalse);
+      expect(force.isTappable, isFalse);
+    },
+  );
+
+  test(
     'initial neutral island composition carries typed durability values',
     () {
       const expectedSizes = <int, List<IslandSize>>{

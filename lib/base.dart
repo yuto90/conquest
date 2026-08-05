@@ -9,10 +9,18 @@ import 'game/game_state.dart';
 /// repeats the faction and numeric values so the board remains usable without
 /// relying on color or visual inspection.
 class Base extends StatelessWidget {
-  const Base({required this.base, required this.onPressed, super.key});
+  const Base({
+    required this.base,
+    required this.onPressed,
+    this.selected = false,
+    this.destinationCandidate = false,
+    super.key,
+  });
 
   final IslandState base;
   final VoidCallback? onPressed;
+  final bool selected;
+  final bool destinationCandidate;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +31,9 @@ class Base extends StatelessWidget {
       container: true,
       button: true,
       enabled: onPressed != null,
+      selected: selected,
       label: label,
+      hint: _semanticHint,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: _backgroundColor,
@@ -91,17 +101,31 @@ class Base extends StatelessWidget {
   }
 
   OutlinedBorder get _shape {
+    final outline = selected
+        ? const BorderSide(color: Colors.amber, width: 5)
+        : destinationCandidate
+        ? const BorderSide(color: Colors.cyanAccent, width: 4)
+        : null;
     return switch (base.faction) {
-      Faction.player => const CircleBorder(
-        side: BorderSide(color: Colors.white, width: 3),
-      ),
-      Faction.cpu => const BeveledRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(9)),
-        side: BorderSide(color: Colors.white, width: 3),
-      ),
-      Faction.neutral => const CircleBorder(
-        side: BorderSide(color: Colors.black, width: 2),
-      ),
+      Faction.player =>
+        const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 3),
+        ).copyWith(
+          side: outline ?? const BorderSide(color: Colors.white, width: 3),
+        ),
+      Faction.cpu =>
+        const BeveledRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(9)),
+          side: BorderSide(color: Colors.white, width: 3),
+        ).copyWith(
+          side: outline ?? const BorderSide(color: Colors.white, width: 3),
+        ),
+      Faction.neutral =>
+        const CircleBorder(
+          side: BorderSide(color: Colors.black, width: 2),
+        ).copyWith(
+          side: outline ?? const BorderSide(color: Colors.black, width: 2),
+        ),
     };
   }
 
@@ -134,6 +158,27 @@ class Base extends StatelessWidget {
     final value = base.faction == Faction.neutral
         ? 'durability ${base.currentDurability}'
         : 'forces ${base.currentForces} of ${base.capacity}';
-    return '$_factionName $_sizeName, $value';
+    final action = selected
+        ? 'selected dispatch source'
+        : destinationCandidate
+        ? 'valid dispatch destination'
+        : base.canDispatch
+        ? 'available dispatch source'
+        : 'not available as dispatch source';
+    return '$_factionName $_sizeName, $value, current value '
+        '${base.currentValue}, $action';
+  }
+
+  String get _semanticHint {
+    if (selected) {
+      return 'Tap again to cancel selection, or choose a valid destination.';
+    }
+    if (destinationCandidate) {
+      return 'Tap to dispatch troops here.';
+    }
+    if (base.canDispatch) {
+      return 'Tap to select this island as a dispatch source.';
+    }
+    return 'This island cannot be selected as a dispatch source.';
   }
 }

@@ -1,4 +1,5 @@
 import 'package:conquest/base.dart';
+import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -88,15 +89,30 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     child: Base(
                       key: ValueKey('island-button-${island.id}'),
                       base: island,
+                      selected: state.selectedIslandId == island.id,
+                      destinationCandidate:
+                          state.selectedIslandId != null &&
+                          state.selectedIslandId != island.id,
                       onPressed: state.phase == GamePhase.playing
                           ? () => controller.tapBase(island.id)
                           : null,
                     ),
                   ),
                 ),
+              for (final force in state.movingForces)
+                Align(
+                  key: ValueKey('moving-force-position-${force.id}'),
+                  alignment: Alignment(force.x, force.y),
+                  child: MovingForceWidget(
+                    force: force,
+                    semanticsKey: ValueKey('moving-force-${force.id}'),
+                  ),
+                ),
             ],
           ),
         ),
+        if (state.hasInteractionFeedback)
+          _InteractionFeedback(message: state.interactionFeedback!),
         if (state.phase == GamePhase.configuration && state.islands.isNotEmpty)
           _ConfigurationPanel(state: state, onStart: controller.startGame),
         if (state.phase == GamePhase.playing)
@@ -431,5 +447,50 @@ class _CountdownBanner extends StatelessWidget {
       return 'START';
     }
     return null;
+  }
+}
+
+class _InteractionFeedback extends StatelessWidget {
+  const _InteractionFeedback({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Semantics(
+            container: true,
+            liveRegion: true,
+            label: message,
+            child: DecoratedBox(
+              key: const ValueKey('interaction-feedback'),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.86),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amberAccent, width: 2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
