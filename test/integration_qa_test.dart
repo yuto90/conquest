@@ -46,6 +46,19 @@ final class _QaManualLoop implements GameLoop {
   }
 }
 
+/// Keeps the CPU's production judgment interval at its minimum for scenarios
+/// that need to observe one complete controller-to-arrival path.
+final class _QaZeroRandom implements Random {
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() => 0;
+
+  @override
+  int nextInt(int max) => 0;
+}
+
 ProviderContainer _createContainer({
   required _QaManualLoop loop,
   required int islandCount,
@@ -242,6 +255,111 @@ void main() {
       expect(first, second, reason: 'islands=$islandCount');
       expect(first.resultType, GameResultType.defeat);
       expect(first.winner, Faction.cpu);
+    }
+  });
+
+  test('dispatches CPU defense before a threatened island can be occupied', () {
+    final loop = _QaManualLoop();
+    final container = _createContainer(
+      loop: loop,
+      islandCount: 6,
+      seed: 5100,
+      cpuStrategy: CpuStrategy(
+        random: _QaZeroRandom(),
+        viewport: GameRules.defaultMapViewport,
+      ),
+    );
+    try {
+      final controller = container.read(gameControllerProvider.notifier);
+      final started = _startMatch(container, loop);
+      final playerHeadquarters = started.islands[0].copyWith(
+        position: const IslandPosition(x: 0.8, y: 0.8),
+        currentForces: 100,
+      );
+      final cpuHeadquarters = started.islands[1].copyWith(
+        position: const IslandPosition(x: -0.5, y: -0.1),
+        currentForces: 20,
+      );
+      final cpuTarget = started.islands[2].copyWith(
+        position: const IslandPosition(x: -0.2, y: -0.1),
+        faction: Faction.cpu,
+        currentForces: 5,
+        durability: 0,
+        size: IslandSize.medium,
+        capacity: 100,
+      );
+      final playerReserve = started.islands[3].copyWith(
+        faction: Faction.player,
+        currentForces: 1,
+      );
+      final playerThreat = MovingForce(
+        id: 710,
+        faction: Faction.player,
+        sourceIslandId: playerHeadquarters.id,
+        destinationIslandId: cpuTarget.id,
+        strength: 10,
+        departureTimeMs: 0,
+        arrivalTimeMs: 2800,
+        durationMs: 2800,
+      );
+      controller.state = started.copyWith(
+        islands: [
+          playerHeadquarters,
+          cpuHeadquarters,
+          cpuTarget,
+          playerReserve,
+          ...started.islands.skip(4),
+        ],
+        movingForces: [playerThreat],
+      );
+
+      loop.tickMany(29);
+      expect(container.read(gameControllerProvider).elapsedMs, 1450);
+      expect(
+        container
+            .read(gameControllerProvider)
+            .movingForces
+            .where((force) => force.faction == Faction.cpu),
+        isEmpty,
+      );
+
+      loop.tick();
+      final defenseDispatched = container.read(gameControllerProvider);
+      final defenseForces = defenseDispatched.movingForces
+          .where((force) => force.faction == Faction.cpu)
+          .toList();
+      expect(defenseForces, hasLength(1));
+      final defense = defenseForces.single;
+      expect(defense.sourceIslandId, cpuHeadquarters.id);
+      expect(defense.destinationIslandId, cpuTarget.id);
+      expect(defense.strength, 10);
+      expect(
+        defense.arrivalTimeMs,
+        lessThanOrEqualTo(playerThreat.arrivalTimeMs),
+      );
+      expect(
+        defenseDispatched.islands
+            .firstWhere((island) => island.id == cpuHeadquarters.id)
+            .currentForces,
+        11,
+      );
+
+      while (container.read(gameControllerProvider).elapsedMs < 2800) {
+        loop.tick();
+      }
+      final defended = container.read(gameControllerProvider);
+      final defendedTarget = defended.islands.firstWhere(
+        (island) => island.id == cpuTarget.id,
+      );
+      expect(defendedTarget.faction, Faction.cpu);
+      expect(defendedTarget.currentForces, greaterThan(0));
+      expect(
+        defended.movingForces.any((force) => force.id == playerThreat.id),
+        isFalse,
+      );
+      expect(defended.phase, GamePhase.playing);
+    } finally {
+      container.dispose();
     }
   });
 
@@ -483,54 +601,177 @@ void main() {
   });
 
   test(
-    'handles many simultaneous troops without dropping or overwriting them',
+    'processes asymmetric troops across targets and arrival times exactly',
     () {
       final loop = _QaManualLoop();
       final container = _createContainer(loop: loop, islandCount: 6, seed: 222);
       try {
         final controller = container.read(gameControllerProvider.notifier);
         final started = _startMatch(container, loop);
-        final source = started.islands[0];
-        final target = started.islands[2].copyWith(
+        final playerSource = started.islands[0].copyWith(currentForces: 100);
+        final cpuSource = started.islands[1].copyWith(currentForces: 100);
+        final friendly = started.islands[2].copyWith(
           faction: Faction.player,
-          currentForces: 0,
+          currentForces: 40,
           durability: 0,
-          size: IslandSize.headquarters,
-          capacity: 200,
+          size: IslandSize.small,
+          capacity: 100,
         );
-        final troops = [
-          for (var id = 0; id < 200; id++)
+        final neutral = started.islands[3].copyWith(
+          faction: Faction.neutral,
+          currentForces: 0,
+          durability: 10,
+          size: IslandSize.medium,
+          capacity: 100,
+        );
+        final enemyFirst = started.islands[4].copyWith(
+          faction: Faction.cpu,
+          currentForces: 10,
+          durability: 0,
+          size: IslandSize.medium,
+          capacity: 100,
+        );
+        final enemySecond = started.islands[5].copyWith(
+          faction: Faction.cpu,
+          currentForces: 20,
+          durability: 0,
+          size: IslandSize.medium,
+          capacity: 100,
+        );
+        final troops = <MovingForce>[
+          for (var id = 100; id < 200; id++)
             MovingForce(
               id: id,
-              faction: id.isEven ? Faction.player : Faction.cpu,
-              sourceIslandId: source.id,
-              destinationIslandId: target.id,
-              strength: 1,
+              faction: Faction.player,
+              sourceIslandId: playerSource.id,
+              destinationIslandId: friendly.id,
+              strength: id.isEven ? 1 : 2,
               arrivalTimeMs: 0,
+              durationMs: 1,
+            ),
+          for (var id = 200; id < 240; id++)
+            MovingForce(
+              id: id,
+              faction: Faction.player,
+              sourceIslandId: playerSource.id,
+              destinationIslandId: neutral.id,
+              strength: 1,
+              arrivalTimeMs: 50,
+              durationMs: 1,
+            ),
+          for (var id = 240; id < 255; id++)
+            MovingForce(
+              id: id,
+              faction: Faction.cpu,
+              sourceIslandId: cpuSource.id,
+              destinationIslandId: neutral.id,
+              strength: (id - 240).isEven ? 1 : 2,
+              arrivalTimeMs: 100,
+              durationMs: 1,
+            ),
+          for (var id = 300; id < 325; id++)
+            MovingForce(
+              id: id,
+              faction: Faction.player,
+              sourceIslandId: playerSource.id,
+              destinationIslandId: enemyFirst.id,
+              strength: (id - 300).isEven ? 1 : 2,
+              arrivalTimeMs: 100,
+              durationMs: 1,
+            ),
+          for (var id = 400; id < 410; id++)
+            MovingForce(
+              id: id,
+              faction: Faction.player,
+              sourceIslandId: playerSource.id,
+              destinationIslandId: enemySecond.id,
+              strength: 1,
+              arrivalTimeMs: 50,
+              durationMs: 1,
+            ),
+          for (var id = 410; id < 440; id++)
+            MovingForce(
+              id: id,
+              faction: Faction.player,
+              sourceIslandId: playerSource.id,
+              destinationIslandId: enemySecond.id,
+              strength: (id - 410).isEven ? 1 : 2,
+              arrivalTimeMs: 150,
               durationMs: 1,
             ),
         ];
         controller.state = started.copyWith(
           islands: [
-            source,
-            started.islands[1],
-            target,
-            ...started.islands.skip(3),
+            playerSource,
+            cpuSource,
+            friendly,
+            neutral,
+            enemyFirst,
+            enemySecond,
           ],
           movingForces: troops,
         );
 
         loop.tick();
-
-        final next = container.read(gameControllerProvider);
-        expect(next.movingForces, isEmpty);
-        expect(next.islands, hasLength(6));
+        var next = container.read(gameControllerProvider);
+        expect(next.elapsedMs, 50);
+        expect(next.movingForces, hasLength(70));
         expect(
           next.islands
-              .firstWhere((island) => island.id == target.id)
+              .firstWhere((island) => island.id == friendly.id)
               .currentForces,
+          100,
+        );
+        expect(
+          next.islands
+              .firstWhere((island) => island.id == enemySecond.id)
+              .currentForces,
+          10,
+        );
+        final neutralAfterPlayer = next.islands.firstWhere(
+          (island) => island.id == neutral.id,
+        );
+        expect(neutralAfterPlayer.faction, Faction.player);
+        expect(neutralAfterPlayer.currentForces, 30);
+
+        loop.tick();
+        next = container.read(gameControllerProvider);
+        expect(next.elapsedMs, 100);
+        expect(next.movingForces, hasLength(30));
+        expect(
+          next.islands
+              .firstWhere((island) => island.id == neutral.id)
+              .durability,
           0,
         );
+        final capturedNeutral = next.islands.firstWhere(
+          (island) => island.id == neutral.id,
+        );
+        expect(capturedNeutral.faction, Faction.player);
+        expect(capturedNeutral.currentForces, 8);
+        final capturedFirst = next.islands.firstWhere(
+          (island) => island.id == enemyFirst.id,
+        );
+        expect(capturedFirst.faction, Faction.player);
+        expect(capturedFirst.currentForces, 27);
+
+        loop.tick();
+        next = container.read(gameControllerProvider);
+        expect(next.elapsedMs, 150);
+        expect(next.movingForces, isEmpty);
+        expect(
+          next.islands
+              .firstWhere((island) => island.id == enemySecond.id)
+              .faction,
+          Faction.player,
+        );
+        expect(
+          next.islands
+              .firstWhere((island) => island.id == enemySecond.id)
+              .currentForces,
+          35,
+        );
+        expect(next.islands, hasLength(6));
         expect(next.phase, GamePhase.playing);
       } finally {
         container.dispose();
