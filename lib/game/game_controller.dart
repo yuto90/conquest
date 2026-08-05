@@ -384,21 +384,12 @@ class GameController extends _$GameController {
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
     final phaseBeforeTick = state.phase;
     final selectedBeforeTick = state.selectedIslandId;
-    final selectedSourceBeforeTick = selectedBeforeTick == null
-        ? null
-        : _findIsland(selectedBeforeTick);
-    final selectionUnavailableBeforeTick =
-        selectedBeforeTick != null &&
-        (selectedSourceBeforeTick == null ||
-            !selectedSourceBeforeTick.canDispatch);
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
     if (phaseBeforeTick == GamePhase.playing &&
         selectedBeforeTick != null &&
         state.selectedIslandId == null &&
-        state.phase == GamePhase.playing &&
-        (selectionUnavailableBeforeTick ||
-            _selectionSourceIsUnavailable(selectedBeforeTick))) {
+        state.phase == GamePhase.playing) {
       _showInteractionFeedback(_invalidatedSourceMessage);
     }
     if (state.interactionFeedback != null &&
@@ -472,10 +463,5 @@ class GameController extends _$GameController {
       interactionFeedbackUntilMs:
           state.elapsedMs + _interactionFeedbackDurationMs,
     );
-  }
-
-  bool _selectionSourceIsUnavailable(int islandId) {
-    final island = _findIsland(islandId);
-    return island == null || !island.canDispatch;
   }
 }

@@ -259,6 +259,83 @@ void main() {
   );
 
   test(
+    'shows feedback when a selected source is cleared and reoccupied in one tick',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      completeStartCountdown(loop);
+
+      controller.state = GameState(
+        phase: GamePhase.playing,
+        elapsedMs: 0,
+        selectedIslandId: 0,
+        islands: const [
+          IslandState(
+            id: 0,
+            faction: Faction.player,
+            size: IslandSize.small,
+            currentForces: 3,
+            capacity: 50,
+          ),
+          IslandState(
+            id: 1,
+            faction: Faction.cpu,
+            size: IslandSize.small,
+            currentForces: 10,
+            capacity: 50,
+          ),
+          IslandState(
+            id: 2,
+            faction: Faction.player,
+            size: IslandSize.small,
+            currentForces: 10,
+            capacity: 50,
+          ),
+        ],
+        movingForces: const [
+          MovingForce(
+            id: 0,
+            faction: Faction.cpu,
+            sourceIslandId: 1,
+            destinationIslandId: 0,
+            strength: 10,
+            arrivalTimeMs: 1,
+            durationMs: 1,
+          ),
+          MovingForce(
+            id: 1,
+            faction: Faction.player,
+            sourceIslandId: 2,
+            destinationIslandId: 0,
+            strength: 9,
+            arrivalTimeMs: 2,
+            durationMs: 1,
+          ),
+        ],
+      );
+
+      loop.tick();
+
+      final afterTick = container.read(gameControllerProvider);
+      final source = afterTick.islands.firstWhere((island) => island.id == 0);
+      expect(afterTick.phase, GamePhase.playing);
+      expect(source.faction, Faction.player);
+      expect(source.currentForces, 2);
+      expect(afterTick.selectedIslandId, isNull);
+      expect(afterTick.interactionFeedback, contains('Dispatch unavailable'));
+      expect(afterTick.hasInteractionFeedback, isTrue);
+
+      for (var index = 0; index < 30; index++) {
+        loop.tick();
+      }
+      expect(
+        container.read(gameControllerProvider).interactionFeedback,
+        isNull,
+      );
+    },
+  );
+
+  test(
     'dispatches floor half for zero, one, even, odd, and maximum forces',
     () {
       final controller = container.read(gameControllerProvider.notifier);
