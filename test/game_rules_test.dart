@@ -198,12 +198,12 @@ void main() {
     ];
     for (final total in GameConfiguration.allowedIslandCounts) {
       for (var seed = 0; seed < 20; seed++) {
-        final islands = rules.generateIslands(
-          configuration: GameConfiguration(totalIslandCount: total),
-          random: Random(seed),
-        );
-
         for (final viewport in viewports) {
+          final islands = rules.generateIslands(
+            configuration: GameConfiguration(totalIslandCount: total),
+            random: Random(seed),
+            viewport: viewport,
+          );
           for (final island in islands) {
             expect(island.x, inInclusiveRange(-1.0, 1.0));
             expect(island.y, inInclusiveRange(-1.0, 1.0));
@@ -216,6 +216,13 @@ void main() {
               rectangles[index].isWithin(viewport),
               isTrue,
               reason: 'island ${islands[index].id} is outside the safe area',
+            );
+            expect(
+              rectangles[index].overlaps(viewport.topRightControlExclusion),
+              isFalse,
+              reason:
+                  'island ${islands[index].id} overlaps the pause control '
+                  'exclusion area',
             );
           }
           for (
@@ -237,6 +244,46 @@ void main() {
               );
             }
           }
+        }
+      }
+    }
+  });
+
+  test('map generation reserves the renderer pause control envelope', () {
+    const viewport = IslandMapViewport(width: 402, height: 874);
+    final exclusion = viewport.topRightControlExclusion;
+    expect(exclusion.left, 282);
+    expect(exclusion.top, 0);
+    expect(exclusion.right, 402);
+    expect(exclusion.bottom, 72);
+
+    const candidate = IslandState(
+      id: 2,
+      position: IslandPosition(x: 0.7, y: -0.9),
+      faction: Faction.neutral,
+      size: IslandSize.small,
+      durability: 10,
+      capacity: 50,
+    );
+    expect(viewport.rectFor(candidate).overlaps(exclusion), isTrue);
+
+    for (final total in GameConfiguration.allowedIslandCounts) {
+      for (var seed = 0; seed < 100; seed++) {
+        final islands = rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: total),
+          random: Random(seed),
+          viewport: viewport,
+        );
+        for (final island in islands) {
+          expect(
+            viewport.rectFor(island).overlaps(exclusion),
+            isFalse,
+            reason: 'seed $seed island ${island.id} overlaps pause control',
+          );
+        }
+        for (var index = 2; index < islands.length; index += 2) {
+          expect(islands[index + 1].x, closeTo(-islands[index].x, 1e-12));
+          expect(islands[index + 1].y, closeTo(-islands[index].y, 1e-12));
         }
       }
     }
