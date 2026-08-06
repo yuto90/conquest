@@ -600,6 +600,45 @@ void main() {
     expect(loop.stopCount, greaterThanOrEqualTo(1));
   });
 
+  test('keeps the selected CPU difficulty through match lifecycle actions', () {
+    final loop = _QaManualLoop();
+    final container = _createContainer(loop: loop, islandCount: 8, seed: 123);
+    try {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.easy);
+      expect(
+        container.read(gameControllerProvider).configuration.cpuDifficulty,
+        CpuDifficulty.easy,
+      );
+
+      _startMatch(container, loop);
+      loop.tickMany(10);
+      controller.pauseGame();
+      expect(
+        container.read(gameControllerProvider).configuration.cpuDifficulty,
+        CpuDifficulty.easy,
+      );
+      controller.resumeGame();
+      loop.tickMany(60);
+      controller.finish(const GameResult.victory(elapsedMs: 500));
+
+      controller.replayGame();
+      final replay = container.read(gameControllerProvider);
+      expect(replay.configuration.totalIslandCount, 8);
+      expect(replay.configuration.cpuDifficulty, CpuDifficulty.easy);
+      loop.tickMany(60);
+      controller.finish(const GameResult.victory(elapsedMs: 600));
+      controller.returnToConfiguration();
+
+      final settings = container.read(gameControllerProvider);
+      expect(settings.phase, GamePhase.configuration);
+      expect(settings.configuration.totalIslandCount, 8);
+      expect(settings.configuration.cpuDifficulty, CpuDifficulty.easy);
+    } finally {
+      container.dispose();
+    }
+  });
+
   test(
     'processes asymmetric troops across targets and arrival times exactly',
     () {
