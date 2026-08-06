@@ -421,19 +421,18 @@ class _ConfigurationPanel extends StatelessWidget {
   Widget _difficultyChip(BuildContext context, CpuDifficulty difficulty) {
     final selected = state.configuration.cpuDifficulty == difficulty;
     final label = _difficultyLabel(difficulty);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '$label CPU difficulty',
-      child: ChoiceChip(
-        key: ValueKey('cpu-difficulty-${difficulty.name}'),
-        label: Semantics(label: '$label CPU difficulty', child: Text(label)),
-        selected: selected,
-        onSelected: (_) => _selectDifficulty(context, difficulty),
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
-        tooltip: '$label CPU difficulty',
+    return ChoiceChip(
+      key: ValueKey('cpu-difficulty-${difficulty.name}'),
+      label: Semantics(
+        excludeSemantics: true,
+        label: '$label CPU difficulty',
+        child: Text(label),
       ),
+      selected: selected,
+      onSelected: (_) => _selectDifficulty(context, difficulty),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      tooltip: '$label CPU difficulty',
     );
   }
 

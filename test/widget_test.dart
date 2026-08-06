@@ -88,27 +88,27 @@ void main() {
         child: const MyApp(),
       ),
     );
-
     for (final difficulty in CpuDifficulty.values) {
       expect(
         find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
         findsOneWidget,
       );
     }
+    for (final difficulty in CpuDifficulty.values) {
+      final label =
+          '${difficulty.name[0].toUpperCase()}${difficulty.name.substring(1)} CPU difficulty';
+      final chip = find.byKey(ValueKey('cpu-difficulty-${difficulty.name}'));
+      final semanticsNode = tester.getSemantics(chip);
+      final data = semanticsNode.getSemanticsData();
+      expect(semanticsNode.label, label);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      expect(
+        data.flagsCollection.isSelected,
+        difficulty == CpuDifficulty.normal ? Tristate.isTrue : Tristate.isFalse,
+      );
+    }
     final normalChip = find.byKey(const ValueKey('cpu-difficulty-normal'));
     expect(tester.widget<ChoiceChip>(normalChip).selected, isTrue);
-    expect(
-      tester.getSemantics(normalChip).label,
-      contains('Normal CPU difficulty'),
-    );
-    expect(
-      tester
-          .getSemantics(normalChip)
-          .getSemanticsData()
-          .flagsCollection
-          .isSelected,
-      Tristate.isTrue,
-    );
 
     final mapBefore = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
@@ -123,11 +123,17 @@ void main() {
     expect(selected.configuration.cpuDifficulty, CpuDifficulty.easy);
     expect(selected.islands, orderedEquals(mapBefore));
     expect(tester.widget<ChoiceChip>(normalChip).selected, isFalse);
+    final easySemantics = tester.getSemantics(
+      find.byKey(const ValueKey('cpu-difficulty-easy')),
+    );
+    expect(easySemantics.label, 'Easy CPU difficulty');
     expect(
-      tester
-          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-easy')))
-          .label,
-      contains('Easy CPU difficulty'),
+      easySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
+      isTrue,
+    );
+    expect(
+      easySemantics.getSemanticsData().flagsCollection.isSelected,
+      Tristate.isTrue,
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
