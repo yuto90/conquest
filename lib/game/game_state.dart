@@ -21,6 +21,9 @@ enum GamePhase {
   static const resuming = resumeCountdown;
 }
 
+/// The selectable CPU decision interval profile for a match.
+enum CpuDifficulty { easy, normal, hard }
+
 enum Faction {
   player,
   cpu,
@@ -78,7 +81,11 @@ final class GameConfiguration {
   static const allowedIslandCounts = <int>[6, 8, 10, 12];
   static const defaultIslandCount = 10;
 
-  factory GameConfiguration({int? totalIslandCount, int? islandCount}) {
+  factory GameConfiguration({
+    int? totalIslandCount,
+    int? islandCount,
+    CpuDifficulty? cpuDifficulty,
+  }) {
     final count = totalIslandCount ?? islandCount ?? defaultIslandCount;
     if (!isValidIslandCount(count)) {
       throw ArgumentError.value(
@@ -87,12 +94,13 @@ final class GameConfiguration {
         'must be one of 6, 8, 10, or 12',
       );
     }
-    return GameConfiguration._(count);
+    return GameConfiguration._(count, cpuDifficulty ?? CpuDifficulty.normal);
   }
 
-  const GameConfiguration._(this.totalIslandCount);
+  const GameConfiguration._(this.totalIslandCount, this.cpuDifficulty);
 
   final int totalIslandCount;
+  final CpuDifficulty cpuDifficulty;
 
   static bool isValidIslandCount(int count) {
     return count == 6 || count == 8 || count == 10 || count == 12;
@@ -102,24 +110,33 @@ final class GameConfiguration {
   int get islandCount => totalIslandCount;
 
   /// The initial selection required by the rules document.
-  static const initial = GameConfiguration._(defaultIslandCount);
+  static const initial = GameConfiguration._(
+    defaultIslandCount,
+    CpuDifficulty.normal,
+  );
   static const defaultConfiguration = initial;
 
-  GameConfiguration copyWith({int? totalIslandCount, int? islandCount}) {
+  GameConfiguration copyWith({
+    int? totalIslandCount,
+    int? islandCount,
+    CpuDifficulty? cpuDifficulty,
+  }) {
     return GameConfiguration(
       totalIslandCount:
           totalIslandCount ?? islandCount ?? this.totalIslandCount,
+      cpuDifficulty: cpuDifficulty ?? this.cpuDifficulty,
     );
   }
 
   @override
   bool operator ==(Object other) {
     return other is GameConfiguration &&
-        other.totalIslandCount == totalIslandCount;
+        other.totalIslandCount == totalIslandCount &&
+        other.cpuDifficulty == cpuDifficulty;
   }
 
   @override
-  int get hashCode => totalIslandCount.hashCode;
+  int get hashCode => Object.hash(totalIslandCount, cpuDifficulty);
 }
 
 /// A typed island state.  Neutral islands use [durability], while owned

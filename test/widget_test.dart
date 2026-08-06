@@ -2,6 +2,7 @@ import 'dart:ui' show SemanticsAction, Tristate;
 import 'dart:math';
 
 import 'package:conquest/base.dart';
+import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
@@ -26,6 +27,17 @@ class ManualWidgetGameLoop implements GameLoop {
   void stop() => _onTick = null;
 
   void tick() => _onTick?.call();
+}
+
+final class _WidgetZeroRandom implements Random {
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() => 0;
+
+  @override
+  int nextInt(int max) => 0;
 }
 
 void main() {
@@ -64,6 +76,70 @@ void main() {
       6,
     );
     expect(container.read(gameControllerProvider).islands, hasLength(6));
+  });
+
+  testWidgets('offers CPU difficulty choices with Normal selected initially', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+    for (final difficulty in CpuDifficulty.values) {
+      expect(
+        find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
+        findsOneWidget,
+      );
+    }
+    for (final difficulty in CpuDifficulty.values) {
+      final label =
+          '${difficulty.name[0].toUpperCase()}${difficulty.name.substring(1)} CPU difficulty';
+      final chip = find.byKey(ValueKey('cpu-difficulty-${difficulty.name}'));
+      final semanticsNode = tester.getSemantics(chip);
+      final data = semanticsNode.getSemanticsData();
+      expect(semanticsNode.label, label);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      expect(
+        data.flagsCollection.isSelected,
+        difficulty == CpuDifficulty.normal ? Tristate.isTrue : Tristate.isFalse,
+      );
+    }
+    final normalChip = find.byKey(const ValueKey('cpu-difficulty-normal'));
+    expect(tester.widget<ChoiceChip>(normalChip).selected, isTrue);
+
+    final mapBefore = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider).islands;
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final selected = container.read(gameControllerProvider);
+    expect(selected.configuration.cpuDifficulty, CpuDifficulty.easy);
+    expect(selected.islands, orderedEquals(mapBefore));
+    expect(tester.widget<ChoiceChip>(normalChip).selected, isFalse);
+    final easySemantics = tester.getSemantics(
+      find.byKey(const ValueKey('cpu-difficulty-easy')),
+    );
+    expect(easySemantics.label, 'Easy CPU difficulty');
+    expect(
+      easySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
+      isTrue,
+    );
+    expect(
+      easySemantics.getSemanticsData().flagsCollection.isSelected,
+      Tristate.isTrue,
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
+      'Start game with 10 islands on Easy CPU difficulty',
+    );
+    semantics.dispose();
   });
 
   testWidgets('shows the map before countdown and starts exactly at zero', (
@@ -481,6 +557,38 @@ void main() {
     }
   });
 
+  testWidgets('keeps CPU difficulty controls operable on a 280 by 500 screen', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(280, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('cpu-difficulty-easy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cpu-difficulty-hard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
+    expect(
+      tester.getBottomRight(find.byKey(const ValueKey('start-game'))).dy,
+      lessThanOrEqualTo(500),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-hard')));
+    await tester.pump();
+    expect(
+      ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      ).read(gameControllerProvider).configuration.cpuDifficulty,
+      CpuDifficulty.hard,
+    );
+  });
+
   testWidgets('fails closed when the actual viewport cannot fit headquarters', (
     tester,
   ) async {
@@ -508,11 +616,13 @@ void main() {
       final beforeContainer = ProviderScope.containerOf(beforeButton);
       final controller = beforeContainer.read(gameControllerProvider.notifier);
       controller.selectIslandCount(6);
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
       await tester.pump();
 
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.configuration);
       expect(before.configuration.totalIslandCount, 6);
+      expect(before.configuration.cpuDifficulty, CpuDifficulty.hard);
       expect(before.islands, hasLength(6));
 
       await tester.binding.setSurfaceSize(const Size(321, 500));
@@ -523,6 +633,7 @@ void main() {
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.configuration);
       expect(after.configuration.totalIslandCount, 6);
+      expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
       expect(after.islands, hasLength(6));
     },
   );
@@ -584,6 +695,83 @@ void main() {
       final continued = afterContainer.read(gameControllerProvider);
       expect(continued.elapsedMs, greaterThan(after.elapsedMs));
       expect(continued.movingForces.first.progress, greaterThan(0));
+    },
+  );
+
+  testWidgets(
+    'preserves CPU difficulty and its pending deadline across a resize',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      await tester.binding.setSurfaceSize(const Size(320, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+            cpuStrategyProvider.overrideWithValue(
+              CpuStrategy(
+                random: _WidgetZeroRandom(),
+                viewport: GameRules.defaultMapViewport,
+              ),
+            ),
+          ],
+          child: const MyApp(),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('cpu-difficulty-hard')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      for (var index = 0; index < 9; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      final beforeContainer = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      );
+      final before = beforeContainer.read(gameControllerProvider);
+      expect(before.phase, GamePhase.playing);
+      expect(before.elapsedMs, 450);
+      expect(before.configuration.cpuDifficulty, CpuDifficulty.hard);
+      expect(
+        before.movingForces.where((force) => force.faction == Faction.cpu),
+        isEmpty,
+      );
+
+      await tester.binding.setSurfaceSize(const Size(321, 500));
+      await tester.pump();
+      final afterContainer = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      );
+      final after = afterContainer.read(gameControllerProvider);
+      expect(after.phase, GamePhase.playing);
+      expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
+      expect(after.elapsedMs, before.elapsedMs);
+      expect(loop.isRunning, isTrue);
+
+      for (var index = 0; index < 5; index++) {
+        loop.tick();
+      }
+      expect(
+        afterContainer
+            .read(gameControllerProvider)
+            .movingForces
+            .where((force) => force.faction == Faction.cpu),
+        isEmpty,
+      );
+      loop.tick();
+      expect(
+        afterContainer
+            .read(gameControllerProvider)
+            .movingForces
+            .where((force) => force.faction == Faction.cpu),
+        hasLength(1),
+      );
     },
   );
 

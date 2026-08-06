@@ -82,15 +82,33 @@ final class CpuStrategy {
   static const minDecisionIntervalMs = 1500;
   static const maxDecisionIntervalMs = 3000;
 
+  static const _easyMinDecisionIntervalMs = 3000;
+  static const _easyMaxDecisionIntervalMs = 4500;
+  static const _hardMinDecisionIntervalMs = 750;
+  static const _hardMaxDecisionIntervalMs = 1500;
+
   final math.Random random;
   final GameRules rules;
   final IslandMapViewport viewport;
   final bool enabled;
 
-  /// Returns the next interval in the inclusive [1.5, 3] second range.
-  int nextDecisionDelayMs() {
-    return minDecisionIntervalMs +
-        random.nextInt(maxDecisionIntervalMs - minDecisionIntervalMs + 1);
+  /// Returns the next interval in the inclusive range for [difficulty].
+  ///
+  /// The default keeps the original Normal profile for source compatibility
+  /// with callers that do not yet provide a difficulty.
+  int nextDecisionDelayMs({CpuDifficulty difficulty = CpuDifficulty.normal}) {
+    final (minimum, maximum) = switch (difficulty) {
+      CpuDifficulty.easy => (
+        _easyMinDecisionIntervalMs,
+        _easyMaxDecisionIntervalMs,
+      ),
+      CpuDifficulty.normal => (minDecisionIntervalMs, maxDecisionIntervalMs),
+      CpuDifficulty.hard => (
+        _hardMinDecisionIntervalMs,
+        _hardMaxDecisionIntervalMs,
+      ),
+    };
+    return minimum + random.nextInt(maximum - minimum + 1);
   }
 
   /// Compatibility alias for callers that describe a CPU turn as a choice.

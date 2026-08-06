@@ -20,10 +20,33 @@ void main() {
   test('configuration exposes the supported counts and default selection', () {
     expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
     expect(GameConfiguration.initial.totalIslandCount, 10);
+    expect(GameConfiguration.initial.cpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration(islandCount: 6).totalIslandCount, 6);
     expect(
       () => GameConfiguration(totalIslandCount: 7),
       throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('configuration copy and equality include CPU difficulty', () {
+    final easy = GameConfiguration(
+      totalIslandCount: 8,
+      cpuDifficulty: CpuDifficulty.easy,
+    );
+    final hard = easy.copyWith(cpuDifficulty: CpuDifficulty.hard);
+
+    expect(easy.totalIslandCount, 8);
+    expect(easy.cpuDifficulty, CpuDifficulty.easy);
+    expect(hard.totalIslandCount, 8);
+    expect(hard.cpuDifficulty, CpuDifficulty.hard);
+    expect(easy, isNot(hard));
+    expect(easy.hashCode, isNot(hard.hashCode));
+    expect(
+      easy.copyWith(totalIslandCount: 12),
+      GameConfiguration(
+        totalIslandCount: 12,
+        cpuDifficulty: CpuDifficulty.easy,
+      ),
     );
   });
 

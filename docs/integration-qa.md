@@ -1,7 +1,9 @@
 # Issue #15 統合QA記録
 
 この記録は、`docs/game-rules.md` の初期版CPU戦について、統合自動テストと
-端末・画面QAで実際に確認した範囲を記録する。新しいゲームルールは追加していない。
+端末・画面QAで実際に確認した範囲を記録する。Issue #15の実施時点ではCPU難易度の
+選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
+対応する自動テストを追記した。新しいゲームルールは追加していない。
 
 ## 実施環境
 
@@ -52,13 +54,15 @@
 | 自軍増援の上限、中立の同数攻撃、敵島の超過攻撃 | `keeps friendly, neutral, and enemy boundary arrivals independent` | PASS |
 | 一時停止、再開カウントダウン、結果、再戦、provider破棄 | `pauses, resumes, rematches, and disposes without advancing state` | PASS |
 | CPU防衛の予測、Controller経由の出兵、到着、占領阻止 | `dispatches CPU defense before a threatened island can be occupied` | PASS |
+| CPU難易度の判断間隔、1判断1部隊、難易度の試合設定保持 | `test/cpu_controller_integration_test.dart`、`test/game_controller_test.dart`、`test/integration_qa_test.dart` のIssue #31回帰テスト | PASS |
 | 非対称な多数部隊、複数対象、異なる到着時刻、残存部隊 | `processes asymmetric troops across targets and arrival times exactly` | PASS |
 
 個別ルールの境界値は既存テストでも確認している。`test/game_rules_test.dart` の
 成長境界・容量上限・移動時間・中立/敵の不足/同数/超過・同時到着・最後の島喪失後の
 移動中部隊・引き分け凍結、`test/game_controller_test.dart` の選択/出兵/複数部隊/
 provider破棄、`test/cpu_strategy_test.dart` の防衛・攻撃優先順位、`test/widget_test.dart`
-のSafe Area・縦長制約・意味論・pause/resume/resultを合わせて対象ルールを網羅する。
+のSafe Area・縦長制約・意味論・pause/resume/result、`test/cpu_controller_integration_test.dart`
+と`test/integration_qa_test.dart`の難易度間隔/保持を合わせて対象ルールを網羅する。
 
 ## 端末・画面QA（実観測）
 
@@ -69,6 +73,7 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 | --- | --- | --- |
 | スマートフォン縦向き | PASS | iPhone 17のportrait画面で起動。Safe Area内に本陣と設定パネルを表示。 |
 | 6・8・10・12島の盤面 | PASS | 設定チップを順に選択し、AXで`Island map, N islands`を6/8/10/12すべて確認。 |
+| CPU難易度の選択と設定保持 | 自動PASS | Issue #31のwidget/controller/integration自動テストでEasy・Normal・Hard、初期Normal、semantics、再戦/設定復帰、resize、CPU判断期限を確認。実端末での難易度切替は未実施。 |
 | Safe Areaとタップ領域 | PASS | countdown画面の本陣・中立島がノッチ/下端内側に配置。PAUSEのhit regionと島矩形を実測し、12島すべてが交差なし・hit-test可能。マップ生成も共有120×72予約矩形を除外する。 |
 | 島のサイズ・所属・現在値・上限値 | PASS | AXでheadquarters `forces N of 200`、small/medium/largeの所属、耐久値、上限値を確認。 |
 | 選択・解除・無効フィードバック | PARTIAL | playing中に`selected dispatch source`と有効な移動先表示を確認。解除/無効メッセージの自動テストはPASS。 |
@@ -94,12 +99,13 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 | 島選択、半分切り捨て、選択解除、繰り返し出兵、複数部隊 | `game_controller_test.dart` のselection/dispatch/multiple troops、`widget_test.dart` のsemantics、統合多数部隊 |
 | 移動速度、距離比例、到着時のみ処理 | `game_rules_test.dart` のmovement duration/arrival tests、統合境界到着 |
 | 自軍増援、中立/敵の不足・同数・超過、残存兵力上限、同時到着 | `game_rules_test.dart` のcombat tests、`integration_qa_test.dart` のboundary/simultaneous tests |
-| CPU間隔、1判断1部隊、防衛、攻撃/出兵元優先、到着予測 | `cpu_strategy_test.dart` 全体、`cpu_controller_integration_test.dart`、`integration_qa_test.dart`のController防衛統合 |
+| CPU間隔、難易度プロファイル、1判断1部隊、防衛、攻撃/出兵元優先、到着予測 | `cpu_strategy_test.dart` 全体、`cpu_controller_integration_test.dart`、`game_controller_test.dart`、`integration_qa_test.dart`のIssue #31回帰とController防衛統合 |
 | 表示値、選択枠、移動部隊値、無効フィードバック | `widget_test.dart` のsemantics/feedback/moving-force tests、端末AX観測 |
 | 一時停止、バックグラウンド、再開、途中終了、未保存 | `game_controller_test.dart`、`widget_test.dart` のpause/quit/lifecycle、統合pause/resume/dispose |
 | 結果停止、もう一度、設定へ戻る | `game_controller_test.dart`、`widget_test.dart`、統合result/rematch |
 
 ### 対象外
 
-難易度選択、同一端末2人対戦、オンライン対戦、初期版に不要な演出、試合の保存・復元は
-Issue #15および初期ルール文書の対象外であり、実装・QAしていない。
+Issue #15時点では難易度選択を対象外としていたが、Issue #31で実装・自動QAした。試合途中の
+難易度変更、難易度設定の永続化、同一端末2人対戦、オンライン対戦、初期版に不要な演出、
+試合の保存・復元は引き続き対象外であり、実装・QAしていない。

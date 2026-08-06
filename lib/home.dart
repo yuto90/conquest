@@ -369,13 +369,40 @@ class _ConfigurationPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Semantics(
+                  header: true,
+                  child: Text(
+                    'Choose CPU difficulty',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final difficulty in CpuDifficulty.values)
+                      _difficultyChip(context, difficulty),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Semantics(
                   button: true,
-                  label:
-                      'Start game with ${state.configuration.totalIslandCount} islands',
                   child: ElevatedButton(
                     key: const ValueKey('start-game'),
                     onPressed: onStart,
-                    child: const Text('START GAME'),
+                    child: Semantics(
+                      excludeSemantics: true,
+                      label:
+                          'Start game with '
+                          '${state.configuration.totalIslandCount} islands on '
+                          '${_difficultyLabel(state.configuration.cpuDifficulty)} '
+                          'CPU difficulty',
+                      child: const Text('START GAME'),
+                    ),
                   ),
                 ),
               ],
@@ -389,6 +416,39 @@ class _ConfigurationPanel extends StatelessWidget {
   void _selectCount(BuildContext context, int count) {
     final container = ProviderScope.containerOf(context);
     container.read(gameControllerProvider.notifier).selectIslandCount(count);
+  }
+
+  Widget _difficultyChip(BuildContext context, CpuDifficulty difficulty) {
+    final selected = state.configuration.cpuDifficulty == difficulty;
+    final label = _difficultyLabel(difficulty);
+    return ChoiceChip(
+      key: ValueKey('cpu-difficulty-${difficulty.name}'),
+      label: Semantics(
+        excludeSemantics: true,
+        label: '$label CPU difficulty',
+        child: Text(label),
+      ),
+      selected: selected,
+      onSelected: (_) => _selectDifficulty(context, difficulty),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      tooltip: '$label CPU difficulty',
+    );
+  }
+
+  void _selectDifficulty(BuildContext context, CpuDifficulty difficulty) {
+    final container = ProviderScope.containerOf(context);
+    container
+        .read(gameControllerProvider.notifier)
+        .selectCpuDifficulty(difficulty);
+  }
+
+  String _difficultyLabel(CpuDifficulty difficulty) {
+    return switch (difficulty) {
+      CpuDifficulty.easy => 'Easy',
+      CpuDifficulty.normal => 'Normal',
+      CpuDifficulty.hard => 'Hard',
+    };
   }
 }
 
