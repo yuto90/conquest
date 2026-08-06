@@ -41,6 +41,28 @@ GameState _playing({
   );
 }
 
+final class _MinimumRandom implements Random {
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() => 0;
+
+  @override
+  int nextInt(int max) => 0;
+}
+
+final class _MaximumRandom implements Random {
+  @override
+  bool nextBool() => true;
+
+  @override
+  double nextDouble() => 0.9999999999999999;
+
+  @override
+  int nextInt(int max) => max - 1;
+}
+
 void main() {
   test('decision delays stay within the inclusive 1.5 to 3 second range', () {
     final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
@@ -50,6 +72,63 @@ void main() {
     ];
 
     expect(delays, everyElement(inInclusiveRange(1500, 3000)));
+  });
+
+  test('each CPU difficulty uses its inclusive decision interval', () {
+    const bounds = <CpuDifficulty, (int, int)>{
+      CpuDifficulty.easy: (3000, 4500),
+      CpuDifficulty.normal: (1500, 3000),
+      CpuDifficulty.hard: (750, 1500),
+    };
+
+    for (final entry in bounds.entries) {
+      final minimum = CpuStrategy(
+        random: _MinimumRandom(),
+        viewport: _viewport,
+      ).nextDecisionDelayMs(difficulty: entry.key);
+      final maximum = CpuStrategy(
+        random: _MaximumRandom(),
+        viewport: _viewport,
+      ).nextDecisionDelayMs(difficulty: entry.key);
+
+      expect(minimum, entry.value.$1, reason: '${entry.key} minimum');
+      expect(maximum, entry.value.$2, reason: '${entry.key} maximum');
+    }
+  });
+
+  test('the no-argument delay remains the seeded Normal profile', () {
+    final implicitNormal = CpuStrategy(random: Random(42), viewport: _viewport);
+    final explicitNormal = CpuStrategy(random: Random(42), viewport: _viewport);
+
+    expect(
+      [
+        for (var index = 0; index < 20; index++)
+          implicitNormal.nextDecisionDelayMs(),
+      ],
+      [
+        for (var index = 0; index < 20; index++)
+          explicitNormal.nextDecisionDelayMs(difficulty: CpuDifficulty.normal),
+      ],
+    );
+  });
+
+  test('the same seed reproduces delays for every difficulty', () {
+    for (final difficulty in CpuDifficulty.values) {
+      final first = CpuStrategy(random: Random(91), viewport: _viewport);
+      final second = CpuStrategy(random: Random(91), viewport: _viewport);
+
+      expect(
+        [
+          for (var index = 0; index < 40; index++)
+            first.nextDecisionDelayMs(difficulty: difficulty),
+        ],
+        [
+          for (var index = 0; index < 40; index++)
+            second.nextDecisionDelayMs(difficulty: difficulty),
+        ],
+        reason: '$difficulty seed reproducibility',
+      );
+    }
   });
 
   test('defense has priority when a nearby reinforcement prevents capture', () {
