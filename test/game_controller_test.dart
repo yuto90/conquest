@@ -102,6 +102,39 @@ void main() {
     expect(state.islands, hasLength(8));
   });
 
+  test('selects CPU difficulty without regenerating the displayed map', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    final before = container.read(gameControllerProvider);
+
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+
+    final after = container.read(gameControllerProvider);
+    expect(after.phase, GamePhase.configuration);
+    expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
+    expect(after.configuration.totalIslandCount, 10);
+    expect(after.islands, orderedEquals(before.islands));
+  });
+
+  test(
+    'preserves CPU difficulty through island count changes and rejects play changes',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.easy);
+      controller.selectIslandCount(6);
+
+      final configured = container.read(gameControllerProvider);
+      expect(configured.configuration.cpuDifficulty, CpuDifficulty.easy);
+      expect(configured.configuration.totalIslandCount, 6);
+      expect(configured.islands, hasLength(6));
+
+      controller.startGame();
+      final countdown = container.read(gameControllerProvider);
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
+
+      expect(container.read(gameControllerProvider), same(countdown));
+    },
+  );
+
   test('starts the game and loop only once', () {
     final controller = container.read(gameControllerProvider.notifier);
 
@@ -575,6 +608,7 @@ void main() {
 
   test('replays a result with the same island count and a new map', () {
     final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
     controller.selectIslandCount(6);
     final beforeReplay = container.read(gameControllerProvider);
     controller.startGame();
@@ -587,11 +621,18 @@ void main() {
     final replay = container.read(gameControllerProvider);
     expect(replay.phase, GamePhase.startCountdown);
     expect(replay.configuration.totalIslandCount, 6);
+    expect(replay.configuration.cpuDifficulty, CpuDifficulty.hard);
     expect(replay.islands, hasLength(6));
     expect(replay.elapsedMs, 0);
     expect(replay.movingForces, isEmpty);
     expect(replay.islands, isNot(beforeReplay.islands));
     expect(loop.isRunning, isTrue);
+
+    controller.finish(const GameResult.victory(elapsedMs: 25));
+    controller.returnToConfiguration();
+    final settings = container.read(gameControllerProvider);
+    expect(settings.configuration.totalIslandCount, 6);
+    expect(settings.configuration.cpuDifficulty, CpuDifficulty.hard);
   });
 
   test('pauses an in-progress start countdown and resumes safely', () {

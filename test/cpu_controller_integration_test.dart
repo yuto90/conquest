@@ -80,6 +80,61 @@ void main() {
     );
   });
 
+  test('uses the selected difficulty interval for the first judgment', () {
+    const dueTicks = <CpuDifficulty, int>{
+      CpuDifficulty.easy: 60,
+      CpuDifficulty.normal: 30,
+      CpuDifficulty.hard: 15,
+    };
+
+    for (final entry in dueTicks.entries) {
+      final localLoop = ManualGameLoop();
+      final localContainer = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(localLoop),
+          randomProvider.overrideWithValue(Random(7)),
+          cpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              random: ZeroRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+        ],
+      );
+
+      try {
+        final controller = localContainer.read(gameControllerProvider.notifier);
+        controller.selectCpuDifficulty(entry.key);
+        controller.startGame();
+        completeStartCountdown(localLoop);
+
+        for (var index = 0; index < entry.value - 1; index++) {
+          localLoop.tick();
+        }
+        expect(
+          localContainer
+              .read(gameControllerProvider)
+              .movingForces
+              .where((force) => force.faction == Faction.cpu),
+          isEmpty,
+          reason: '${entry.key} dispatched before its deadline',
+        );
+
+        localLoop.tick();
+        expect(
+          localContainer
+              .read(gameControllerProvider)
+              .movingForces
+              .where((force) => force.faction == Faction.cpu),
+          hasLength(1),
+          reason: '${entry.key} did not dispatch at its deadline',
+        );
+      } finally {
+        localContainer.dispose();
+      }
+    }
+  });
+
   test('does not decide during a countdown or after pausing', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
@@ -133,6 +188,42 @@ void main() {
     completeStartCountdown(loop);
     expect(container.read(gameControllerProvider).elapsedMs, 1450);
 
+    loop.tick();
+    expect(
+      container
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      hasLength(1),
+    );
+  });
+
+  test('retains the selected difficulty deadline across pause and resume', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    for (var index = 0; index < 9; index++) {
+      loop.tick();
+    }
+    expect(container.read(gameControllerProvider).elapsedMs, 450);
+
+    controller.pauseGame();
+    controller.resumeGame();
+    completeStartCountdown(loop);
+    expect(container.read(gameControllerProvider).elapsedMs, 450);
+
+    for (var index = 0; index < 5; index++) {
+      loop.tick();
+    }
+    expect(
+      container
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
     loop.tick();
     expect(
       container

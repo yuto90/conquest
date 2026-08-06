@@ -242,6 +242,30 @@ class GameController extends _$GameController {
     );
   }
 
+  /// Changes the selected CPU difficulty before a match starts without
+  /// regenerating the currently displayed map.
+  void selectCpuDifficulty(CpuDifficulty difficulty) {
+    if (_disposed || state.phase != GamePhase.configuration) {
+      return;
+    }
+    if (state.configuration.cpuDifficulty == difficulty) {
+      return;
+    }
+
+    final configuration = state.configuration.copyWith(
+      cpuDifficulty: difficulty,
+    );
+    final updated = state.copyWith(configuration: configuration);
+    state = updated;
+
+    // Configuration-only changes keep the map itself intact. Keep the cache's
+    // key and value in sync so the next provider rebuild does not regenerate a
+    // map from an already-advanced random source.
+    _cachedConfiguration = configuration;
+    _cachedViewport = ref.read(mapViewportProvider);
+    _cachedInitialState = updated;
+  }
+
   GameState _initialStateFor({
     required GameConfiguration configuration,
     required IslandMapViewport viewport,
@@ -413,7 +437,11 @@ class GameController extends _$GameController {
   }
 
   void _scheduleNextCpuDecision() {
-    _nextCpuDecisionAtMs = state.elapsedMs + _cpuStrategy.nextDecisionDelayMs();
+    _nextCpuDecisionAtMs =
+        state.elapsedMs +
+        _cpuStrategy.nextDecisionDelayMs(
+          difficulty: state.configuration.cpuDifficulty,
+        );
   }
 
   void _runCpuDecisionIfDue() {
