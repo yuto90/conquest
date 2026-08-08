@@ -211,6 +211,24 @@ void main() {
     }
   });
 
+  test('headquarters match the tactical chart HUD-safe anchors', () {
+    final islands = rules.generateIslands(
+      configuration: GameConfiguration(totalIslandCount: 10),
+      random: Random(1),
+      viewport: GameRules.referenceMapViewport,
+    );
+
+    final playerRect = GameRules.referenceMapViewport.rectFor(islands[0]);
+    final cpuRect = GameRules.referenceMapViewport.rectFor(islands[1]);
+
+    expect(cpuRect.left, closeTo(16, 1e-9));
+    expect(cpuRect.top, closeTo(48, 1e-9));
+    expect(playerRect.right, closeTo(374, 1e-9));
+    expect(playerRect.bottom, closeTo(796, 1e-9));
+    expect(islands[0].x, closeTo(-islands[1].x, 1e-12));
+    expect(islands[0].y, closeTo(-islands[1].y, 1e-12));
+  });
+
   test('generated maps stay in viewport bounds and do not overlap', () {
     const viewports = <IslandMapViewport>[
       IslandMapViewport(width: 320, height: 320),
@@ -222,11 +240,19 @@ void main() {
     for (final total in GameConfiguration.allowedIslandCounts) {
       for (var seed = 0; seed < 20; seed++) {
         for (final viewport in viewports) {
-          final islands = rules.generateIslands(
+          final generated = rules.tryGenerateIslands(
             configuration: GameConfiguration(totalIslandCount: total),
             random: Random(seed),
             viewport: viewport,
           );
+          expect(
+            generated,
+            isNotNull,
+            reason:
+                '$total islands, seed $seed, '
+                '${viewport.width}x${viewport.height}',
+          );
+          final islands = generated!;
           for (final island in islands) {
             expect(island.x, inInclusiveRange(-1.0, 1.0));
             expect(island.y, inInclusiveRange(-1.0, 1.0));
