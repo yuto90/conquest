@@ -389,11 +389,14 @@ void main() {
 
         controller.tapBase(0);
         controller.tapBase(1);
-        expect(
-          container.read(gameControllerProvider).movingForces,
-          hasLength(1),
-        );
-        loop.tickMany(100);
+        final dispatched = container.read(gameControllerProvider);
+        expect(dispatched.movingForces, hasLength(1));
+        final arrivalTimeMs = dispatched.movingForces.single.arrivalTimeMs;
+        while (container.read(gameControllerProvider).phase ==
+                GamePhase.playing &&
+            container.read(gameControllerProvider).elapsedMs < arrivalTimeMs) {
+          loop.tick();
+        }
 
         final result = container.read(gameControllerProvider);
         expect(result.phase, GamePhase.result);
