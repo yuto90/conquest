@@ -32,8 +32,10 @@ GameState _playing({
   required List<IslandState> islands,
   List<MovingForce> movingForces = const [],
   int elapsedMs = 0,
+  GameConfiguration configuration = GameConfiguration.initial,
 }) {
   return GameState(
+    configuration: configuration,
     phase: GamePhase.playing,
     elapsedMs: elapsedMs,
     islands: islands,
@@ -63,7 +65,266 @@ final class _MaximumRandom implements Random {
   int nextInt(int max) => max - 1;
 }
 
+final class _SequenceRandom implements Random {
+  _SequenceRandom(Iterable<int> values) : _values = [...values];
+
+  final List<int> _values;
+
+  @override
+  bool nextBool() => nextInt(2) == 1;
+
+  @override
+  double nextDouble() => nextInt(1000) / 1000;
+
+  @override
+  int nextInt(int max) {
+    if (_values.isEmpty) {
+      throw StateError('sequence random exhausted');
+    }
+    final value = _values.removeAt(0);
+    if (value < 0 || value >= max) {
+      throw RangeError.range(value, 0, max - 1, 'value');
+    }
+    return value;
+  }
+}
+
+GameState _multipleCandidateState({
+  CpuDifficulty difficulty = CpuDifficulty.easy,
+}) {
+  return _playing(
+    configuration: GameConfiguration(cpuDifficulty: difficulty),
+    islands: [
+      _island(id: 1, faction: Faction.cpu, forces: 20, x: -0.8, y: 0),
+      _island(id: 2, faction: Faction.cpu, forces: 20, x: 0.8, y: 0),
+      _island(id: 3, faction: Faction.player, forces: 100, x: 0, y: -0.8),
+      _island(id: 4, faction: Faction.player, forces: 100, x: 0, y: 0.8),
+    ],
+  );
+}
+
 void main() {
+  test('difficulty profiles centralize timing and Easy quality constants', () {
+    expect(
+      CpuDifficultyProfile.forDifficulty(CpuDifficulty.easy),
+      const CpuDifficultyProfile(
+        difficulty: CpuDifficulty.easy,
+        minDecisionIntervalMs: 3000,
+        maxDecisionIntervalMs: 4500,
+        skipDecisionRatePercent: 25,
+        primaryCandidateRatePercent: 60,
+      ),
+    );
+    expect(
+      CpuDifficultyProfile.forDifficulty(CpuDifficulty.normal),
+      const CpuDifficultyProfile(
+        difficulty: CpuDifficulty.normal,
+        minDecisionIntervalMs: 1500,
+        maxDecisionIntervalMs: 3000,
+        skipDecisionRatePercent: 0,
+        primaryCandidateRatePercent: 100,
+      ),
+    );
+    expect(
+      CpuDifficultyProfile.forDifficulty(CpuDifficulty.hard),
+      const CpuDifficultyProfile(
+        difficulty: CpuDifficulty.hard,
+        minDecisionIntervalMs: 750,
+        maxDecisionIntervalMs: 1500,
+        skipDecisionRatePercent: 0,
+        primaryCandidateRatePercent: 100,
+      ),
+    );
+  });
+
+  test('Easy can skip a due judgment with the injected quality random', () {
+    final state = _multipleCandidateState();
+    final strategy = CpuStrategy(
+      timingRandom: _MinimumRandom(),
+      qualityRandom: _SequenceRandom([0]),
+      viewport: _viewport,
+    );
+
+    expect(strategy.decide(state), isNull);
+  });
+
+  test('Easy can select a legal alternative candidate', () {
+    final state = _multipleCandidateState();
+    final strategy = CpuStrategy(
+      timingRandom: _MinimumRandom(),
+      qualityRandom: _SequenceRandom([99, 99, 0]),
+      viewport: _viewport,
+    );
+
+    final candidates = strategy.generateCandidates(state);
+    expect(candidates, hasLength(greaterThan(1)));
+
+    final decision = strategy.decide(state);
+    expect(decision, isNotNull);
+    expect(decision, isNot(candidates.first));
+    expect(
+      candidates,
+      contains(decision),
+      reason: 'quality noise must only choose generated legal candidates',
+    );
+  });
+
+  test(
+    'Normal and Hard keep deterministic strategy without quality RNG use',
+    () {
+      final state = _multipleCandidateState(difficulty: CpuDifficulty.normal);
+      final qualityRandom = _SequenceRandom(const []);
+      final strategy = CpuStrategy(
+        timingRandom: _MinimumRandom(),
+        qualityRandom: qualityRandom,
+        viewport: _viewport,
+      );
+
+      expect(strategy.decide(state), strategy.generateCandidates(state).first);
+      expect(
+        () => strategy.decide(
+          state.copyWith(
+            configuration: GameConfiguration(
+              totalIslandCount: 10,
+              cpuDifficulty: CpuDifficulty.hard,
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    },
+  );
+
+  test('timing and quality random streams remain independent', () {
+    final state = _multipleCandidateState();
+    final withQuality = CpuStrategy(
+      timingRandom: Random(123),
+      qualityRandom: _SequenceRandom([0]),
+      viewport: _viewport,
+    );
+    final baseline = CpuStrategy(
+      timingRandom: Random(123),
+      qualityRandom: _SequenceRandom([99]),
+      viewport: _viewport,
+    );
+
+    final firstDelay = withQuality.nextDecisionDelayMs(
+      difficulty: CpuDifficulty.easy,
+    );
+    expect(
+      firstDelay,
+      baseline.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+    );
+    expect(withQuality.decide(state), isNull);
+    expect(
+      withQuality.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+      baseline.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+    );
+  });
+
+  test('same timing and quality seeds reproduce the Easy decision column', () {
+    final state = _multipleCandidateState();
+    final first = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
+    final second = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
+
+    for (var index = 0; index < 20; index++) {
+      expect(
+        first.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+        second.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+      );
+      expect(first.decide(state), second.decide(state));
+    }
+  });
+
+  test(
+    'candidate generation handles zero, one, and multiple legal choices',
+    () {
+      final strategy = CpuStrategy(
+        timingRandom: _MinimumRandom(),
+        qualityRandom: _SequenceRandom([99, 0]),
+        viewport: _viewport,
+      );
+      final zero = _playing(
+        configuration: GameConfiguration(
+          totalIslandCount: 10,
+          cpuDifficulty: CpuDifficulty.easy,
+        ),
+        islands: [
+          _island(id: 1, faction: Faction.cpu, forces: 1),
+          _island(id: 2, faction: Faction.player, forces: 5, x: 0.5),
+        ],
+      );
+      final one = _playing(
+        configuration: GameConfiguration(
+          totalIslandCount: 10,
+          cpuDifficulty: CpuDifficulty.easy,
+        ),
+        islands: [
+          _island(id: 1, faction: Faction.cpu, forces: 20),
+          _island(id: 2, faction: Faction.player, forces: 5, x: 0.5),
+        ],
+      );
+
+      expect(strategy.generateCandidates(zero), isEmpty);
+      expect(strategy.generateCandidates(one), hasLength(1));
+      expect(
+        strategy.generateCandidates(_multipleCandidateState()),
+        hasLength(greaterThan(1)),
+      );
+    },
+  );
+
+  test('Easy decisions stay legal and dispatch at most one troop', () {
+    for (final islandCount in GameConfiguration.allowedIslandCounts) {
+      final configuration = GameConfiguration(
+        totalIslandCount: islandCount,
+        cpuDifficulty: CpuDifficulty.easy,
+      );
+      final initial = const GameRules().initialState(
+        configuration: configuration,
+        random: Random(200 + islandCount),
+        viewport: _viewport,
+      );
+      final state = initial.copyWith(phase: GamePhase.playing);
+      final strategy = CpuStrategy(
+        timingRandom: _MinimumRandom(),
+        qualityRandom: _MaximumRandom(),
+        viewport: _viewport,
+      );
+      final decision = strategy.decide(state);
+
+      if (decision == null) {
+        continue;
+      }
+      final source = state.islands.firstWhere(
+        (island) => island.id == decision.sourceIslandId,
+      );
+      final destination = state.islands.firstWhere(
+        (island) => island.id == decision.destinationIslandId,
+      );
+      expect(source.faction, Faction.cpu, reason: 'islands=$islandCount');
+      expect(
+        source.currentForces,
+        greaterThan(1),
+        reason: 'islands=$islandCount',
+      );
+      expect(destination.id, isNot(source.id), reason: 'islands=$islandCount');
+      expect(decision.strength, source.currentForces ~/ 2);
+      expect(
+        strategy.applyDecision(state, decision).movingForces,
+        hasLength(1),
+      );
+    }
+  });
+
   test('decision delays stay within the inclusive 1.5 to 3 second range', () {
     final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
 

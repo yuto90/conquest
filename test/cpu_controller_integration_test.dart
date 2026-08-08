@@ -19,6 +19,41 @@ final class ZeroRandom implements Random {
   int nextInt(int max) => 0;
 }
 
+final class MaximumRandom implements Random {
+  @override
+  bool nextBool() => true;
+
+  @override
+  double nextDouble() => 0.9999999999999999;
+
+  @override
+  int nextInt(int max) => max - 1;
+}
+
+final class SequenceRandom implements Random {
+  SequenceRandom(Iterable<int> values) : _values = [...values];
+
+  final List<int> _values;
+
+  @override
+  bool nextBool() => nextInt(2) == 1;
+
+  @override
+  double nextDouble() => nextInt(1000) / 1000;
+
+  @override
+  int nextInt(int max) {
+    if (_values.isEmpty) {
+      throw StateError('sequence random exhausted');
+    }
+    final value = _values.removeAt(0);
+    if (value < 0 || value >= max) {
+      throw RangeError.range(value, 0, max - 1, 'value');
+    }
+    return value;
+  }
+}
+
 void completeStartCountdown(ManualGameLoop loop) {
   for (var index = 0; index < 60; index++) {
     loop.tick();
@@ -38,6 +73,7 @@ void main() {
         cpuStrategyProvider.overrideWithValue(
           CpuStrategy(
             random: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
             viewport: GameRules.defaultMapViewport,
           ),
         ),
@@ -96,6 +132,7 @@ void main() {
           cpuStrategyProvider.overrideWithValue(
             CpuStrategy(
               random: ZeroRandom(),
+              qualityRandom: MaximumRandom(),
               viewport: GameRules.defaultMapViewport,
             ),
           ),
@@ -227,6 +264,76 @@ void main() {
     loop.tick();
     expect(
       container
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      hasLength(1),
+    );
+  });
+
+  test('reschedules a skipped Easy judgment once from current game time', () {
+    final localLoop = ManualGameLoop();
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        cpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            timingRandom: ZeroRandom(),
+            qualityRandom: SequenceRandom([0, 99, 0]),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.easy);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+
+    for (var index = 0; index < 59; index++) {
+      localLoop.tick();
+    }
+    expect(localContainer.read(gameControllerProvider).elapsedMs, 2950);
+    localLoop.tick();
+    expect(localContainer.read(gameControllerProvider).elapsedMs, 3000);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+
+    // The skipped 3000ms judgment schedules from 3000ms, so no catch-up
+    // judgment occurs on the next 50ms tick.
+    localLoop.tick();
+    expect(localContainer.read(gameControllerProvider).elapsedMs, 3050);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+
+    for (var index = 0; index < 58; index++) {
+      localLoop.tick();
+    }
+    expect(localContainer.read(gameControllerProvider).elapsedMs, 5950);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+    localLoop.tick();
+    expect(localContainer.read(gameControllerProvider).elapsedMs, 6000);
+    expect(
+      localContainer
           .read(gameControllerProvider)
           .movingForces
           .where((force) => force.faction == Faction.cpu),

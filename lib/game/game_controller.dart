@@ -15,6 +15,12 @@ part 'game_controller.g.dart';
 /// explicit argument and does not retain global randomness.
 final randomProvider = Provider<Random>((ref) => Random());
 
+/// CPU timing and decision-quality streams are separate from map generation
+/// and from each other.  Tests and spectator-mode callers can seed each
+/// stream independently without changing the other series.
+final cpuTimingRandomProvider = Provider<Random>((ref) => Random());
+final cpuQualityRandomProvider = Provider<Random>((ref) => Random());
+
 final gameConfigurationProvider = Provider<GameConfiguration>(
   (ref) => GameConfiguration.initial,
 );
@@ -32,7 +38,8 @@ final mapViewportProvider = Provider<IslandMapViewport>(
 /// a seeded strategy or a no-op strategy without changing the game engine.
 final cpuStrategyProvider = Provider<CpuStrategy>((ref) {
   return CpuStrategy(
-    random: ref.read(randomProvider),
+    timingRandom: ref.read(cpuTimingRandomProvider),
+    qualityRandom: ref.read(cpuQualityRandomProvider),
     rules: ref.read(gameRulesProvider),
     viewport: ref.watch(mapViewportProvider),
   );
