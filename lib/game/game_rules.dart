@@ -154,6 +154,14 @@ final class GameRules {
   static const largeIslandWidgetSize = 80.0;
   static const movingForceWidgetSize = 30.0;
 
+  /// Insets the fixed headquarters from the HUD while preserving the map's
+  /// point symmetry. At the 390x844 Open Design reference viewport these
+  /// anchors place the CPU headquarters at (66, 98) and the player
+  /// headquarters at (324, 746), the closest point-symmetric match to the
+  /// prototype's (62, 104) and (320, 752) centers.
+  static const _headquartersAlignmentX = 129 / 145;
+  static const _headquartersAlignmentY = 27 / 31;
+
   /// A layout-independent fallback for state creation before Flutter layout
   /// constraints are available.  Callers with a real viewport should pass it
   /// to [generateIslands] so collision and safe-area checks use exact pixels.
@@ -280,9 +288,9 @@ final class GameRules {
 
   /// Attempts to generate a valid map without ever retrying indefinitely.
   ///
-  /// The two headquarters are fixed at the bottom-right and top-left corners.
+  /// The two headquarters are fixed at opposing point-symmetric anchors.
   /// Every neutral island is generated as a pair so its counterpart is the
-  /// exact point reflection around the screen center.  A null result means the
+  /// exact point reflection around the screen center. A null result means the
   /// supplied retry budget could not produce a non-overlapping placement.
   List<IslandState>? tryGenerateIslands({
     GameConfiguration configuration = GameConfiguration.initial,
@@ -319,18 +327,19 @@ final class GameRules {
         'must have positive dimensions',
       );
     }
-    final playerHeadquarters = viewport.rectFor(_playerHeadquarters);
-    final cpuHeadquarters = viewport.rectFor(_cpuHeadquarters);
-    if (!playerHeadquarters.isWithin(viewport) ||
-        !cpuHeadquarters.isWithin(viewport) ||
-        playerHeadquarters.overlaps(cpuHeadquarters)) {
+    final headquarters = _headquartersFor(viewport);
+    final playerHeadquartersRect = viewport.rectFor(headquarters.$1);
+    final cpuHeadquartersRect = viewport.rectFor(headquarters.$2);
+    if (!playerHeadquartersRect.isWithin(viewport) ||
+        !cpuHeadquartersRect.isWithin(viewport) ||
+        playerHeadquartersRect.overlaps(cpuHeadquartersRect)) {
       return null;
     }
 
     final source = random ?? math.Random();
     final neutralSizes = _neutralSizes(configuration.totalIslandCount);
     for (var mapAttempt = 0; mapAttempt < attempts; mapAttempt++) {
-      final islands = <IslandState>[_playerHeadquarters, _cpuHeadquarters];
+      final islands = <IslandState>[headquarters.$1, headquarters.$2];
       var generated = true;
       for (var pairIndex = 0; pairIndex < neutralSizes.length; pairIndex += 2) {
         final pair = _tryPlaceNeutralPair(
@@ -808,25 +817,36 @@ final class GameRules {
     );
   }
 
-  static const _playerHeadquarters = IslandState(
-    id: 0,
-    position: IslandPosition(x: 1, y: 1),
-    faction: Faction.player,
-    size: IslandSize.headquarters,
-    currentForces: 100,
-    durability: 0,
-    capacity: 200,
-  );
-
-  static const _cpuHeadquarters = IslandState(
-    id: 1,
-    position: IslandPosition(x: -1, y: -1),
-    faction: Faction.cpu,
-    size: IslandSize.headquarters,
-    currentForces: 100,
-    durability: 0,
-    capacity: 200,
-  );
+  static (IslandState, IslandState) _headquartersFor(
+    IslandMapViewport viewport,
+  ) {
+    // The 320x320 stress-test envelope needs the original corner anchors to
+    // leave enough room for twelve islands. Portrait game surfaces use the
+    // Open Design HUD-safe anchors.
+    final isPortrait = viewport.height > viewport.width;
+    final x = isPortrait ? _headquartersAlignmentX : 1.0;
+    final y = isPortrait ? _headquartersAlignmentY : 1.0;
+    return (
+      IslandState(
+        id: 0,
+        position: IslandPosition(x: x, y: y),
+        faction: Faction.player,
+        size: IslandSize.headquarters,
+        currentForces: 100,
+        durability: 0,
+        capacity: 200,
+      ),
+      IslandState(
+        id: 1,
+        position: IslandPosition(x: -x, y: -y),
+        faction: Faction.cpu,
+        size: IslandSize.headquarters,
+        currentForces: 100,
+        durability: 0,
+        capacity: 200,
+      ),
+    );
+  }
 
   static List<IslandState>? _tryPlaceNeutralPair({
     required int firstId,

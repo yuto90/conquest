@@ -242,7 +242,7 @@ void main() {
           if (find.byKey(const ValueKey('pause-game')).evaluate().isNotEmpty) {
             await tester.tap(find.byKey(const ValueKey('pause-game')));
             await tester.pump();
-            expect(find.text('Game Paused'), findsOneWidget);
+            expect(find.text('一時停止'), findsOneWidget);
             final pausedElapsed = container
                 .read(gameControllerProvider)
                 .elapsedMs;

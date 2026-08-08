@@ -1,13 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
+import 'ui/tactical_theme.dart';
 
-/// Renders one immutable in-flight troop group.
-///
-/// The marker is deliberately not a button.  [IgnorePointer] keeps a moving
-/// troop from intercepting taps intended for an island underneath it, while
-/// the semantics node still exposes its faction and current strength.
+/// Renders an in-flight group as a flat, top-view tactical aircraft.
 class MovingForceWidget extends StatelessWidget {
   const MovingForceWidget({required this.force, this.semanticsKey, super.key});
 
@@ -18,6 +17,9 @@ class MovingForceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final angle = force.deltaX == 0 && force.deltaY == 0
+        ? 0.0
+        : math.atan2(force.deltaY, force.deltaX);
     return Semantics(
       key: semanticsKey,
       container: true,
@@ -27,48 +29,62 @@ class MovingForceWidget extends StatelessWidget {
       child: IgnorePointer(
         child: SizedBox.square(
           dimension: size,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: _backgroundColor,
-              shape: force.faction == Faction.cpu
-                  ? BoxShape.rectangle
-                  : BoxShape.circle,
-              border: Border.all(color: _outlineColor, width: 2.5),
-              borderRadius: force.faction == Faction.cpu
-                  ? BorderRadius.circular(5)
-                  : null,
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black38,
-                  blurRadius: 2,
-                  offset: Offset(0, 1),
+          child: OverflowBox(
+            minWidth: 56,
+            maxWidth: 56,
+            minHeight: 32,
+            maxHeight: 32,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 1,
+                  top: 5,
+                  child: Transform.rotate(
+                    angle: angle,
+                    child: SizedBox(
+                      width: 36,
+                      height: 22,
+                      child: CustomPaint(
+                        painter: _AircraftPainter(faction: force.faction),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -2,
+                  top: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: TacticalPalette.surface,
+                      border: Border.all(
+                        color: TacticalPalette.foreground.withValues(
+                          alpha: 0.72,
+                        ),
+                      ),
+                    ),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: 22,
+                        minHeight: 19,
+                      ),
+                      child: Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            force.currentValue.toString(),
+                            style: TacticalTypography.mono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _marker,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
-                  Text(
-                    force.currentValue.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      height: 1.05,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ),
         ),
@@ -76,37 +92,11 @@ class MovingForceWidget extends StatelessWidget {
     );
   }
 
-  Color get _backgroundColor {
-    return switch (force.faction) {
-      Faction.player => Colors.green.shade800,
-      Faction.cpu => Colors.red.shade800,
-      Faction.neutral => Colors.grey.shade800,
-    };
-  }
-
-  Color get _outlineColor {
-    return switch (force.faction) {
-      Faction.player => Colors.lightGreenAccent,
-      Faction.cpu => Colors.orangeAccent,
-      Faction.neutral => Colors.white,
-    };
-  }
-
-  String get _marker {
-    return switch (force.faction) {
-      Faction.player => 'P',
-      Faction.cpu => 'C',
-      Faction.neutral => 'N',
-    };
-  }
-
-  String get _factionName {
-    return switch (force.faction) {
-      Faction.player => 'Player',
-      Faction.cpu => 'CPU',
-      Faction.neutral => 'Neutral',
-    };
-  }
+  String get _factionName => switch (force.faction) {
+    Faction.player => 'Player',
+    Faction.cpu => 'CPU',
+    Faction.neutral => 'Neutral',
+  };
 
   String get _semanticLabel {
     return '$_factionName moving troop, strength ${force.currentValue}, '
@@ -116,5 +106,86 @@ class MovingForceWidget extends StatelessWidget {
   }
 }
 
-/// Alternate name for code that calls an in-flight group a moving force view.
+class _AircraftPainter extends CustomPainter {
+  const _AircraftPainter({required this.faction});
+
+  final Faction faction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bodyColor = faction == Faction.cpu
+        ? TacticalPalette.cpu
+        : faction == Faction.player
+        ? TacticalPalette.player
+        : TacticalPalette.neutral;
+    final deepColor = faction == Faction.cpu
+        ? TacticalPalette.cpuDeep
+        : faction == Faction.player
+        ? TacticalPalette.playerDeep
+        : TacticalPalette.foreground;
+    final body = Path()
+      ..moveTo(2, 11)
+      ..lineTo(12, 8)
+      ..lineTo(17, 2)
+      ..lineTo(21, 2)
+      ..lineTo(19, 9)
+      ..lineTo(34, 11)
+      ..lineTo(19, 13)
+      ..lineTo(21, 20)
+      ..lineTo(17, 20)
+      ..lineTo(12, 14)
+      ..close();
+    canvas.drawPath(
+      body,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = bodyColor,
+    );
+    canvas.drawPath(
+      body,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..strokeJoin = StrokeJoin.round
+        ..color = deepColor,
+    );
+
+    if (faction == Faction.cpu) {
+      final emblem = Path()
+        ..moveTo(19.5, 8)
+        ..lineTo(24, 17)
+        ..lineTo(15, 17)
+        ..close();
+      canvas.drawPath(emblem, Paint()..color = TacticalPalette.cpuDeep);
+    } else {
+      canvas.drawCircle(
+        const Offset(19.5, 14.5),
+        4.5,
+        Paint()..color = deepColor,
+      );
+      canvas.drawCircle(
+        const Offset(19.5, 14.5),
+        4.5,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1
+          ..color = TacticalPalette.paper,
+      );
+      final mark = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = TacticalPalette.paper;
+      canvas.drawLine(const Offset(17.5, 13), const Offset(19.5, 15), mark);
+      canvas.drawLine(const Offset(19.5, 15), const Offset(21.5, 13), mark);
+      canvas.drawLine(const Offset(17.5, 15), const Offset(19.5, 17), mark);
+      canvas.drawLine(const Offset(19.5, 17), const Offset(21.5, 15), mark);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _AircraftPainter oldDelegate) {
+    return faction != oldDelegate.faction;
+  }
+}
+
 typedef MovingForceView = MovingForceWidget;
