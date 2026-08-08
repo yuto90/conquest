@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'game_state.dart';
+import 'movement_timing.dart';
 
 /// The pixel viewport used to translate normalized [IslandPosition] values
 /// into the same alignment centers as the renderer.
@@ -138,7 +139,9 @@ final class GameRules {
   const GameRules();
 
   static const startCountdownDurationMs = 3000;
-  static const movementDurationMs = 5000;
+
+  /// Compatibility alias for the canonical screen-diagonal duration.
+  static const movementDurationMs = MovementTiming.screenDiagonalDurationMs;
 
   /// Normalized alignment coordinates used by the first renderer.
   static const mapMinCoordinate = -1.0;

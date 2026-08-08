@@ -4,6 +4,8 @@
 /// transitions usable by a later renderer, a CPU player, and deterministic
 /// tests without having to construct a widget tree.
 
+import 'movement_timing.dart';
+
 enum GamePhase {
   configuration,
   startCountdown,
@@ -327,7 +329,9 @@ class MovingForce {
        _y = y ?? 0,
        _position = position;
 
-  static const movementDefaultDurationMs = 5000;
+  /// Compatibility alias for the canonical screen-diagonal duration.
+  static const movementDefaultDurationMs =
+      MovementTiming.screenDiagonalDurationMs;
   static const movementDefaultArrivalTimeMs = movementDefaultDurationMs;
 
   final int id;
