@@ -593,6 +593,17 @@ void main() {
     }
   });
 
+  test('compatibility interval aliases match the Normal profile', () {
+    expect(
+      CpuStrategy.minDecisionIntervalMs,
+      CpuDifficultyProfile.normal.minDecisionIntervalMs,
+    );
+    expect(
+      CpuStrategy.maxDecisionIntervalMs,
+      CpuDifficultyProfile.normal.maxDecisionIntervalMs,
+    );
+  });
+
   test('the no-argument delay remains the seeded Normal profile', () {
     final implicitNormal = CpuStrategy(random: Random(42), viewport: _viewport);
     final explicitNormal = CpuStrategy(random: Random(42), viewport: _viewport);

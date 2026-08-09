@@ -163,9 +163,9 @@ final class CpuStrategy {
     this.enabled = true,
   });
 
-  /// Compatibility aliases for callers that referenced the Normal interval.
-  static const minDecisionIntervalMs = 1500;
-  static const maxDecisionIntervalMs = 3000;
+  /// Compatibility aliases that mirror the current Normal profile bounds.
+  static const minDecisionIntervalMs = 2750;
+  static const maxDecisionIntervalMs = 4000;
 
   final math.Random timingRandom;
   final math.Random qualityRandom;
@@ -178,8 +178,8 @@ final class CpuStrategy {
 
   /// Returns the next interval in the inclusive range for [difficulty].
   ///
-  /// The default keeps the original Normal profile for source compatibility
-  /// with callers that do not yet provide a difficulty.
+  /// The default uses the current Normal profile for source compatibility with
+  /// callers that do not yet provide a difficulty.
   int nextDecisionDelayMs({CpuDifficulty difficulty = CpuDifficulty.normal}) {
     final profile = CpuDifficultyProfile.forDifficulty(difficulty);
     return profile.minDecisionIntervalMs +
