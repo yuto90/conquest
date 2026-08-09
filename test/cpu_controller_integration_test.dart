@@ -293,7 +293,12 @@ void main() {
           randomProvider.overrideWithValue(Random(7)),
           cpuStrategyProvider.overrideWithValue(
             CpuStrategy(
-              timingRandom: ZeroRandom(),
+              // Keep every deadline one millisecond past a 50ms callback so
+              // the judgment is processed late and current-time rescheduling
+              // can be distinguished from rescheduling from the old due
+              // timestamp. The third value is consumed when the second due
+              // judgment schedules its following deadline.
+              timingRandom: SequenceRandom([1, 1, 1]),
               qualityRandom: difficulty == CpuDifficulty.hard
                   ? SequenceRandom(const [])
                   : SequenceRandom([0, 99, 0]),
@@ -309,12 +314,12 @@ void main() {
       controller.startGame();
       completeStartCountdown(localLoop);
 
-      for (var index = 0; index < due - 1; index += 1) {
+      for (var index = 0; index < due; index += 1) {
         localLoop.tick();
       }
       expect(
         localContainer.read(gameControllerProvider).elapsedMs,
-        (due - 1) * 50,
+        due * 50,
         reason: '$difficulty before first deadline',
       );
       localLoop.tick();
@@ -336,15 +341,36 @@ void main() {
         localLoop.tick();
       }
       expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50,
+        reason: '$difficulty before old rescheduled deadline',
+      );
+      expect(
         cpuMovingForceCount(localContainer.read(gameControllerProvider)),
         difficulty == CpuDifficulty.hard ? 1 : 0,
-        reason: '$difficulty before rescheduled deadline',
+        reason: '$difficulty before old rescheduled deadline',
       );
       localLoop.tick();
       expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50 + 50,
+        reason: '$difficulty old rescheduled deadline',
+      );
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 1 : 0,
+        reason: '$difficulty old rescheduled deadline must not fire',
+      );
+      localLoop.tick();
+      expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50 + 100,
+        reason: '$difficulty current-time rescheduled deadline',
+      );
+      expect(
         cpuMovingForceCount(localContainer.read(gameControllerProvider)),
         difficulty == CpuDifficulty.hard ? 2 : 1,
-        reason: '$difficulty rescheduled deadline',
+        reason: '$difficulty current-time rescheduled deadline',
       );
     }
   });

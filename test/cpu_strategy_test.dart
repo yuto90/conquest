@@ -875,8 +875,16 @@ void main() {
   });
 
   test('same seed and state reproduce delays and decisions', () {
-    final first = CpuStrategy(random: Random(42), viewport: _viewport);
-    final second = CpuStrategy(random: Random(42), viewport: _viewport);
+    final first = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
+    final second = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
     final state = _playing(
       islands: [
         _island(id: 1, faction: Faction.cpu, forces: 20),
