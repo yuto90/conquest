@@ -779,6 +779,7 @@ class _DifficultyChoice extends StatelessWidget {
 }
 
 String _difficultyLabel(CpuDifficulty difficulty) => switch (difficulty) {
+  CpuDifficulty.veryEasy => 'Very Easy',
   CpuDifficulty.easy => 'Easy',
   CpuDifficulty.normal => 'Normal',
   CpuDifficulty.hard => 'Hard',

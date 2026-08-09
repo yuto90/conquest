@@ -58,6 +58,39 @@ void main() {
     );
   });
 
+  test('configuration copy retains Very Easy CPU difficulty', () {
+    final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
+    final updated = veryEasy.copyWith(totalIslandCount: 12);
+
+    expect(updated.totalIslandCount, 12);
+    expect(updated.cpuDifficulty, CpuDifficulty.veryEasy);
+    expect(
+      updated,
+      GameConfiguration(
+        totalIslandCount: 12,
+        cpuDifficulty: CpuDifficulty.veryEasy,
+      ),
+    );
+    expect(
+      updated,
+      isNot(
+        GameConfiguration(
+          totalIslandCount: 12,
+          cpuDifficulty: CpuDifficulty.easy,
+        ),
+      ),
+    );
+    expect(
+      updated.hashCode,
+      isNot(
+        GameConfiguration(
+          totalIslandCount: 12,
+          cpuDifficulty: CpuDifficulty.easy,
+        ).hashCode,
+      ),
+    );
+  });
+
   test('value objects provide immutable copy updates', () {
     const position = IslandPosition(x: 0.25, y: -0.5);
     const island = IslandState(
