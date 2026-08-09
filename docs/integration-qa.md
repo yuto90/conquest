@@ -5,12 +5,23 @@
 選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
 対応する自動テストを追記した。Issue #15の実施時点では新しいゲームルールは追加していない。
 
-## Issue #40 CPU難易度グラデーションQA（Task 5A 再調整）
+## Issue #40 CPU難易度グラデーションQA（Task 5A/5B）
 
 この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度と、承認済みVery Easy再調整の
 検証を記録するための追補である。
 自動検証は実行したコマンドの実施日、対象commit SHA、終了状態、出力を記入する。
 手動検証は未実行の項目を成功として扱わず、実測値が入るまで`未実行`のままにする。
+勝敗と操作感は手動観察の証拠として記録し、特定の勝利数を現行受入れの保証条件や
+ブロック条件にはしない。
+
+### 2026-08-10 受け入れ条件更新（現行Very Easyプロファイル）
+
+ユーザー承認により、Very Easyの最終プロファイルは判断間隔5.5〜7.0秒、見送り55%、
+最優先候補選択率20%のまま採用する。再調整後の6島Very Easyでは初心者向け手順で
+`敗北/敗北/敗北`（0勝）を観察したが、従来の「各島数で最大3試合以内に最低1勝」という
+条件は、現行受入れをブロックする保証条件から外した。実行済みの結果は勝率・操作感の
+残存キャリブレーションリスクとして扱い、未実行の島数・難易度を成功と推定しない。
+プロダクト意図である「ゲームが苦手な利用者でもVery Easyをクリアしやすくする」は維持する。
 
 ### Task 5 baseline: 旧Very Easyプロファイルの6島結果（履歴・blocked）
 
@@ -32,57 +43,88 @@ Task 5Aの新profile判定と混同しない。
 実施日: 2026-08-10 JST、checkout: `/private/tmp/codex-delivery-conquest-issue-40/worktree`、
 対象HEAD: `88a74deae1be50ad2006bdaf2719fb94ddb1ec0d`。
 
-### 自動検証プロトコル
+### 自動検証プロトコル（Task 5B、現行HEAD）
 
 | 検証 | コマンド | 実施日 | 対象commit SHA | 終了状態・結果 |
 | --- | --- | --- | --- | --- |
-| lifecycle focused tests | `fvm flutter test test/game_controller_test.dart test/integration_qa_test.dart` | 未記入 | 未記入 | 未実行 |
-| 全Flutterテスト | `fvm flutter test` | 未記入 | 未記入 | 未実行 |
-| 静的解析 | `fvm flutter analyze` | 未記入 | 未記入 | 未実行 |
-| 対象ビルド | `fvm flutter build ios --no-codesign` | 未記入 | 未記入 | 未実行 |
-| 4段階勾配テスト | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/integration_qa_test.dart` | 未記入 | 未記入 | 未実行 |
+| Dart format | `fvm dart format lib/game/game_state.dart lib/game/cpu_strategy.dart lib/home.dart test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/game_rules_test.dart test/game_controller_test.dart test/widget_test.dart test/integration_qa_test.dart test/tactical_ui_test.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `Formatted 10 files (0 changed) in 0.08 seconds.` |
+| diff-check | `git diff --check` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; 出力なし |
+| build_runner / generated diff | `fvm dart run build_runner build --delete-conflicting-outputs`、`git diff -- lib/game/game_controller.g.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; removed-option warningは出たが`riverpod_generator on 21 inputs`、`Built with build_runner/aot in 4s; wrote 2 outputs.`。`game_controller.g.dart`差分なし |
+| focused Flutter tests | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/game_rules_test.dart test/game_controller_test.dart test/widget_test.dart test/integration_qa_test.dart test/tactical_ui_test.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `All tests passed!`、141 tests |
+| 静的解析 | `fvm flutter analyze` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `No issues found! (ran in 1.2s).` |
+| 全Flutterテスト | `fvm flutter test` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `All tests passed!`、141 tests |
+| Web build | `fvm flutter build web` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `✓ Built build/web`. |
+| Android debug build | `fvm flutter build apk --debug` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `✓ Built build/app/outputs/flutter-apk/app-debug.apk`. |
+| iOS simulator build | `fvm flutter build ios --simulator --no-codesign` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `Xcode build done. 9.3s`、`✓ Built build/ios/iphonesimulator/Runner.app`. |
 
 実行時は終了コードだけでなく、テスト件数、`All tests passed!`、analyze/buildの重要な
-警告またはエラーを結果欄へ転記する。Task 5Aで未実行のコマンドは未実行のまま残す。
+警告またはエラーを結果欄へ転記した。build_runner後の生成物に差分はなく、製品コード・テスト・
+定数は変更していない。
 
-### Task 5A revised profile 4段階手動比較（未実行）
+### Task 5B revised profile 4段階手動比較
 
-同じbuild、同じ端末条件、同じマップ生成条件で、6・8・10・12島それぞれの
-Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイした後にのみ記入する。
-今回の再調整後のVery Easyは判断間隔5.5〜7.0秒、見送り55%、最優先候補20%である。
-以下の表は再調整後profileの結果欄であり、実行前は成功・勝敗・順序を記載しない。
+同じbuild、同じ端末条件で、6・8・10・12島それぞれのVery Easy・Easy・Normal・Hardを
+比較する観察表である。今回の再調整後Very Easyは判断間隔5.5〜7.0秒、見送り55%、
+最優先候補20%。6島Very Easyだけを3試合観察し、他の行は旧来の勝利ゲート停止時点で
+未実行のまま残した。未実行行の初動・判断頻度・候補品質・順序逆転/急変を推定しない。
 
 | 島数 | 難易度 | 初動 | 判断頻度 | 候補品質 | 順序逆転/急変 | 実施日 | commit SHA | 試合1/2/3勝敗 | 観察事項 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 6 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 6 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 6 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 6 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 8 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 8 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 8 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 8 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 10 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 10 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 10 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 10 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 12 | Very Easy | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 12 | Easy | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 12 | Normal | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
-| 12 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 6 | Very Easy | HQ→最寄りのsmall、続いて最強自軍島→最寄りの占領可能島 | 未評価（比較用定量結論なし） | 未評価 | 未評価 | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | 敗北/敗北/敗北（0勝） | 現行プロファイルで3試合を初心者向け手順により観察。詳細は下記。 |
+| 6 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 6 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 6 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 8 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 8 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 8 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 8 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 10 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 10 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 10 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 10 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 12 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 12 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 12 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
+| 12 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 旧来の勝利ゲート停止により未実行 |
 
-#### Task 5A revised Very Easy 初心者向け確認（未実行）
+#### Task 5B revised Very Easy 初心者向け観察（6島）
 
-各実施試合の勝敗と観察事項を、勝敗にかかわらず必ず結果欄へ記入する。3敗も実行済みの
-結果として記録し、未実行とは区別する。操作条件は全島数で固定する。
+操作条件は全試合で固定し、実行した勝敗と観察事項を未実行と区別した。各dispatchの間を
+3秒以上空け、1回につき1部隊だけを送り、最も兵力の多い自軍島から最寄りの占領可能な島を
+狙い、CPU出兵への反応的防衛は行わなかった。source/destinationの組は1回のdispatchとして
+まとめて操作した。同じ端末・build・設定を使ったが、再戦時にmap seedを固定できないため、
+試合ごとにマップ配置は異なる。
 
-受入条件（手順完了条件）は、各島数を最大3試合プレイし、少なくとも1回勝利することである。
+| 試合 | 操作・観察 | 結果 |
+| ---: | --- | --- |
+| 1 | `Game start 3`後（Simulator時計約2:14）、CPU HQ 56、Player HQ 107、CPU moving troop 21を確認。HQ→nearest smallでPlayer small（AX forces 41）を取得し、HQは34へ低下。次の最強player island→nearest mediumのdispatch後、CPU moving troopが見える状態でPlayer HQ/領域を失い結果画面へ遷移。 | 敗北 |
+| 2 | `Game start 3`後（約2:16）、CPU moving troop 28、CPU HQ 29、Player HQ 108を確認。HQ→nearest smallでPlayer small 40/HQ 62。HQ→nearest medium後にPlayer small 43/HQ 15、medium durability 9となり、最強small→同mediumでPlayer medium 19/small 30、CPU HQ 2を確認。その後も可視の占領可能島へdispatchしたがCPUがPlayer HQ/領域を奪い結果画面へ遷移。 | 敗北 |
+| 3 | `Game start 3`後（約2:18）、CPU moving troop 51、CPU HQ 56、Player HQ 107を確認。HQ→nearest smallでPlayer small 36/HQ 40。HQ→nearest medium後にPlayer small 11/HQ 21、medium 16となり、さらに最強島からdispatch。CPU領域が拡大しPlayer HQ 20、最後の可視nearest targetへのdispatch後にHQ 4となって結果画面へ遷移。 | 敗北 |
 
-1. 操作間隔を3秒以上空ける。
-2. 1回につき1部隊だけ送る。
-3. 最も兵力の多い自軍島から、最寄りの占領可能な島を狙う。
-4. 相手の出兵に合わせた反応的防衛を行わない。
-5. 各島数を最大3試合プレイし、少なくとも1回勝利する。
+実測結果は`敗北/敗北/敗北`（勝利数`0/3`）。これは旧来の勝利ゲートを満たさなかったという
+観察結果だが、2026-08-10のユーザー承認更新により現行受入れをブロックしない。8/10/12島と
+Easy/Normal/Hardは上表のとおり未実行であり、順序・頻度・候補品質の比較結論は出していない。
+
+### Task 5B 実施環境と成果物
+
+- 実施日時: 2026-08-10 JST
+- checkout: `/private/tmp/codex-delivery-conquest-issue-40/worktree`
+- branch: `codex/issue-40-cpu-difficulty-gradient`
+- current HEAD: `081e021b816e6e62e3365d0bd3e7f65674a6621a`
+- parent: `88a74deae1be50ad2006bdaf2719fb94ddb1ec0d`
+- host: macOS Darwin 25.5.0 arm64
+- Flutter/Dart: Flutter 3.44.8、Dart 3.12.2（FVM 2.2.6）
+- Xcode: 26.6 (17F113)
+- device: iPhone 17 Simulator、iOS 26.5 (23F77)、UUID `2EBD3334-E7B5-42DC-BFBE-EEF75C95AEF7`（booted）
+- app: bundle id `com.conquest.conquest`、version 1、`build/ios/iphonesimulator/Runner.app`（142M）
+- artifact handling: current HEADで生成したRunner.appを`xcrun simctl install`後に起動し、Computer Useの
+  node_repl + `@oai/sky`で各操作後にfresh AX tree/screenshotを取得した。
+
+### Task 5B scope audit
+
+自動検証、ビルド、6島Very Easyの観察はすべて`081e021`で実施した。Task 5Bではプロファイル、
+戦略、能力値、テスト、生成物、製品コードを変更していない。docsの受入れ同期はTask 5Cで
+この記録と同じ証拠を参照して行う。GitHubへのpush・PR操作は行っていない。
 
 ## 実施環境
 
