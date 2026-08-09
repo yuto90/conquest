@@ -50,9 +50,9 @@ Task 5Aの新profile判定と混同しない。
 | Dart format | `fvm dart format lib/game/game_state.dart lib/game/cpu_strategy.dart lib/home.dart test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/game_rules_test.dart test/game_controller_test.dart test/widget_test.dart test/integration_qa_test.dart test/tactical_ui_test.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `Formatted 10 files (0 changed) in 0.08 seconds.` |
 | diff-check | `git diff --check` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; 出力なし |
 | build_runner / generated diff | `fvm dart run build_runner build --delete-conflicting-outputs`、`git diff -- lib/game/game_controller.g.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; removed-option warningは出たが`riverpod_generator on 21 inputs`、`Built with build_runner/aot in 4s; wrote 2 outputs.`。`game_controller.g.dart`差分なし |
-| focused Flutter tests | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/game_rules_test.dart test/game_controller_test.dart test/widget_test.dart test/integration_qa_test.dart test/tactical_ui_test.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `All tests passed!`、141 tests |
+| focused Flutter tests | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/game_rules_test.dart test/game_controller_test.dart test/widget_test.dart test/integration_qa_test.dart test/tactical_ui_test.dart` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `+140: All tests passed!`、140 tests |
 | 静的解析 | `fvm flutter analyze` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `No issues found! (ran in 1.2s).` |
-| 全Flutterテスト | `fvm flutter test` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `All tests passed!`、141 tests |
+| 全Flutterテスト | `fvm flutter test` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `+140: All tests passed!`、140 tests |
 | Web build | `fvm flutter build web` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `✓ Built build/web`. |
 | Android debug build | `fvm flutter build apk --debug` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `✓ Built build/app/outputs/flutter-apk/app-debug.apk`. |
 | iOS simulator build | `fvm flutter build ios --simulator --no-codesign` | 2026-08-10 | `081e021b816e6e62e3365d0bd3e7f65674a6621a` | exit 0; `Xcode build done. 9.3s`、`✓ Built build/ios/iphonesimulator/Runner.app`. |
@@ -60,6 +60,10 @@ Task 5Aの新profile判定と混同しない。
 実行時は終了コードだけでなく、テスト件数、`All tests passed!`、analyze/buildの重要な
 警告またはエラーを結果欄へ転記した。build_runner後の生成物に差分はなく、製品コード・テスト・
 定数は変更していない。
+
+`081e021`のfocused/full結果は、このSHA時点の正確な`+140: All tests passed!`である。
+その後、`8ccc40926bbe6c8e3ba1cccd863490ecf10cb4b5`でNormal互換interval aliasの
+回帰テストを1件追加したため、現行HEADのfull suiteは`+141: All tests passed!`（141 tests）となる。
 
 ### Task 5B revised profile 4段階手動比較
 
