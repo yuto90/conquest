@@ -518,8 +518,11 @@ void main() {
 
     final cpu = find.byKey(const ValueKey('island-button-1'));
     final player = find.byKey(const ValueKey('island-button-0'));
-    expect(tester.getTopLeft(cpu).dy, closeTo(24, 1e-6));
-    expect(tester.getBottomRight(player).dy, closeTo(484, 1e-6));
+    final cpuTop = tester.getTopLeft(cpu).dy;
+    final playerBottom = tester.getBottomRight(player).dy;
+    expect(cpuTop, greaterThanOrEqualTo(24));
+    expect(playerBottom, lessThanOrEqualTo(484));
+    expect(cpuTop - 24, closeTo(484 - playerBottom, 1e-6));
   });
 
   testWidgets('generates using the actual sub-320 layout constraints', (
@@ -902,7 +905,7 @@ void main() {
       expect(find.byKey(const ValueKey('pause-game')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('pause-game')));
       await tester.pump();
-      expect(find.text('Game Paused'), findsOneWidget);
+      expect(find.text('一時停止'), findsOneWidget);
       expect(find.byKey(const ValueKey('resume-game')), findsOneWidget);
       expect(find.byKey(const ValueKey('quit-game')), findsOneWidget);
 
@@ -914,14 +917,14 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('cancel-quit')));
       await tester.pump();
-      expect(find.text('Game Paused'), findsOneWidget);
+      expect(find.text('一時停止'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('quit-game')));
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('confirm-quit')));
       await tester.pump();
       expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
-      expect(find.text('Game Paused'), findsNothing);
+      expect(find.text('一時停止'), findsNothing);
     },
   );
 
@@ -951,7 +954,7 @@ void main() {
 
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     await tester.pump();
-    expect(find.text('Game Paused'), findsOneWidget);
+    expect(find.text('一時停止'), findsOneWidget);
     expect(loop.isRunning, isFalse);
 
     loop.tick();
@@ -986,7 +989,7 @@ void main() {
     controller.finish(const GameResult.victory(elapsedMs: 1));
     await tester.pump();
 
-    expect(find.text('Victory'), findsOneWidget);
+    expect(find.text('勝利'), findsOneWidget);
     expect(find.byKey(const ValueKey('replay-game')), findsOneWidget);
     expect(find.byKey(const ValueKey('return-settings')), findsOneWidget);
     expect(loop.isRunning, isFalse);
@@ -994,6 +997,6 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('return-settings')));
     await tester.pump();
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
-    expect(find.text('Victory'), findsNothing);
+    expect(find.text('勝利'), findsNothing);
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'home.dart';
+import 'ui/tactical_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'conquest',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: buildTacticalTheme(),
       home: const Home(),
     );
   }

@@ -4,6 +4,7 @@ import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
+import 'package:conquest/game/movement_timing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,6 +17,13 @@ final class FixedClock extends GameClock {
 
 void main() {
   const rules = GameRules();
+
+  test('uses one canonical ten-second diagonal duration and aliases', () {
+    expect(MovementTiming.screenDiagonalDurationMs, 10000);
+    expect(GameRules.movementDurationMs, 10000);
+    expect(MovingForce.movementDefaultDurationMs, 10000);
+    expect(MovingForce.movementDefaultArrivalTimeMs, 10000);
+  });
 
   test('configuration exposes the supported counts and default selection', () {
     expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
@@ -211,6 +219,24 @@ void main() {
     }
   });
 
+  test('headquarters match the tactical chart HUD-safe anchors', () {
+    final islands = rules.generateIslands(
+      configuration: GameConfiguration(totalIslandCount: 10),
+      random: Random(1),
+      viewport: GameRules.referenceMapViewport,
+    );
+
+    final playerRect = GameRules.referenceMapViewport.rectFor(islands[0]);
+    final cpuRect = GameRules.referenceMapViewport.rectFor(islands[1]);
+
+    expect(cpuRect.left, closeTo(16, 1e-9));
+    expect(cpuRect.top, closeTo(48, 1e-9));
+    expect(playerRect.right, closeTo(374, 1e-9));
+    expect(playerRect.bottom, closeTo(796, 1e-9));
+    expect(islands[0].x, closeTo(-islands[1].x, 1e-12));
+    expect(islands[0].y, closeTo(-islands[1].y, 1e-12));
+  });
+
   test('generated maps stay in viewport bounds and do not overlap', () {
     const viewports = <IslandMapViewport>[
       IslandMapViewport(width: 320, height: 320),
@@ -222,11 +248,19 @@ void main() {
     for (final total in GameConfiguration.allowedIslandCounts) {
       for (var seed = 0; seed < 20; seed++) {
         for (final viewport in viewports) {
-          final islands = rules.generateIslands(
+          final generated = rules.tryGenerateIslands(
             configuration: GameConfiguration(totalIslandCount: total),
             random: Random(seed),
             viewport: viewport,
           );
+          expect(
+            generated,
+            isNotNull,
+            reason:
+                '$total islands, seed $seed, '
+                '${viewport.width}x${viewport.height}',
+          );
+          final islands = generated!;
           for (final island in islands) {
             expect(island.x, inInclusiveRange(-1.0, 1.0));
             expect(island.y, inInclusiveRange(-1.0, 1.0));
@@ -883,11 +917,11 @@ void main() {
 
     final arrived = rules.tick(halfway, deltaMs: force.durationMs);
     expect(arrived.movingForces, isEmpty);
-    expect(arrived.islands[1].currentForces, 32);
+    expect(arrived.islands[1].currentForces, 40);
   });
 
   test(
-    'movement duration is proportional to distance with a five-second diagonal',
+    'movement duration is proportional to distance with a ten-second diagonal',
     () {
       const source = IslandState(
         id: 0,
@@ -929,12 +963,40 @@ void main() {
         departureTimeMs: 1200,
       );
 
-      expect(diagonal.durationMs, 5000);
-      expect(diagonal.arrivalTimeMs, 6200);
+      expect(diagonal.durationMs, 10000);
+      expect(diagonal.arrivalTimeMs, 11200);
       expect(near.durationMs, lessThan(diagonal.durationMs));
       expect(near.arrivalTimeMs, 1200 + near.durationMs);
     },
   );
+
+  test('takes five seconds from the center to a screen corner', () {
+    const viewport = IslandMapViewport(width: 390, height: 844);
+    const source = IslandState(
+      id: 0,
+      position: IslandPosition(x: 0, y: 0),
+      faction: Faction.player,
+      currentForces: 20,
+      capacity: 200,
+    );
+    const target = IslandState(
+      id: 1,
+      position: IslandPosition(x: 1, y: 1),
+      faction: Faction.neutral,
+      capacity: 50,
+    );
+
+    final force = rules.createMovingForce(
+      id: 0,
+      faction: Faction.player,
+      source: source,
+      destination: target,
+      strength: 5,
+      viewport: viewport,
+    );
+
+    expect(force.durationMs, 5000);
+  });
 
   test('uses portrait screen distance for duration and arrival boundaries', () {
     const viewport = IslandMapViewport(width: 390, height: 844);
@@ -1031,8 +1093,11 @@ void main() {
       ),
       closeTo(viewport.movingForceScreenDiagonal, 1e-12),
     );
+    expect(horizontal.durationMs, 4045);
+    expect(vertical.durationMs, 4573);
+    expect(diagonal.durationMs, 10000);
     expect(vertical.durationMs, greaterThan(horizontal.durationMs));
-    expect(diagonal.durationMs, GameRules.movementDurationMs);
+    expect(diagonal.durationMs, MovementTiming.screenDiagonalDurationMs);
 
     final state = GameState(
       phase: GamePhase.playing,
@@ -1097,7 +1162,7 @@ void main() {
 
       final atArrival = rules.tick(beforeArrival, deltaMs: 1);
       expect(atArrival.movingForces, isEmpty);
-      expect(atArrival.islands[1].currentForces, 30);
+      expect(atArrival.islands[1].currentForces, 35);
     },
   );
 
@@ -1160,13 +1225,11 @@ void main() {
       final next = rules.tick(state, deltaMs: first.durationMs);
       expect(next.movingForces, hasLength(1));
       expect(next.movingForces.single.id, second.id);
-      expect(next.islands[1].currentForces, 26);
+      expect(next.islands[1].currentForces, 28);
       expect(next.islands[3].currentForces, 0);
       expect(next.movingForces.single.progress, lessThan(1));
-      expect(
-        next.movingForces.single.position,
-        const IslandPosition(x: 0, y: 0),
-      );
+      expect(next.movingForces.single.position.x, closeTo(0, 1e-3));
+      expect(next.movingForces.single.position.y, closeTo(0, 1e-3));
       expect(next.selectedIslandId, 2);
     },
   );

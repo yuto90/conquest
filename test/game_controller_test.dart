@@ -30,6 +30,12 @@ class ManualGameLoop implements GameLoop {
   }
 
   void tick() => _onTick?.call();
+
+  void tickMany(int count) {
+    for (var index = 0; index < count; index++) {
+      tick();
+    }
+  }
 }
 
 void completeStartCountdown(ManualGameLoop loop) {
@@ -418,22 +424,75 @@ void main() {
     expect(state.movement, isNotNull);
   });
 
-  test('ticks movement and resolves it at the target', () {
+  test(
+    'keeps a diagonal movement in flight until ten seconds, then arrives',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      completeStartCountdown(loop);
+      controller.tapBase(0);
+      controller.tapBase(1);
+
+      for (var i = 0; i < 199; i++) {
+        loop.tick();
+      }
+
+      final beforeArrival = container.read(gameControllerProvider);
+      expect(beforeArrival.elapsedMs, 9950);
+      expect(beforeArrival.movingForces, hasLength(1));
+      expect(beforeArrival.movingForces.single.progress, closeTo(0.995, 1e-12));
+      expect(beforeArrival.movingForces.single.arrivalTimeMs, 10000);
+      expect(beforeArrival.bases[0].scale, 59);
+      expect(beforeArrival.bases[1].scale, 109);
+
+      loop.tick();
+
+      final arrived = container.read(gameControllerProvider);
+      expect(arrived.elapsedMs, 10000);
+      expect(arrived.movement, isNull);
+      expect(arrived.selectedBaseId, isNull);
+      expect(arrived.bases[0].scale, 60);
+      expect(arrived.bases[1].scale, 60);
+    },
+  );
+
+  test('freezes movement timing through pause and resume countdown', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
     completeStartCountdown(loop);
     controller.tapBase(0);
     controller.tapBase(1);
+    loop.tickMany(20);
 
-    for (var i = 0; i < 100; i++) {
-      loop.tick();
-    }
+    final moving = container.read(gameControllerProvider).movingForces.single;
+    expect(moving.departureTimeMs, 0);
+    expect(moving.durationMs, 10000);
+    expect(moving.arrivalTimeMs, 10000);
+    expect(moving.progress, closeTo(0.1, 1e-12));
 
-    final state = container.read(gameControllerProvider);
-    expect(state.movement, isNull);
-    expect(state.selectedBaseId, isNull);
-    expect(state.bases[0].scale, 55);
-    expect(state.bases[1].scale, 55);
+    controller.pauseGame();
+    final paused = container.read(gameControllerProvider);
+    expect(paused.phase, GamePhase.paused);
+    expect(paused.elapsedMs, 1000);
+    expect(paused.movingForces.single, moving);
+
+    loop.tickMany(100);
+    expect(container.read(gameControllerProvider), same(paused));
+
+    controller.resumeGame();
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.resumeCountdown,
+    );
+    loop.tickMany(60);
+
+    final resumed = container.read(gameControllerProvider);
+    expect(resumed.phase, GamePhase.playing);
+    expect(resumed.elapsedMs, paused.elapsedMs);
+    expect(resumed.movingForces.single.departureTimeMs, moving.departureTimeMs);
+    expect(resumed.movingForces.single.durationMs, moving.durationMs);
+    expect(resumed.movingForces.single.arrivalTimeMs, moving.arrivalTimeMs);
+    expect(resumed.movingForces.single.progress, moving.progress);
   });
 
   test('stops the game loop when arrival resolution finalizes a result', () {

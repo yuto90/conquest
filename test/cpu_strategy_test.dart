@@ -316,19 +316,38 @@ void main() {
 
   test('applies exactly one CPU dispatch without changing its abilities', () {
     final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
-    final state = _playing(
-      islands: [
-        _island(id: 1, faction: Faction.cpu, forces: 20, x: -0.5, y: -0.5),
-        _island(id: 2, faction: Faction.player, forces: 5, x: 0.5, y: 0.5),
-      ],
+    final source = _island(
+      id: 1,
+      faction: Faction.cpu,
+      forces: 20,
+      x: -0.5,
+      y: -0.5,
     );
+    final destination = _island(
+      id: 2,
+      faction: Faction.player,
+      forces: 5,
+      x: 0.5,
+      y: 0.5,
+    );
+    final state = _playing(islands: [source, destination]);
     final decision = strategy.decide(state)!;
 
     final next = strategy.applyDecision(state, decision);
+    final playerForce = GameRules().createMovingForce(
+      id: 99,
+      faction: Faction.player,
+      source: source,
+      destination: destination,
+      strength: 10,
+      viewport: _viewport,
+    );
 
     expect(next.movingForces, hasLength(1));
     expect(next.movingForces.single.faction, Faction.cpu);
     expect(next.movingForces.single.strength, 10);
+    expect(next.movingForces.single.durationMs, playerForce.durationMs);
+    expect(next.movingForces.single.arrivalTimeMs, playerForce.arrivalTimeMs);
     expect(next.islands.first.currentForces, 10);
   });
 
