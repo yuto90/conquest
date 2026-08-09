@@ -382,15 +382,19 @@ void main() {
     }
   });
 
-  test('decision delays stay within the inclusive 1.5 to 3 second range', () {
-    final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
+  test(
+    'no-argument delays stay within the inclusive Normal 2.75 to 4 second range',
+    () {
+      final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
 
-    final delays = [
-      for (var index = 0; index < 100; index++) strategy.nextDecisionDelayMs(),
-    ];
+      final delays = [
+        for (var index = 0; index < 100; index++)
+          strategy.nextDecisionDelayMs(),
+      ];
 
-    expect(delays, everyElement(inInclusiveRange(1500, 3000)));
-  });
+      expect(delays, everyElement(inInclusiveRange(2750, 4000)));
+    },
+  );
 
   test('each CPU difficulty uses its inclusive decision interval', () {
     const bounds = <CpuDifficulty, (int, int)>{
