@@ -42,19 +42,92 @@ final class CpuDecision {
   }
 }
 
-/// Standard, deterministic CPU strategy.
+/// Timing and decision-quality settings for one CPU difficulty.
 ///
-/// The strategy only reads the supplied [GameState].  In particular, it does
-/// not inspect future player actions or retain a hidden board model.  The
-/// random source is used solely for the next decision interval; all choices
-/// for one state are ordered by explicit, stable tie-breakers.
+/// The percentages are intentionally integer values so fixed [math.Random]
+/// implementations can exercise every boundary without floating-point
+/// rounding.  Normal and Hard retain the deterministic strategy by disabling
+/// both Easy quality effects.
+final class CpuDifficultyProfile {
+  const CpuDifficultyProfile({
+    required this.difficulty,
+    required this.minDecisionIntervalMs,
+    required this.maxDecisionIntervalMs,
+    required this.skipDecisionRatePercent,
+    required this.primaryCandidateRatePercent,
+  });
+
+  static const easy = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.easy,
+    minDecisionIntervalMs: 3000,
+    maxDecisionIntervalMs: 4500,
+    skipDecisionRatePercent: 25,
+    primaryCandidateRatePercent: 60,
+  );
+
+  static const normal = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.normal,
+    minDecisionIntervalMs: 1500,
+    maxDecisionIntervalMs: 3000,
+    skipDecisionRatePercent: 0,
+    primaryCandidateRatePercent: 100,
+  );
+
+  static const hard = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.hard,
+    minDecisionIntervalMs: 750,
+    maxDecisionIntervalMs: 1500,
+    skipDecisionRatePercent: 0,
+    primaryCandidateRatePercent: 100,
+  );
+
+  final CpuDifficulty difficulty;
+  final int minDecisionIntervalMs;
+  final int maxDecisionIntervalMs;
+  final int skipDecisionRatePercent;
+  final int primaryCandidateRatePercent;
+
+  static CpuDifficultyProfile forDifficulty(CpuDifficulty difficulty) {
+    return switch (difficulty) {
+      CpuDifficulty.easy => easy,
+      CpuDifficulty.normal => normal,
+      CpuDifficulty.hard => hard,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is CpuDifficultyProfile &&
+        other.difficulty == difficulty &&
+        other.minDecisionIntervalMs == minDecisionIntervalMs &&
+        other.maxDecisionIntervalMs == maxDecisionIntervalMs &&
+        other.skipDecisionRatePercent == skipDecisionRatePercent &&
+        other.primaryCandidateRatePercent == primaryCandidateRatePercent;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    difficulty,
+    minDecisionIntervalMs,
+    maxDecisionIntervalMs,
+    skipDecisionRatePercent,
+    primaryCandidateRatePercent,
+  );
+}
+
+/// Standard CPU strategy with an independent timing and quality random
+/// stream.  The strategy only reads the supplied [GameState].  In particular,
+/// it does not inspect future player actions or retain a hidden board model.
 final class CpuStrategy {
   CpuStrategy({
     math.Random? random,
+    math.Random? timingRandom,
+    math.Random? qualityRandom,
     GameRules? rules,
     IslandMapViewport viewport = GameRules.defaultMapViewport,
   }) : this._(
-         random: random ?? math.Random(),
+         timingRandom: timingRandom ?? random ?? math.Random(),
+         qualityRandom: qualityRandom ?? math.Random(),
          rules: rules ?? const GameRules(),
          viewport: viewport,
        );
@@ -66,68 +139,105 @@ final class CpuStrategy {
     GameRules? rules,
     IslandMapViewport viewport = GameRules.defaultMapViewport,
   }) : this._(
-         random: math.Random(0),
+         timingRandom: math.Random(0),
+         qualityRandom: math.Random(0),
          rules: rules ?? const GameRules(),
          viewport: viewport,
          enabled: false,
        );
 
   CpuStrategy._({
-    required this.random,
+    required this.timingRandom,
+    required this.qualityRandom,
     required this.rules,
     required this.viewport,
     this.enabled = true,
   });
 
+  /// Compatibility aliases for callers that referenced the Normal interval.
   static const minDecisionIntervalMs = 1500;
   static const maxDecisionIntervalMs = 3000;
 
-  static const _easyMinDecisionIntervalMs = 3000;
-  static const _easyMaxDecisionIntervalMs = 4500;
-  static const _hardMinDecisionIntervalMs = 750;
-  static const _hardMaxDecisionIntervalMs = 1500;
-
-  final math.Random random;
+  final math.Random timingRandom;
+  final math.Random qualityRandom;
   final GameRules rules;
   final IslandMapViewport viewport;
   final bool enabled;
+
+  /// The original constructor's random field now denotes the timing stream.
+  math.Random get random => timingRandom;
 
   /// Returns the next interval in the inclusive range for [difficulty].
   ///
   /// The default keeps the original Normal profile for source compatibility
   /// with callers that do not yet provide a difficulty.
   int nextDecisionDelayMs({CpuDifficulty difficulty = CpuDifficulty.normal}) {
-    final (minimum, maximum) = switch (difficulty) {
-      CpuDifficulty.easy => (
-        _easyMinDecisionIntervalMs,
-        _easyMaxDecisionIntervalMs,
-      ),
-      CpuDifficulty.normal => (minDecisionIntervalMs, maxDecisionIntervalMs),
-      CpuDifficulty.hard => (
-        _hardMinDecisionIntervalMs,
-        _hardMaxDecisionIntervalMs,
-      ),
-    };
-    return minimum + random.nextInt(maximum - minimum + 1);
+    final profile = CpuDifficultyProfile.forDifficulty(difficulty);
+    return profile.minDecisionIntervalMs +
+        timingRandom.nextInt(
+          profile.maxDecisionIntervalMs - profile.minDecisionIntervalMs + 1,
+        );
   }
 
   /// Compatibility alias for callers that describe a CPU turn as a choice.
-  CpuDecision? choose(GameState state) => decide(state);
+  CpuDecision? choose(GameState state, {CpuDifficulty? difficulty}) {
+    return decide(state, difficulty: difficulty);
+  }
+
+  /// Generates legal choices in the existing strategy priority order.
+  ///
+  /// Defense candidates are returned exclusively when a defense is possible;
+  /// otherwise attack candidates are returned.  Separating this pure list
+  /// from [selectCandidate] lets Easy add quality noise without changing the
+  /// legal-move rules or Normal/Hard's first candidate.
+  List<CpuDecision> generateCandidates(GameState state) {
+    if (!enabled || state.phase != GamePhase.playing) {
+      return const [];
+    }
+
+    final defenseCandidates = _generateDefenseCandidates(state);
+    if (defenseCandidates.isNotEmpty) {
+      return _dedupeDecisions(defenseCandidates);
+    }
+    return _generateAttackCandidates(state);
+  }
+
+  /// Selects one candidate, or intentionally skips it for Easy.
+  CpuDecision? selectCandidate(
+    List<CpuDecision> candidates, {
+    CpuDifficulty difficulty = CpuDifficulty.normal,
+  }) {
+    if (candidates.isEmpty) {
+      return null;
+    }
+    final profile = CpuDifficultyProfile.forDifficulty(difficulty);
+    if (profile.skipDecisionRatePercent > 0 &&
+        qualityRandom.nextInt(100) < profile.skipDecisionRatePercent) {
+      return null;
+    }
+    if (candidates.length == 1 || profile.primaryCandidateRatePercent >= 100) {
+      return candidates.first;
+    }
+    if (profile.primaryCandidateRatePercent > 0 &&
+        qualityRandom.nextInt(100) < profile.primaryCandidateRatePercent) {
+      return candidates.first;
+    }
+    return candidates[1 + qualityRandom.nextInt(candidates.length - 1)];
+  }
 
   /// Selects at most one dispatch for [state].
   ///
   /// Defense threats are considered first.  When no defense can arrive in
   /// time, attack candidates follow the priority from the game rules.
-  CpuDecision? decide(GameState state) {
+  CpuDecision? decide(GameState state, {CpuDifficulty? difficulty}) {
     if (!enabled || state.phase != GamePhase.playing) {
       return null;
     }
-
-    final defense = _chooseDefense(state);
-    if (defense != null) {
-      return defense;
-    }
-    return _chooseAttack(state);
+    final resolvedDifficulty = difficulty ?? state.configuration.cpuDifficulty;
+    return selectCandidate(
+      generateCandidates(state),
+      difficulty: resolvedDifficulty,
+    );
   }
 
   /// Applies one previously selected decision using the same dispatch and
@@ -208,7 +318,7 @@ final class CpuStrategy {
     );
   }
 
-  CpuDecision? _chooseDefense(GameState state) {
+  List<CpuDecision> _generateDefenseCandidates(GameState state) {
     final threats = <_Threat>[];
     for (final force in state.movingForces) {
       if (force.faction != Faction.player ||
@@ -255,6 +365,7 @@ final class CpuStrategy {
           (island) => island.faction == Faction.cpu && island.currentForces > 1,
         )
         .toList();
+    final candidates = <CpuDecision>[];
     for (final threat in threats) {
       final target = _findIsland(state.islands, threat.destinationIslandId);
       if (target == null) {
@@ -299,16 +410,80 @@ final class CpuStrategy {
         );
         final predictedTarget = _findIsland(predicted.islands, target.id);
         if (predictedTarget?.faction == Faction.cpu) {
-          return CpuDecision(
-            kind: CpuDecisionKind.defense,
-            sourceIslandId: source.id,
-            destinationIslandId: target.id,
-            strength: strength,
+          candidates.add(
+            CpuDecision(
+              kind: CpuDecisionKind.defense,
+              sourceIslandId: source.id,
+              destinationIslandId: target.id,
+              strength: strength,
+            ),
           );
         }
       }
     }
-    return null;
+    return candidates;
+  }
+
+  List<CpuDecision> _generateAttackCandidates(GameState state) {
+    final primary = _chooseAttack(state);
+    if (primary == null) {
+      return const [];
+    }
+
+    final sources = state.islands
+        .where(
+          (island) => island.faction == Faction.cpu && island.currentForces > 1,
+        )
+        .toList();
+    final enemies = state.islands
+        .where((island) => island.faction == Faction.player)
+        .toList();
+    final neutrals = state.islands
+        .where((island) => island.faction == Faction.neutral)
+        .toList();
+
+    final candidates = <_AttackCandidate>[];
+    final enemyCandidates = _capturableCandidates(
+      state,
+      sources: sources,
+      targets: enemies,
+      allSources: true,
+    );
+    if (enemyCandidates.isNotEmpty) {
+      candidates.addAll(enemyCandidates);
+    } else {
+      final neutralCandidates = _capturableCandidates(
+        state,
+        sources: sources,
+        targets: neutrals,
+        allSources: true,
+      );
+      if (neutralCandidates.isNotEmpty) {
+        candidates.addAll(neutralCandidates);
+      } else if (enemies.isNotEmpty) {
+        // Keep all legal fallback pairs available to Easy while the first
+        // candidate remains the existing strongest/weakest priority.
+        candidates.addAll([
+          for (final source in sources)
+            for (final target in enemies)
+              _AttackCandidate(
+                source: source,
+                target: target,
+                strength: source.currentForces ~/ 2,
+                distance: _distance(source, target),
+              ),
+        ]);
+      }
+    }
+
+    final decisions = <CpuDecision>[primary];
+    for (final candidate in candidates) {
+      final decision = _decisionForAttackCandidate(candidate);
+      if (!decisions.contains(decision)) {
+        decisions.add(decision);
+      }
+    }
+    return decisions;
   }
 
   CpuDecision? _chooseAttack(GameState state) {
@@ -391,6 +566,7 @@ final class CpuStrategy {
     GameState state, {
     required List<IslandState> sources,
     required List<IslandState> targets,
+    bool allSources = false,
   }) {
     final candidates = <_AttackCandidate>[];
     for (final target in targets) {
@@ -444,7 +620,11 @@ final class CpuStrategy {
       }
       if (sourceCandidates.isNotEmpty) {
         sourceCandidates.sort(_compareSourcePriority);
-        candidates.add(sourceCandidates.first);
+        if (allSources) {
+          candidates.addAll(sourceCandidates);
+        } else {
+          candidates.add(sourceCandidates.first);
+        }
       }
     }
     return candidates;
@@ -463,12 +643,26 @@ final class CpuStrategy {
       return _compareSourcePriority(first, second);
     });
     final selected = candidates.first;
+    return _decisionForAttackCandidate(selected);
+  }
+
+  CpuDecision _decisionForAttackCandidate(_AttackCandidate candidate) {
     return CpuDecision(
       kind: CpuDecisionKind.attack,
-      sourceIslandId: selected.source.id,
-      destinationIslandId: selected.target.id,
-      strength: selected.strength,
+      sourceIslandId: candidate.source.id,
+      destinationIslandId: candidate.target.id,
+      strength: candidate.strength,
     );
+  }
+
+  List<CpuDecision> _dedupeDecisions(Iterable<CpuDecision> decisions) {
+    final unique = <CpuDecision>[];
+    for (final decision in decisions) {
+      if (!unique.contains(decision)) {
+        unique.add(decision);
+      }
+    }
+    return unique;
   }
 
   int _compareSourcePriority(_AttackCandidate first, _AttackCandidate second) {
