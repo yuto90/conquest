@@ -1,9 +1,63 @@
 # Issue #15 統合QA記録
 
 この記録は、`docs/game-rules.md` の初期版CPU戦について、統合自動テストと
-端末・画面QAで実際に確認した範囲を記録する。Issue #15の実施時点ではCPU難易度の
+端末・画面QAで実際に確認した範囲を記録する。以下のIssue #15記録では、実施時点でCPU難易度の
 選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
-対応する自動テストを追記した。新しいゲームルールは追加していない。
+対応する自動テストを追記した。Issue #15の実施時点では新しいゲームルールは追加していない。
+
+## Issue #40 CPU難易度グラデーションQA（Task 4）
+
+この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度を記録するための追補である。
+自動検証は実行したコマンドの実施日、対象commit SHA、終了状態、出力を記入する。
+手動検証は未実行の項目を成功として扱わず、実測値が入るまで`未実行`のままにする。
+
+### 自動検証プロトコル
+
+| 検証 | コマンド | 実施日 | 対象commit SHA | 終了状態・結果 |
+| --- | --- | --- | --- | --- |
+| lifecycle focused tests | `fvm flutter test test/game_controller_test.dart test/integration_qa_test.dart` | 未記入 | 未記入 | 未実行 |
+| 全Flutterテスト | `fvm flutter test` | 未記入 | 未記入 | 未実行 |
+| 静的解析 | `fvm flutter analyze` | 未記入 | 未記入 | 未実行 |
+| 対象ビルド | `fvm flutter build ios --no-codesign` | 未記入 | 未記入 | 未実行 |
+| 4段階勾配テスト | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/integration_qa_test.dart` | 未記入 | 未記入 | 未実行 |
+
+実行時は終了コードだけでなく、テスト件数、`All tests passed!`、analyze/buildの重要な
+警告またはエラーを結果欄へ転記する。Task 4で未実行のコマンドは未実行のまま残す。
+
+### 4段階手動比較プロトコル（未実行）
+
+同じbuild、同じ端末条件、同じマップ生成条件で、6・8・10・12島それぞれの
+Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイした後にのみ記入する。
+
+| 島数 | 難易度 | 初動 | 判断頻度 | 候補品質 | 順序逆転/急変 | 実施日 | commit SHA | 試合1/2/3勝敗 | 観察事項 |
+| ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 6 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 6 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 6 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 6 | Hard | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 8 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 8 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 8 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 8 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 10 | Very Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 10 | Easy | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 10 | Normal | 未実行 | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 10 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 12 | Very Easy | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 12 | Easy | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 12 | Normal | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+| 12 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
+
+#### Very Easy 初心者向け確認（未実行）
+
+各島数で最大3試合を行い、少なくとも1回勝利した場合にだけ試合結果欄へ勝敗を記入する。
+操作条件は全島数で固定する。
+
+1. 操作間隔を3秒以上空ける。
+2. 1回につき1部隊だけ送る。
+3. 最も兵力の多い自軍島から、最寄りの占領可能な島を狙う。
+4. 相手の出兵に合わせた反応的防衛を行わない。
+5. 各島数を最大3試合プレイし、少なくとも1回勝利する。
 
 ## 実施環境
 
@@ -54,7 +108,7 @@
 | 自軍増援の上限、中立の同数攻撃、敵島の超過攻撃 | `keeps friendly, neutral, and enemy boundary arrivals independent` | PASS |
 | 一時停止、再開カウントダウン、結果、再戦、provider破棄 | `pauses, resumes, rematches, and disposes without advancing state` | PASS |
 | CPU防衛の予測、Controller経由の出兵、到着、占領阻止 | `dispatches CPU defense before a threatened island can be occupied` | PASS |
-| CPU難易度の判断間隔、1判断1部隊、難易度の試合設定保持 | `test/cpu_controller_integration_test.dart`、`test/game_controller_test.dart`、`test/integration_qa_test.dart` のIssue #31回帰テスト | PASS |
+| CPU難易度4段階の判断期限、1判断1部隊、島数・HQ数、難易度の試合設定保持 | `starts every map and difficulty with one legal CPU judgment at its deadline`、`test/cpu_controller_integration_test.dart`、`test/game_controller_test.dart` | PASS |
 | 非対称な多数部隊、複数対象、異なる到着時刻、残存部隊 | `processes asymmetric troops across targets and arrival times exactly` | PASS |
 
 個別ルールの境界値は既存テストでも確認している。`test/game_rules_test.dart` の

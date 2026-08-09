@@ -38,6 +38,39 @@ class ManualGameLoop implements GameLoop {
   }
 }
 
+final class _MinimumRandom implements Random {
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() => 0;
+
+  @override
+  int nextInt(int max) => 0;
+}
+
+final class _CountingMaximumRandom implements Random {
+  int callCount = 0;
+
+  @override
+  bool nextBool() {
+    callCount++;
+    return true;
+  }
+
+  @override
+  double nextDouble() {
+    callCount++;
+    return 0.9999999999999999;
+  }
+
+  @override
+  int nextInt(int max) {
+    callCount++;
+    return max - 1;
+  }
+}
+
 void completeStartCountdown(ManualGameLoop loop) {
   for (var index = 0; index < 60; index++) {
     loop.tick();
@@ -112,32 +145,148 @@ void main() {
     final controller = container.read(gameControllerProvider.notifier);
     final before = container.read(gameControllerProvider);
 
-    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
 
     final after = container.read(gameControllerProvider);
     expect(after.phase, GamePhase.configuration);
-    expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
+    expect(after.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
     expect(after.configuration.totalIslandCount, 10);
     expect(after.islands, orderedEquals(before.islands));
+    expect([
+      for (var index = 0; index < before.islands.length; index++)
+        identical(after.islands[index], before.islands[index]),
+    ], everyElement(isTrue));
   });
 
   test(
     'preserves CPU difficulty through island count changes and rejects play changes',
     () {
       final controller = container.read(gameControllerProvider.notifier);
-      controller.selectCpuDifficulty(CpuDifficulty.easy);
+      controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
       controller.selectIslandCount(6);
+      controller.selectIslandCount(12);
 
       final configured = container.read(gameControllerProvider);
-      expect(configured.configuration.cpuDifficulty, CpuDifficulty.easy);
-      expect(configured.configuration.totalIslandCount, 6);
-      expect(configured.islands, hasLength(6));
+      expect(configured.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
+      expect(configured.configuration.totalIslandCount, 12);
+      expect(configured.islands, hasLength(12));
 
       controller.startGame();
       final countdown = container.read(gameControllerProvider);
       controller.selectCpuDifficulty(CpuDifficulty.hard);
 
       expect(container.read(gameControllerProvider), same(countdown));
+    },
+  );
+
+  test(
+    'retains Very Easy through pause resume replay settings and quality RNG boundaries',
+    () {
+      final localLoop = ManualGameLoop();
+      final qualityRandom = _CountingMaximumRandom();
+      final localContainer = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(localLoop),
+          randomProvider.overrideWithValue(Random(1)),
+          cpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              timingRandom: _MinimumRandom(),
+              qualityRandom: qualityRandom,
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+        ],
+      );
+      addTearDown(localContainer.dispose);
+
+      final controller = localContainer.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
+      controller.startGame();
+      completeStartCountdown(localLoop);
+
+      expect(
+        localContainer.read(gameControllerProvider).configuration.cpuDifficulty,
+        CpuDifficulty.veryEasy,
+      );
+      expect(qualityRandom.callCount, 0);
+
+      localLoop.tickMany(10);
+      controller.pauseGame();
+      final paused = localContainer.read(gameControllerProvider);
+      expect(paused.phase, GamePhase.paused);
+      expect(paused.elapsedMs, 500);
+      expect(qualityRandom.callCount, 0);
+
+      controller.resumeGame();
+      expect(
+        localContainer.read(gameControllerProvider).phase,
+        GamePhase.resumeCountdown,
+      );
+      localLoop.tickMany(60);
+      final resumed = localContainer.read(gameControllerProvider);
+      expect(resumed.phase, GamePhase.playing);
+      expect(resumed.elapsedMs, paused.elapsedMs);
+      expect(resumed.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
+      expect(qualityRandom.callCount, 0);
+
+      controller.state = resumed.copyWith(
+        islands: [
+          for (final island in resumed.islands)
+            island.id == 0
+                ? island.copyWith(
+                    faction: Faction.player,
+                    currentForces: 100,
+                    durability: 0,
+                  )
+                : island.copyWith(
+                    faction: Faction.cpu,
+                    currentForces: 100,
+                    durability: 0,
+                  ),
+        ],
+      );
+      localLoop.tickMany(89);
+      expect(localContainer.read(gameControllerProvider).elapsedMs, 4950);
+      expect(qualityRandom.callCount, 0);
+
+      localLoop.tick();
+      final firstDecision = localContainer.read(gameControllerProvider);
+      expect(firstDecision.elapsedMs, 5000);
+      expect(
+        firstDecision.movingForces.where(
+          (force) => force.faction == Faction.cpu,
+        ),
+        hasLength(1),
+      );
+      expect(qualityRandom.callCount, greaterThan(0));
+
+      final callsAfterDecision = qualityRandom.callCount;
+      controller.finish(const GameResult.victory(elapsedMs: 5000));
+      expect(
+        localContainer.read(gameControllerProvider).configuration.cpuDifficulty,
+        CpuDifficulty.veryEasy,
+      );
+      localLoop.tickMany(10);
+      expect(qualityRandom.callCount, callsAfterDecision);
+
+      controller.replayGame();
+      final replay = localContainer.read(gameControllerProvider);
+      expect(replay.phase, GamePhase.startCountdown);
+      expect(replay.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
+      expect(qualityRandom.callCount, callsAfterDecision);
+      localLoop.tickMany(60);
+      expect(
+        localContainer.read(gameControllerProvider).phase,
+        GamePhase.playing,
+      );
+      expect(qualityRandom.callCount, callsAfterDecision);
+
+      controller.finish(const GameResult.victory(elapsedMs: 0));
+      controller.returnToConfiguration();
+      final settings = localContainer.read(gameControllerProvider);
+      expect(settings.phase, GamePhase.configuration);
+      expect(settings.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
+      expect(qualityRandom.callCount, callsAfterDecision);
     },
   );
 
