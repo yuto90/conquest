@@ -104,37 +104,94 @@ GameState _multipleCandidateState({
 }
 
 void main() {
-  test('difficulty profiles centralize timing and Easy quality constants', () {
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.easy),
-      const CpuDifficultyProfile(
+  test('difficulty profiles match the approved four-tier gradient', () {
+    const expected = <CpuDifficulty, CpuDifficultyProfile>{
+      CpuDifficulty.veryEasy: CpuDifficultyProfile(
+        difficulty: CpuDifficulty.veryEasy,
+        minDecisionIntervalMs: 5000,
+        maxDecisionIntervalMs: 6500,
+        skipDecisionRatePercent: 50,
+        primaryCandidateRatePercent: 25,
+      ),
+      CpuDifficulty.easy: CpuDifficultyProfile(
         difficulty: CpuDifficulty.easy,
-        minDecisionIntervalMs: 3000,
-        maxDecisionIntervalMs: 4500,
-        skipDecisionRatePercent: 25,
-        primaryCandidateRatePercent: 60,
+        minDecisionIntervalMs: 4000,
+        maxDecisionIntervalMs: 5500,
+        skipDecisionRatePercent: 35,
+        primaryCandidateRatePercent: 50,
       ),
-    );
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.normal),
-      const CpuDifficultyProfile(
+      CpuDifficulty.normal: CpuDifficultyProfile(
         difficulty: CpuDifficulty.normal,
-        minDecisionIntervalMs: 1500,
-        maxDecisionIntervalMs: 3000,
-        skipDecisionRatePercent: 0,
-        primaryCandidateRatePercent: 100,
+        minDecisionIntervalMs: 2750,
+        maxDecisionIntervalMs: 4000,
+        skipDecisionRatePercent: 15,
+        primaryCandidateRatePercent: 80,
       ),
-    );
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.hard),
-      const CpuDifficultyProfile(
+      CpuDifficulty.hard: CpuDifficultyProfile(
         difficulty: CpuDifficulty.hard,
-        minDecisionIntervalMs: 750,
-        maxDecisionIntervalMs: 1500,
+        minDecisionIntervalMs: 1500,
+        maxDecisionIntervalMs: 2750,
         skipDecisionRatePercent: 0,
         primaryCandidateRatePercent: 100,
       ),
-    );
+    };
+
+    expect(CpuDifficulty.values, expected.keys.toList());
+    for (final entry in expected.entries) {
+      expect(CpuDifficultyProfile.forDifficulty(entry.key), entry.value);
+    }
+  });
+
+  test('difficulty profiles form a bounded monotonic gradient', () {
+    final profiles = CpuDifficulty.values
+        .map(CpuDifficultyProfile.forDifficulty)
+        .toList();
+
+    for (final profile in profiles) {
+      expect(profile.minDecisionIntervalMs, greaterThan(0));
+      expect(
+        profile.maxDecisionIntervalMs,
+        greaterThanOrEqualTo(profile.minDecisionIntervalMs),
+      );
+      expect(profile.skipDecisionRatePercent, inInclusiveRange(0, 100));
+      expect(profile.primaryCandidateRatePercent, inInclusiveRange(0, 100));
+    }
+
+    for (var index = 0; index < profiles.length - 1; index += 1) {
+      final easier = profiles[index];
+      final harder = profiles[index + 1];
+      final easierMidpoint =
+          (easier.minDecisionIntervalMs + easier.maxDecisionIntervalMs) / 2;
+      final harderMidpoint =
+          (harder.minDecisionIntervalMs + harder.maxDecisionIntervalMs) / 2;
+      final easierExpectedActionInterval =
+          easierMidpoint / (1 - easier.skipDecisionRatePercent / 100);
+      final harderExpectedActionInterval =
+          harderMidpoint / (1 - harder.skipDecisionRatePercent / 100);
+
+      expect(easierMidpoint, greaterThan(harderMidpoint));
+      expect(easierMidpoint - harderMidpoint, lessThanOrEqualTo(1500));
+      expect(
+        easier.skipDecisionRatePercent,
+        greaterThan(harder.skipDecisionRatePercent),
+      );
+      expect(
+        easier.skipDecisionRatePercent - harder.skipDecisionRatePercent,
+        lessThanOrEqualTo(20),
+      );
+      expect(
+        easier.primaryCandidateRatePercent,
+        lessThan(harder.primaryCandidateRatePercent),
+      );
+      expect(
+        harder.primaryCandidateRatePercent - easier.primaryCandidateRatePercent,
+        lessThanOrEqualTo(30),
+      );
+      expect(
+        easierExpectedActionInterval / harderExpectedActionInterval,
+        lessThan(2),
+      );
+    }
   });
 
   test('Easy can skip a due judgment with the injected quality random', () {
@@ -337,9 +394,10 @@ void main() {
 
   test('each CPU difficulty uses its inclusive decision interval', () {
     const bounds = <CpuDifficulty, (int, int)>{
-      CpuDifficulty.easy: (3000, 4500),
-      CpuDifficulty.normal: (1500, 3000),
-      CpuDifficulty.hard: (750, 1500),
+      CpuDifficulty.veryEasy: (5000, 6500),
+      CpuDifficulty.easy: (4000, 5500),
+      CpuDifficulty.normal: (2750, 4000),
+      CpuDifficulty.hard: (1500, 2750),
     };
 
     for (final entry in bounds.entries) {

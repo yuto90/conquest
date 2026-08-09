@@ -57,26 +57,34 @@ final class CpuDifficultyProfile {
     required this.primaryCandidateRatePercent,
   });
 
+  static const veryEasy = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.veryEasy,
+    minDecisionIntervalMs: 5000,
+    maxDecisionIntervalMs: 6500,
+    skipDecisionRatePercent: 50,
+    primaryCandidateRatePercent: 25,
+  );
+
   static const easy = CpuDifficultyProfile(
     difficulty: CpuDifficulty.easy,
-    minDecisionIntervalMs: 3000,
-    maxDecisionIntervalMs: 4500,
-    skipDecisionRatePercent: 25,
-    primaryCandidateRatePercent: 60,
+    minDecisionIntervalMs: 4000,
+    maxDecisionIntervalMs: 5500,
+    skipDecisionRatePercent: 35,
+    primaryCandidateRatePercent: 50,
   );
 
   static const normal = CpuDifficultyProfile(
     difficulty: CpuDifficulty.normal,
-    minDecisionIntervalMs: 1500,
-    maxDecisionIntervalMs: 3000,
-    skipDecisionRatePercent: 0,
-    primaryCandidateRatePercent: 100,
+    minDecisionIntervalMs: 2750,
+    maxDecisionIntervalMs: 4000,
+    skipDecisionRatePercent: 15,
+    primaryCandidateRatePercent: 80,
   );
 
   static const hard = CpuDifficultyProfile(
     difficulty: CpuDifficulty.hard,
-    minDecisionIntervalMs: 750,
-    maxDecisionIntervalMs: 1500,
+    minDecisionIntervalMs: 1500,
+    maxDecisionIntervalMs: 2750,
     skipDecisionRatePercent: 0,
     primaryCandidateRatePercent: 100,
   );
@@ -89,6 +97,7 @@ final class CpuDifficultyProfile {
 
   static CpuDifficultyProfile forDifficulty(CpuDifficulty difficulty) {
     return switch (difficulty) {
+      CpuDifficulty.veryEasy => veryEasy,
       CpuDifficulty.easy => easy,
       CpuDifficulty.normal => normal,
       CpuDifficulty.hard => hard,
