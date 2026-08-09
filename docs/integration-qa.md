@@ -50,8 +50,10 @@ Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイし
 
 #### Very Easy 初心者向け確認（未実行）
 
-各島数で最大3試合を行い、少なくとも1回勝利した場合にだけ試合結果欄へ勝敗を記入する。
-操作条件は全島数で固定する。
+各実施試合の勝敗と観察事項を、勝敗にかかわらず必ず結果欄へ記入する。3敗も実行済みの
+結果として記録し、未実行とは区別する。操作条件は全島数で固定する。
+
+受入条件（手順完了条件）は、各島数を最大3試合プレイし、少なくとも1回勝利することである。
 
 1. 操作間隔を3秒以上空ける。
 2. 1回につき1部隊だけ送る。
@@ -108,7 +110,7 @@ Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイし
 | 自軍増援の上限、中立の同数攻撃、敵島の超過攻撃 | `keeps friendly, neutral, and enemy boundary arrivals independent` | PASS |
 | 一時停止、再開カウントダウン、結果、再戦、provider破棄 | `pauses, resumes, rematches, and disposes without advancing state` | PASS |
 | CPU防衛の予測、Controller経由の出兵、到着、占領阻止 | `dispatches CPU defense before a threatened island can be occupied` | PASS |
-| CPU難易度4段階の判断期限、1判断1部隊、島数・HQ数、難易度の試合設定保持 | `starts every map and difficulty with one legal CPU judgment at its deadline`、`test/cpu_controller_integration_test.dart`、`test/game_controller_test.dart` | PASS |
+| CPU難易度の判断間隔、1判断1部隊、難易度の試合設定保持 | `test/cpu_controller_integration_test.dart`、`test/game_controller_test.dart`、`test/integration_qa_test.dart` のIssue #31回帰テスト | PASS |
 | 非対称な多数部隊、複数対象、異なる到着時刻、残存部隊 | `processes asymmetric troops across targets and arrival times exactly` | PASS |
 
 個別ルールの境界値は既存テストでも確認している。`test/game_rules_test.dart` の
