@@ -804,7 +804,7 @@ void main() {
       expect(after.elapsedMs, before.elapsedMs);
       expect(loop.isRunning, isTrue);
 
-      for (var index = 0; index < 90; index++) {
+      for (var index = 0; index < 100; index++) {
         loop.tick();
       }
       expect(

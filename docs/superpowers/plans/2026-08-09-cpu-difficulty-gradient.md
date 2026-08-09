@@ -19,7 +19,7 @@
 
 | 難易度 | 最小判断間隔 | 最大判断間隔 | 見送り率 | 最優先候補選択率 |
 | --- | ---: | ---: | ---: | ---: |
-| Very Easy | 5000ms | 6500ms | 50% | 25% |
+| Very Easy | 5500ms | 7000ms | 55% | 20% |
 | Easy | 4000ms | 5500ms | 35% | 50% |
 | Normal | 2750ms | 4000ms | 15% | 80% |
 | Hard | 1500ms | 2750ms | 0% | 100% |
@@ -78,10 +78,10 @@ test('difficulty profiles match the approved four-tier gradient', () {
   const expected = <CpuDifficulty, CpuDifficultyProfile>{
     CpuDifficulty.veryEasy: CpuDifficultyProfile(
       difficulty: CpuDifficulty.veryEasy,
-      minDecisionIntervalMs: 5000,
-      maxDecisionIntervalMs: 6500,
-      skipDecisionRatePercent: 50,
-      primaryCandidateRatePercent: 25,
+      minDecisionIntervalMs: 5500,
+      maxDecisionIntervalMs: 7000,
+      skipDecisionRatePercent: 55,
+      primaryCandidateRatePercent: 20,
     ),
     CpuDifficulty.easy: CpuDifficultyProfile(
       difficulty: CpuDifficulty.easy,
@@ -128,10 +128,10 @@ enum CpuDifficulty { veryEasy, easy, normal, hard }
 ```dart
 static const veryEasy = CpuDifficultyProfile(
   difficulty: CpuDifficulty.veryEasy,
-  minDecisionIntervalMs: 5000,
-  maxDecisionIntervalMs: 6500,
-  skipDecisionRatePercent: 50,
-  primaryCandidateRatePercent: 25,
+  minDecisionIntervalMs: 5500,
+  maxDecisionIntervalMs: 7000,
+  skipDecisionRatePercent: 55,
+  primaryCandidateRatePercent: 20,
 );
 
 static const easy = CpuDifficultyProfile(
@@ -235,7 +235,7 @@ Expected: PASS。
 
 Run: `fvm flutter test test/cpu_strategy_test.dart --plain-name "each CPU difficulty uses its inclusive decision interval"`
 
-Expected: Very Easy 5000/6500、Easy 4000/5500、Normal 2750/4000、Hard 1500/2750でPASS。
+Expected: Very Easy 5500/7000、Easy 4000/5500、Normal 2750/4000、Hard 1500/2750でPASS。
 
 Run: `fvm flutter test test/cpu_strategy_test.dart --plain-name "the same seed reproduces delays for every difficulty"`
 
@@ -276,9 +276,9 @@ test('quality boundaries use half-open percentage ranges', () {
     bool,
     bool
   )>[
-    (CpuDifficulty.veryEasy, 49, 0, 0, true, false),
-    (CpuDifficulty.veryEasy, 50, 24, 0, false, true),
-    (CpuDifficulty.veryEasy, 50, 25, 0, false, false),
+    (CpuDifficulty.veryEasy, 54, 0, 0, true, false),
+    (CpuDifficulty.veryEasy, 55, 19, 0, false, true),
+    (CpuDifficulty.veryEasy, 55, 20, 0, false, false),
     (CpuDifficulty.easy, 34, 0, 0, true, false),
     (CpuDifficulty.easy, 35, 49, 0, false, true),
     (CpuDifficulty.easy, 35, 50, 0, false, false),
@@ -327,7 +327,7 @@ Expected: Task 1だけでは既存境界testの期待値競合、または追加
 
 - [ ] **Step 3: 既存の個別Easy境界testを4段階の表形式へ統合する**
 
-実装の比較演算`nextInt(100) < rate`は維持する。Normalの見送りと代替候補、Very Easyの50%/25%、Easyの35%/50%を追加し、Hardは見送りなし・先頭100%を明示する。候補0件・1件・複数件の既存testを4難易度でloopし、返却された判断が常に`generateCandidates`内にあることを検証する。
+実装の比較演算`nextInt(100) < rate`は維持する。Normalの見送りと代替候補、Very Easyの55%/20%、Easyの35%/50%を追加し、Hardは見送りなし・先頭100%を明示する。候補0件・1件・複数件の既存testを4難易度でloopし、返却された判断が常に`generateCandidates`内にあることを検証する。
 
 - [ ] **Step 4: 品質乱数消費が期限列を変えない回帰testを4難易度へ拡張する**
 
@@ -339,7 +339,7 @@ Expected: Task 1だけでは既存境界testの期待値競合、または追加
 
 ```dart
 const dueTicks = <CpuDifficulty, int>{
-  CpuDifficulty.veryEasy: 100,
+  CpuDifficulty.veryEasy: 110,
   CpuDifficulty.easy: 80,
   CpuDifficulty.normal: 55,
   CpuDifficulty.hard: 30,

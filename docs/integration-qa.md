@@ -5,11 +5,32 @@
 選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
 対応する自動テストを追記した。Issue #15の実施時点では新しいゲームルールは追加していない。
 
-## Issue #40 CPU難易度グラデーションQA（Task 4）
+## Issue #40 CPU難易度グラデーションQA（Task 5A 再調整）
 
-この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度を記録するための追補である。
+この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度と、承認済みVery Easy再調整の
+検証を記録するための追補である。
 自動検証は実行したコマンドの実施日、対象commit SHA、終了状態、出力を記入する。
 手動検証は未実行の項目を成功として扱わず、実測値が入るまで`未実行`のままにする。
+
+### Task 5 baseline: 旧Very Easyプロファイルの6島結果（履歴・blocked）
+
+以下は再調整前の旧Very Easyプロファイル
+（判断間隔5.0〜6.5秒、見送り50%、最優先候補25%）を、同一build条件で
+6島に対して初心者向け操作プロトコルで実行した履歴である。再調整後の結果ではなく、
+3試合とも敗北したため受入条件を満たさず、8/10/12島と他難易度の比較を停止した。
+
+| 試合 | 操作・観察 | 結果 |
+| ---: | --- | --- |
+| 1 | `Game start 3`後にCPU/Player HQを確認。CPUが中立mediumを占領する一方、Playerは最強HQから近いsmall islandを取得し、Player/CPU moving troopを観察。最強のplayer islandから近いCPU islandへ1部隊ずつ送ったが、全島がCPUになり敗北画面へ遷移。 | 敗北 |
+| 2 | HQから近いneutral small、次にneutral mediumを取得。HQからCPU mediumへstrength 31のPlayer moving troopを確認したが、CPUがHQを含むplayer領域を奪い敗北画面へ遷移。CPU出兵への反応防衛はしていない。 | 敗北 |
+| 3 | HQから近いneutral small、次に近いCPU mediumを攻撃。CPUの占領で1 dispatchが未成立になった後、残ったHQから可視の最寄りCPU islandへ1部隊を送ったが敗北画面を確認。 | 敗北 |
+
+3試合の結果は`敗北/敗北/敗北`（勝利数`0`）であり、「最大3試合かつ最低1勝」の
+6島Very Easy受入条件は未達だった。この結果は旧profileのblocked evidenceとして保持し、
+Task 5Aの新profile判定と混同しない。
+
+実施日: 2026-08-10 JST、checkout: `/private/tmp/codex-delivery-conquest-issue-40/worktree`、
+対象HEAD: `88a74deae1be50ad2006bdaf2719fb94ddb1ec0d`。
 
 ### 自動検証プロトコル
 
@@ -22,12 +43,14 @@
 | 4段階勾配テスト | `fvm flutter test test/cpu_strategy_test.dart test/cpu_controller_integration_test.dart test/integration_qa_test.dart` | 未記入 | 未記入 | 未実行 |
 
 実行時は終了コードだけでなく、テスト件数、`All tests passed!`、analyze/buildの重要な
-警告またはエラーを結果欄へ転記する。Task 4で未実行のコマンドは未実行のまま残す。
+警告またはエラーを結果欄へ転記する。Task 5Aで未実行のコマンドは未実行のまま残す。
 
-### 4段階手動比較プロトコル（未実行）
+### Task 5A revised profile 4段階手動比較（未実行）
 
 同じbuild、同じ端末条件、同じマップ生成条件で、6・8・10・12島それぞれの
 Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイした後にのみ記入する。
+今回の再調整後のVery Easyは判断間隔5.5〜7.0秒、見送り55%、最優先候補20%である。
+以下の表は再調整後profileの結果欄であり、実行前は成功・勝敗・順序を記載しない。
 
 | 島数 | 難易度 | 初動 | 判断頻度 | 候補品質 | 順序逆転/急変 | 実施日 | commit SHA | 試合1/2/3勝敗 | 観察事項 |
 | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -48,7 +71,7 @@ Very Easy・Easy・Normal・Hardを比較する。各行は実際にプレイし
 | 12 | Normal | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
 | 12 | Hard | 未実行 | 未実行 | 未実行 | 未記入 | 未記入 | 未記入 | 未記入 | 未記入 |
 
-#### Very Easy 初心者向け確認（未実行）
+#### Task 5A revised Very Easy 初心者向け確認（未実行）
 
 各実施試合の勝敗と観察事項を、勝敗にかかわらず必ず結果欄へ記入する。3敗も実行済みの
 結果として記録し、未実行とは区別する。操作条件は全島数で固定する。

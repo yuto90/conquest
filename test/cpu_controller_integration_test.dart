@@ -125,7 +125,7 @@ void main() {
 
   test('uses the selected difficulty interval for the first judgment', () {
     const dueTicks = <CpuDifficulty, int>{
-      CpuDifficulty.veryEasy: 100,
+      CpuDifficulty.veryEasy: 110,
       CpuDifficulty.easy: 80,
       CpuDifficulty.normal: 55,
       CpuDifficulty.hard: 30,
@@ -277,7 +277,7 @@ void main() {
 
   test('reschedules skipped judgments from current game time', () {
     const dueTicks = <CpuDifficulty, int>{
-      CpuDifficulty.veryEasy: 100,
+      CpuDifficulty.veryEasy: 110,
       CpuDifficulty.easy: 80,
       CpuDifficulty.normal: 55,
       CpuDifficulty.hard: 30,

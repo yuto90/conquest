@@ -245,13 +245,13 @@ void main() {
                   ),
         ],
       );
-      localLoop.tickMany(89);
-      expect(localContainer.read(gameControllerProvider).elapsedMs, 4950);
+      localLoop.tickMany(99);
+      expect(localContainer.read(gameControllerProvider).elapsedMs, 5450);
       expect(qualityRandom.callCount, 0);
 
       localLoop.tick();
       final firstDecision = localContainer.read(gameControllerProvider);
-      expect(firstDecision.elapsedMs, 5000);
+      expect(firstDecision.elapsedMs, 5500);
       expect(
         firstDecision.movingForces.where(
           (force) => force.faction == Faction.cpu,
@@ -261,7 +261,7 @@ void main() {
       expect(qualityRandom.callCount, greaterThan(0));
 
       final callsAfterDecision = qualityRandom.callCount;
-      controller.finish(const GameResult.victory(elapsedMs: 5000));
+      controller.finish(const GameResult.victory(elapsedMs: 5500));
       expect(
         localContainer.read(gameControllerProvider).configuration.cpuDifficulty,
         CpuDifficulty.veryEasy,

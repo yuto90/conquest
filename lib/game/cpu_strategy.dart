@@ -46,8 +46,8 @@ final class CpuDecision {
 ///
 /// The percentages are intentionally integer values so fixed [math.Random]
 /// implementations can exercise every boundary without floating-point
-/// rounding.  Normal and Hard retain the deterministic strategy by disabling
-/// both Easy quality effects.
+/// rounding.  Each difficulty profile independently controls timing,
+/// intentional skips, and primary-candidate selection quality.
 final class CpuDifficultyProfile {
   const CpuDifficultyProfile({
     required this.difficulty,
@@ -59,10 +59,10 @@ final class CpuDifficultyProfile {
 
   static const veryEasy = CpuDifficultyProfile(
     difficulty: CpuDifficulty.veryEasy,
-    minDecisionIntervalMs: 5000,
-    maxDecisionIntervalMs: 6500,
-    skipDecisionRatePercent: 50,
-    primaryCandidateRatePercent: 25,
+    minDecisionIntervalMs: 5500,
+    maxDecisionIntervalMs: 7000,
+    skipDecisionRatePercent: 55,
+    primaryCandidateRatePercent: 20,
   );
 
   static const easy = CpuDifficultyProfile(
@@ -197,8 +197,8 @@ final class CpuStrategy {
   ///
   /// Defense candidates are returned exclusively when a defense is possible;
   /// otherwise attack candidates are returned.  Separating this pure list
-  /// from [selectCandidate] lets Easy add quality noise without changing the
-  /// legal-move rules or Normal/Hard's first candidate.
+  /// from [selectCandidate] lets each difficulty apply its quality profile
+  /// without changing legal-move rules or candidate priority.
   List<CpuDecision> generateCandidates(GameState state) {
     if (!enabled || state.phase != GamePhase.playing) {
       return const [];
@@ -211,7 +211,8 @@ final class CpuStrategy {
     return _generateAttackCandidates(state);
   }
 
-  /// Selects one candidate, or intentionally skips it for Easy.
+  /// Selects one candidate, or intentionally skips it per the difficulty
+  /// profile.
   CpuDecision? selectCandidate(
     List<CpuDecision> candidates, {
     CpuDifficulty difficulty = CpuDifficulty.normal,
@@ -470,8 +471,8 @@ final class CpuStrategy {
       if (neutralCandidates.isNotEmpty) {
         candidates.addAll(neutralCandidates);
       } else if (enemies.isNotEmpty) {
-        // Keep all legal fallback pairs available to Easy while the first
-        // candidate remains the existing strongest/weakest priority.
+        // Keep all legal fallback pairs available to quality profiles while
+        // the first candidate remains the existing strongest/weakest priority.
         candidates.addAll([
           for (final source in sources)
             for (final target in enemies)

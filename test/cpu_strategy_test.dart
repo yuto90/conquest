@@ -130,10 +130,10 @@ void main() {
     const expected = <CpuDifficulty, CpuDifficultyProfile>{
       CpuDifficulty.veryEasy: CpuDifficultyProfile(
         difficulty: CpuDifficulty.veryEasy,
-        minDecisionIntervalMs: 5000,
-        maxDecisionIntervalMs: 6500,
-        skipDecisionRatePercent: 50,
-        primaryCandidateRatePercent: 25,
+        minDecisionIntervalMs: 5500,
+        maxDecisionIntervalMs: 7000,
+        skipDecisionRatePercent: 55,
+        primaryCandidateRatePercent: 20,
       ),
       CpuDifficulty.easy: CpuDifficultyProfile(
         difficulty: CpuDifficulty.easy,
@@ -250,9 +250,9 @@ void main() {
 
   test('quality boundaries use half-open percentage ranges', () {
     const cases = <(CpuDifficulty, int, int, int, bool, bool)>[
-      (CpuDifficulty.veryEasy, 49, 0, 0, true, false),
-      (CpuDifficulty.veryEasy, 50, 24, 0, false, true),
-      (CpuDifficulty.veryEasy, 50, 25, 0, false, false),
+      (CpuDifficulty.veryEasy, 54, 0, 0, true, false),
+      (CpuDifficulty.veryEasy, 55, 19, 0, false, true),
+      (CpuDifficulty.veryEasy, 55, 20, 0, false, false),
       (CpuDifficulty.easy, 34, 0, 0, true, false),
       (CpuDifficulty.easy, 35, 49, 0, false, true),
       (CpuDifficulty.easy, 35, 50, 0, false, false),
@@ -572,7 +572,7 @@ void main() {
 
   test('each CPU difficulty uses its inclusive decision interval', () {
     const bounds = <CpuDifficulty, (int, int)>{
-      CpuDifficulty.veryEasy: (5000, 6500),
+      CpuDifficulty.veryEasy: (5500, 7000),
       CpuDifficulty.easy: (4000, 5500),
       CpuDifficulty.normal: (2750, 4000),
       CpuDifficulty.hard: (1500, 2750),
