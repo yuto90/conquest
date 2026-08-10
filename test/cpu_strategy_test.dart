@@ -1015,4 +1015,53 @@ void main() {
       cpuStrategy.decide(cpuState, difficulty: CpuDifficulty.hard),
     );
   });
+
+  test(
+    'decide and choose derive omitted difficulty from the controlled faction',
+    () {
+      final playerState = _playing(
+        configuration: GameConfiguration(
+          gameMode: GameMode.cpuVsCpu,
+          playerCpuDifficulty: CpuDifficulty.hard,
+          cpuDifficulty: CpuDifficulty.veryEasy,
+        ),
+        islands: [
+          _island(id: 1, faction: Faction.player, forces: 20, x: -0.8, y: 0),
+          _island(id: 2, faction: Faction.player, forces: 20, x: 0.8, y: 0),
+          _island(id: 3, faction: Faction.cpu, forces: 100, x: 0, y: -0.8),
+          _island(id: 4, faction: Faction.cpu, forces: 100, x: 0, y: 0.8),
+        ],
+      );
+      final playerStrategy = CpuStrategy(
+        controlledFaction: Faction.player,
+        qualityRandom: _MinimumRandom(),
+        viewport: _viewport,
+      );
+
+      expect(playerStrategy.decide(playerState), isNotNull);
+      expect(playerStrategy.choose(playerState), isNotNull);
+
+      final cpuState = _playing(
+        configuration: GameConfiguration(
+          gameMode: GameMode.cpuVsCpu,
+          playerCpuDifficulty: CpuDifficulty.veryEasy,
+          cpuDifficulty: CpuDifficulty.hard,
+        ),
+        islands: [
+          _island(id: 1, faction: Faction.cpu, forces: 20, x: -0.8, y: 0),
+          _island(id: 2, faction: Faction.cpu, forces: 20, x: 0.8, y: 0),
+          _island(id: 3, faction: Faction.player, forces: 100, x: 0, y: -0.8),
+          _island(id: 4, faction: Faction.player, forces: 100, x: 0, y: 0.8),
+        ],
+      );
+      final cpuStrategy = CpuStrategy(
+        controlledFaction: Faction.cpu,
+        qualityRandom: _MinimumRandom(),
+        viewport: _viewport,
+      );
+
+      expect(cpuStrategy.decide(cpuState), isNotNull);
+      expect(cpuStrategy.choose(cpuState), isNotNull);
+    },
+  );
 }

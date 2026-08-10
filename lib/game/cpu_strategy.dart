@@ -268,7 +268,15 @@ final class CpuStrategy {
     if (!enabled || state.phase != GamePhase.playing) {
       return null;
     }
-    final resolvedDifficulty = difficulty ?? state.configuration.cpuDifficulty;
+    final resolvedDifficulty =
+        difficulty ??
+        switch (controlledFaction) {
+          Faction.player => state.configuration.playerCpuDifficulty,
+          Faction.cpu => state.configuration.cpuDifficulty,
+          Faction.neutral => throw StateError(
+            'neutral cannot control a CPU strategy',
+          ),
+        };
     return selectCandidate(
       generateCandidates(state),
       difficulty: resolvedDifficulty,
