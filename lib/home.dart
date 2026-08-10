@@ -142,9 +142,14 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             ),
           if (state.hasInteractionFeedback)
             _InteractionFeedback(message: state.interactionFeedback!),
-          if (state.phase == GamePhase.configuration &&
-              state.islands.isNotEmpty)
-            _ConfigurationPanel(state: state, onStart: controller.startGame),
+          if (state.phase == GamePhase.configuration)
+            _ConfigurationPanel(
+              state: state,
+              onStart:
+                  state.islands.length == state.configuration.totalIslandCount
+                  ? controller.startGame
+                  : null,
+            ),
           if (state.phase == GamePhase.paused)
             _PauseMenu(
               onResume: controller.resumeGame,
@@ -517,7 +522,7 @@ class _ConfigurationPanel extends StatelessWidget {
   const _ConfigurationPanel({required this.state, required this.onStart});
 
   final GameState state;
-  final VoidCallback onStart;
+  final VoidCallback? onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -683,7 +688,8 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 29),
                       Semantics(
-                        button: true,
+                        button: onStart != null,
+                        enabled: onStart != null,
                         child: SizedBox(
                           height: 46,
                           child: ElevatedButton(

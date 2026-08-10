@@ -995,7 +995,60 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(child: const MyApp()));
 
-    expect(find.byType(ElevatedButton), findsNothing);
+    expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-count-10')), findsOneWidget);
+    final startButton = tester.widget<ElevatedButton>(
+      find.byKey(const ValueKey('start-game')),
+    );
+    expect(startButton.onPressed, isNull);
+    expect(find.text('3'), findsNothing);
+  });
+
+  testWidgets('replay map failure returns to reachable settings', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.binding.setSurfaceSize(const Size(320, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+
+    final islandFinder = find.byKey(const ValueKey('island-0'));
+    final container = ProviderScope.containerOf(tester.element(islandFinder));
+    final controller = container.read(gameControllerProvider.notifier);
+    await tester.binding.setSurfaceSize(const Size(180, 180));
+    await tester.pump();
+    final failedInitial = container.read(gameControllerProvider);
+    expect(failedInitial.phase, GamePhase.configuration);
+    expect(failedInitial.islands, isEmpty);
+
+    // Keep the result screen out of the narrow viewport, then invoke the
+    // replay path against the failed configuration.
+    controller.state = failedInitial.copyWith(
+      phase: GamePhase.result,
+      result: const GameResult.victory(elapsedMs: 0),
+    );
+    controller.replayGame();
+    await tester.pump();
+
+    final failed = container.read(gameControllerProvider);
+    expect(failed.phase, GamePhase.configuration);
+    expect(failed.islands, isEmpty);
+    expect(failed.movingForces, isEmpty);
+    expect(loop.isRunning, isFalse);
+    expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
+    final startButton = tester.widget<ElevatedButton>(
+      find.byKey(const ValueKey('start-game')),
+    );
+    expect(startButton.onPressed, isNull);
+    expect(find.text('3'), findsNothing);
   });
 
   testWidgets(
