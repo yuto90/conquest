@@ -71,6 +71,7 @@ assert_contains "$workflow" '--precheck_include_in_app_purchases false'
 assert_contains "$workflow" '--submit_for_review true'
 assert_contains "$workflow" 'GITHUB_STEP_SUMMARY'
 assert_contains "$workflow" 'if: always()'
+assert_contains "$workflow" 'ref: ${{ github.sha }}'
 assert_not_contains "$workflow" 'flutter build ipa'
 assert_not_contains "$workflow" 'pilot upload'
 assert_not_contains "$workflow" '--ipa '
@@ -98,6 +99,8 @@ ruby -ryaml -e '
   raise "main guard must be evaluated before the job starts" unless job.fetch("if") == expected_if
   raise "wrong GitHub environment" unless job.fetch("environment") == "testflight"
   steps = job.fetch("steps").to_h { |step| [step.fetch("name"), step] }
+  checkout = steps.fetch("Check out main")
+  raise "submission checkout must pin the dispatch SHA" unless checkout.fetch("with").fetch("ref") == "${{ github.sha }}"
   key_step = steps.fetch("Create App Store Connect API key")
   %w[APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_PRIVATE_KEY].each do |name|
     raise "#{name} must be step-scoped" unless key_step.fetch("env").key?(name)
