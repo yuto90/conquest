@@ -258,8 +258,10 @@ Issue #15時点では難易度選択を対象外としていたが、Issue #31�
 
 ## Issue #44 英語・日本語ローカライズQA
 
-Issue #44 の実装コード検証は `af929f1ce3d0d87febce02df2cbed45f7b6c3c51`
-（親 `c583cdc77d72794d695c4e05a1d884880431a46e`）で実施した。Flutter 3.44.8 / Dart
+Issue #44 の実装コード検証は `1cae19950718ab2c0d89b6c57ea52f5d47f3a201`（日本語モード
+ラベル追補を含む完全SHA）で実施した。元の実装親は
+`c583cdc77d72794d695c4e05a1d884880431a46e`、追補コミットの親は docs QA を含む
+`677be77` である。Flutter 3.44.8 / Dart
 3.12.2、macOS arm64、FVM 4.1.2 の専用worktreeを使用している。FVMのlegacy config警告と
 `build_runner`の削除済みオプション警告は出力されたが、いずれも終了状態へ影響しない。
 
@@ -272,8 +274,8 @@ Issue #44 の実装コード検証は `af929f1ce3d0d87febce02df2cbed45f7b6c3c51`
 | build_runner | `fvm dart run build_runner build --delete-conflicting-outputs` | exit 0; `Built with build_runner/aot ... wrote 2 outputs.`。追跡対象はcontroller hash更新のみ |
 | format | `fvm dart format lib test integration_test` | exit 0; `Formatted 28 files (1 changed)`（最終再実行は0 changed） |
 | analyze | `fvm flutter analyze` | exit 0; `No issues found!` |
-| Issue #44 focused | `fvm flutter test test/localization_resources_test.dart test/localization_test.dart test/game_controller_test.dart test/widget_test.dart test/tactical_ui_test.dart` | exit 0; `+71: All tests passed!` |
-| 全Flutterテスト | `fvm flutter test` | exit 0; `+176: All tests passed!` |
+| Issue #44 focused | `fvm flutter test test/localization_resources_test.dart test/localization_test.dart test/game_controller_test.dart test/widget_test.dart test/tactical_ui_test.dart` | exit 0; `+72: All tests passed!` |
+| 全Flutterテスト | `fvm flutter test` | exit 0; `+177: All tests passed!` |
 | Web | `fvm flutter build web` | exit 0; `✓ Built build/web`（Wasm dry-run / tree-shaking informational warningsのみ） |
 | Android debug | `fvm flutter build apk --debug` | exit 0; `✓ Built build/app/outputs/flutter-apk/app-debug.apk` |
 | iOS Simulator | `fvm flutter build ios --simulator --no-codesign` | exit 0; `Xcode build done. 6.3s`、`✓ Built build/ios/iphonesimulator/Runner.app` |
@@ -295,7 +297,7 @@ Issue #44 の実装コード検証は `af929f1ce3d0d87febce02df2cbed45f7b6c3c51`
 
 | locale | 設定→開始→playing | pause / resume / 終了確認 | spectator countdown / result | 主要Semantics・問題 |
 | --- | --- | --- | --- | --- |
-| 日本語 (`ja_JP`) | `対戦設定 / 01`、`島数`、`CPU難易度`、`ゲーム開始`、`戦術海図 / 10島`を確認 | `対戦を一時停止`→`再開`、`対戦を終了しますか？`→`終了`を確認 | `観戦中`、`ゲーム開始 1` / `出撃準備`、`戦闘終了`、`1P 勝利`、`再戦`、`設定へ戻る`を確認 | `プレイヤー/CPU/中立`の島Semantics、移動部隊の操作不可ラベルを確認。問題なし |
+| 日本語 (`ja_JP`) | `対戦設定 / 01`、`島数`、`CPU難易度`、`CPU対戦` / `CPU同士を観戦`、`ゲーム開始`、`戦術海図 / 10島`を確認 | `対戦を一時停止`→`再開`、`対戦を終了しますか？`→`終了`を確認 | `観戦中`、`ゲーム開始 1` / `出撃準備`、`戦闘終了`、`1P 勝利`、`再戦`、`設定へ戻る`を確認 | `プレイヤー/CPU/中立`の島Semantics、移動部隊の操作不可ラベルを確認。問題なし |
 | English (`en_US`) | `Match Setup / 01`、`Island Count`、`CPU Difficulty`、`Start game`、`Tactical Chart / 10 islands`を確認 | `Pause game`→`Resume`、`Quit match?`→`QUIT`を確認 | `Watching CPU match`、`Game start START` / `Prepare to Deploy`、`Battle Complete`、`2P WIN`、`Play Again`、`Return to Settings`を確認 | `Player/CPU/Neutral`島、moving troopの`action unavailable, not tappable`を確認。問題なし |
 
 上記の英日手動フローは設定画面から結果画面まで完了し、例外・表示崩れ・locale混在は観測
