@@ -258,10 +258,10 @@ Issue #15時点では難易度選択を対象外としていたが、Issue #31�
 
 ## Issue #44 英語・日本語ローカライズQA
 
-Issue #44 の実装コード検証は `1cae19950718ab2c0d89b6c57ea52f5d47f3a201`（日本語モード
-ラベル追補を含む完全SHA）で実施した。元の実装親は
-`c583cdc77d72794d695c4e05a1d884880431a46e`、追補コミットの親は docs QA を含む
-`677be77` である。Flutter 3.44.8 / Dart
+Issue #44 の実装コード検証は `685cc0f460b8efddcd3806dbb52ea638560470d5`（日本語モード
+ラベル追補と iOS bundle locale 宣言を含む完全SHA）で実施した。元の実装親は
+`c583cdc77d72794d695c4e05a1d884880431a46e`、前回監査コミットは `93f0226` である。
+Flutter 3.44.8 / Dart
 3.12.2、macOS arm64、FVM 4.1.2 の専用worktreeを使用している。FVMのlegacy config警告と
 `build_runner`の削除済みオプション警告は出力されたが、いずれも終了状態へ影響しない。
 
@@ -271,14 +271,16 @@ Issue #44 の実装コード検証は `1cae19950718ab2c0d89b6c57ea52f5d47f3a201`
 | --- | --- | --- |
 | 依存取得 | `fvm flutter pub get` | exit 0; `Got dependencies!`（互換制約外の新しいパッケージ一覧のみ） |
 | gen-l10n | `fvm flutter gen-l10n` | exit 0; `l10n.yaml`設定を使用。生成物の追加差分なし |
-| build_runner | `fvm dart run build_runner build --delete-conflicting-outputs` | exit 0; `Built with build_runner/aot ... wrote 2 outputs.`。追跡対象はcontroller hash更新のみ |
-| format | `fvm dart format lib test integration_test` | exit 0; `Formatted 28 files (1 changed)`（最終再実行は0 changed） |
+| build_runner | `fvm dart run build_runner build --delete-conflicting-outputs` | exit 0; `Built with build_runner/aot ... wrote 0 outputs.`。生成差分なし |
+| format | `fvm dart format lib test integration_test` | exit 0; `Formatted 28 files (0 changed)` |
 | analyze | `fvm flutter analyze` | exit 0; `No issues found!` |
-| Issue #44 focused | `fvm flutter test test/localization_resources_test.dart test/localization_test.dart test/game_controller_test.dart test/widget_test.dart test/tactical_ui_test.dart` | exit 0; `+72: All tests passed!` |
-| 全Flutterテスト | `fvm flutter test` | exit 0; `+177: All tests passed!` |
+| Issue #44 focused | `fvm flutter test test/localization_resources_test.dart test/localization_test.dart test/game_controller_test.dart test/widget_test.dart test/tactical_ui_test.dart` | exit 0; `+73: All tests passed!` |
+| 全Flutterテスト | `fvm flutter test` | exit 0; `+178: All tests passed!` |
 | Web | `fvm flutter build web` | exit 0; `✓ Built build/web`（Wasm dry-run / tree-shaking informational warningsのみ） |
 | Android debug | `fvm flutter build apk --debug` | exit 0; `✓ Built build/app/outputs/flutter-apk/app-debug.apk` |
-| iOS Simulator | `fvm flutter build ios --simulator --no-codesign` | exit 0; `Xcode build done. 6.3s`、`✓ Built build/ios/iphonesimulator/Runner.app` |
+| iOS Simulator | `fvm flutter build ios --simulator --no-codesign` | exit 0; `Xcode build done. 9.1s`、`✓ Built build/ios/iphonesimulator/Runner.app` |
+| iOS bundle locales | `fvm flutter test test/localization_resources_test.dart`; `plutil -p build/ios/iphonesimulator/Runner.app/Info.plist` | exit 0; `knownRegions` と `CFBundleLocalizations` が `en` / `ja` を宣言。生成Runner.appにも `en`, `ja` を収録 |
+| setup script | `bash .agent-shared/scripts/codex-worktree-setup.sh` | exit 0; 依存取得、gen-l10n、build_runner完了。生成差分なし |
 | setup script syntax | `bash -n .agent-shared/scripts/codex-worktree-setup.sh` | exit 0; 出力なし |
 | diff check | `git diff --check` | exit 0; 出力なし |
 
