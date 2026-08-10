@@ -208,6 +208,7 @@ class _BoardChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = state.selectedIslandId != null;
+    final isSpectator = state.configuration.gameMode == GameMode.cpuVsCpu;
     return IgnorePointer(
       ignoring: false,
       child: Stack(
@@ -261,7 +262,11 @@ class _BoardChrome extends StatelessWidget {
                   Expanded(
                     child: Text(
                       key: const ValueKey('board-status-label'),
-                      selected ? '出兵元を選択中' : '自軍の島を選択',
+                      isSpectator
+                          ? '観戦中'
+                          : selected
+                          ? '出兵元を選択中'
+                          : '自軍の島を選択',
                       style: TacticalTypography.mono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -272,7 +277,11 @@ class _BoardChrome extends StatelessWidget {
                   ),
                   Text(
                     key: const ValueKey('board-status-detail'),
-                    selected ? 'タップで目標を指定\n兵力の半分を派遣' : '島をタップして選択\n兵力2以上で出兵可能',
+                    isSpectator
+                        ? 'CPU同士の対戦を表示中'
+                        : selected
+                        ? 'タップで目標を指定\n兵力の半分を派遣'
+                        : '島をタップして選択\n兵力2以上で出兵可能',
                     textAlign: TextAlign.right,
                     style: TacticalTypography.body(
                       fontSize: 10,

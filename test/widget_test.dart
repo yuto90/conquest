@@ -554,6 +554,92 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('board guidance distinguishes spectator mode from player mode', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final spectatorLoop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(spectatorLoop),
+          randomProvider.overrideWithValue(Random(1)),
+          gameConfigurationProvider.overrideWithValue(
+            GameConfiguration(gameMode: GameMode.cpuVsCpu),
+          ),
+        ],
+        child: const MyApp(key: ValueKey('spectator-guidance')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      spectatorLoop.tick();
+    }
+    await tester.pump();
+
+    const forbiddenTerms = ['選択', 'タップ', '出兵', '派遣'];
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('board-status-label')))
+          .data,
+      '観戦中',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('board-status-detail')))
+          .data,
+      'CPU同士の対戦を表示中',
+    );
+    for (final key in [
+      const ValueKey('board-status-label'),
+      const ValueKey('board-status-detail'),
+    ]) {
+      final visibleText = tester.widget<Text>(find.byKey(key)).data!;
+      final semanticsNode = tester.getSemantics(find.byKey(key));
+      for (final term in forbiddenTerms) {
+        expect(visibleText, isNot(contains(term)));
+        expect(semanticsNode.label, isNot(contains(term)));
+        expect(semanticsNode.hint, isNot(contains(term)));
+      }
+    }
+    for (final term in forbiddenTerms) {
+      expect(find.textContaining(term), findsNothing);
+    }
+
+    final standardLoop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(standardLoop),
+          randomProvider.overrideWithValue(Random(1)),
+          gameConfigurationProvider.overrideWithValue(
+            GameConfiguration(gameMode: GameMode.playerVsCpu),
+          ),
+        ],
+        child: const MyApp(key: ValueKey('standard-guidance')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      standardLoop.tick();
+    }
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('board-status-label')))
+          .data,
+      '自軍の島を選択',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('board-status-detail')))
+          .data,
+      '島をタップして選択\n兵力2以上で出兵可能',
+    );
+    semanticsHandle.dispose();
+  });
+
   testWidgets(
     'standard playing islands expose semantic tap and dispatch through it',
     (tester) async {
