@@ -225,6 +225,21 @@ class AppStoreReleaseTest < Minitest::Test
     assert_empty client.created_requests
   end
 
+  def test_prepare_rejects_attached_target_when_no_live_version_exists
+    client = FakeClient.new(
+      versions: [version("1.0.1", "PREPARE_FOR_SUBMISSION", id: "version-101")],
+      created_requests: [],
+      attached: { "id" => "build-existing" },
+    )
+
+    error = assert_raises(AppStoreRelease::ConflictError) do
+      service(client).prepare_version(target_version: "1.0.1")
+    end
+
+    assert_match(/already has a build attached/, error.message)
+    assert_empty client.created_requests
+  end
+
   def test_prepare_rejects_another_version_under_review_before_mutating
     client = FakeClient.new(
       versions: [

@@ -324,10 +324,6 @@ module AppStoreRelease
               "Another iOS App Store version is already in review: #{version_string(conflicting)}"
       end
 
-      if live.nil? && exact
-        return reusable_version_result(exact)
-      end
-
       unless live
         if exact
           attached = @client.attached_build(version_id: exact.fetch("id"))
