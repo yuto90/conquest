@@ -158,6 +158,195 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('switches between standard and spectator settings', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('game-mode-player-vs-cpu')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsOneWidget);
+    final standardMode = find.byKey(const ValueKey('game-mode-player-vs-cpu'));
+    final spectatorMode = find.byKey(const ValueKey('game-mode-cpu-vs-cpu'));
+    expect(tester.widget<ChoiceChip>(standardMode).selected, isTrue);
+    expect(
+      tester
+          .getSemantics(standardMode)
+          .getSemanticsData()
+          .flagsCollection
+          .isSelected,
+      Tristate.isTrue,
+    );
+    expect(tester.widget<ChoiceChip>(spectatorMode).selected, isFalse);
+
+    await tester.tap(spectatorMode);
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+          )
+          .label,
+      '1P Normal CPU difficulty',
+    );
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-normal')))
+          .label,
+      '2P Normal CPU difficulty',
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
+      contains('Watch CPU versus CPU'),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('keeps spectator controls operable on a 280 by 500 screen', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(280, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+    await tester.tap(find.byKey(const ValueKey('player-cpu-difficulty-hard')));
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('start-game'))),
+    );
+    final configuration = container.read(gameControllerProvider).configuration;
+    expect(configuration.gameMode, GameMode.cpuVsCpu);
+    expect(configuration.playerCpuDifficulty, CpuDifficulty.hard);
+    expect(configuration.cpuDifficulty, CpuDifficulty.easy);
+    expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('preserves spectator deadlines across a viewport rebuild', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.binding.setSurfaceSize(const Size(320, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          playerCpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              controlledFaction: Faction.player,
+              timingRandom: _WidgetZeroRandom(),
+              qualityRandom: _WidgetMaxRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+          cpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              controlledFaction: Faction.cpu,
+              timingRandom: _WidgetZeroRandom(),
+              qualityRandom: _WidgetMaxRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('player-cpu-difficulty-hard')),
+    );
+    await tester.tap(find.byKey(const ValueKey('player-cpu-difficulty-hard')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('cpu-difficulty-easy')),
+    );
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    for (var index = 0; index < 9; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    final before = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider);
+    expect(before.elapsedMs, 450);
+    expect(before.configuration.gameMode, GameMode.cpuVsCpu);
+    expect(before.configuration.playerCpuDifficulty, CpuDifficulty.hard);
+    expect(before.configuration.cpuDifficulty, CpuDifficulty.easy);
+
+    await tester.binding.setSurfaceSize(const Size(321, 500));
+    await tester.pump();
+    final afterContainer = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final after = afterContainer.read(gameControllerProvider);
+    expect(after.elapsedMs, 450);
+    expect(after.configuration, before.configuration);
+    expect(loop.isRunning, isTrue);
+
+    for (var index = 0; index < 20; index++) {
+      loop.tick();
+    }
+    expect(
+      afterContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.player),
+      isEmpty,
+    );
+    loop.tick();
+    expect(
+      afterContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.player),
+      hasLength(1),
+    );
+    expect(
+      afterContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+  });
+
   testWidgets('shows the map before countdown and starts exactly at zero', (
     tester,
   ) async {
