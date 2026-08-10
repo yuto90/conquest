@@ -32,6 +32,8 @@ jobs:
     timeout-minutes: 15
     env:
       APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+    outputs:
+      build_allowed: ${{ steps.target-state.outputs.build_allowed }}
 
     steps:
       - name: Check out release automation
@@ -114,15 +116,56 @@ jobs:
             > "$RUNNER_TEMP/app-store-connect-key.json"
 
       - name: Check target App Store state before build
+        id: target-state
         shell: bash
         env:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
         run: |
           set -euo pipefail
-          ruby script/app_store_release.rb preflight --prepare-only \
+          result="$(ruby script/app_store_release.rb preflight --prepare-only \
             --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
             --bundle-id "$APP_BUNDLE_ID" \
-            --app-version "$APP_VERSION"
+            --app-version "$APP_VERSION")"
+          action="$(jq -er '.action | strings' <<<"$result")"
+          echo "action=$action" >> "$GITHUB_OUTPUT"
+          case "$action" in
+            would_create|reused)
+              echo "build_allowed=true" >> "$GITHUB_OUTPUT"
+              ;;
+            skipped)
+              echo "build_allowed=false" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unknown target preflight action: $action"
+              exit 1
+              ;;
+          esac
+
+      - name: Write target preflight summary
+        if: always()
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.version.outputs.app_version }}
+          TARGET_ACTION: ${{ steps.target-state.outputs.action }}
+          BUILD_ALLOWED: ${{ steps.target-state.outputs.build_allowed }}
+          TARGET_OUTCOME: ${{ steps.target-state.outcome }}
+        run: |
+          result="$TARGET_ACTION"
+          detail="Target state permits the direct App Store build."
+          if [[ "$TARGET_OUTCOME" != "success" ]]; then
+            result="failed"
+            detail="Target App Store state preflight failed; no build was started."
+          elif [[ "$TARGET_ACTION" == "skipped" ]]; then
+            detail="Target version is already live or older; no build or upload was started."
+          fi
+          {
+            echo "## Direct App Store target preflight"
+            echo
+            echo "- App version: \`$APP_VERSION\`"
+            echo "- Result: \`$result\`"
+            echo "- Build allowed: \`$BUILD_ALLOWED\`"
+            echo "- Detail: $detail"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Clean up target preflight key
         if: always()
@@ -133,7 +176,7 @@ jobs:
   build:
     name: Build without TestFlight distribution
     needs: preflight-target
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ needs.preflight-target.outputs.build_allowed == 'true' && github.ref == 'refs/heads/main' }}
     uses: ./.github/workflows/build-ios-app-store.yml
     with:
       commit_sha: ${{ inputs.commit_sha }}
@@ -146,7 +189,7 @@ jobs:
   submit:
     name: Submit direct build to App Review
     needs: build
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ needs.build.result == 'success' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     environment: testflight
     timeout-minutes: 20

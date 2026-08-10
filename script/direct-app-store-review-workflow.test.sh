@@ -44,6 +44,10 @@ assert_contains "$workflow" 'App Store build ID does not match build provenance'
 assert_contains "$workflow" 'preflight-target:'
 assert_contains "$workflow" '--prepare-only'
 assert_contains "$workflow" 'ruby script/app_store_release.rb preflight --prepare-only'
+assert_contains "$workflow" 'build_allowed:'
+assert_contains "$workflow" "needs.preflight-target.outputs.build_allowed == 'true'"
+assert_contains "$workflow" 'would_create|reused'
+assert_contains "$workflow" 'Unknown target preflight action'
 assert_not_contains "$workflow" 'ruby script/app_store_release.rb prepare-check'
 assert_contains "$workflow" 'Internal TestFlight distribution: \`false\`'
 assert_contains "$workflow" 'if: always()'
@@ -75,20 +79,30 @@ ruby -ryaml -e '
   target_preflight = jobs.fetch("preflight-target")
   raise "target preflight must run on Ubuntu" unless target_preflight.fetch("runs-on") == "ubuntu-24.04"
   raise "target preflight must use testflight environment" unless target_preflight.fetch("environment") == "testflight"
+  outputs = target_preflight.fetch("outputs")
+  raise "target preflight must expose build_allowed" unless outputs.fetch("build_allowed") == "${{ steps.target-state.outputs.build_allowed }}"
   build = jobs.fetch("build")
   raise "target preflight must run before build" unless build.fetch("needs") == "preflight-target"
+  quote = 39.chr
+  build_guard = "needs.preflight-target.outputs.build_allowed == #{quote}true#{quote}"
+  raise "build must require an allowed target action" unless build.fetch("if").include?(build_guard)
   target_commands = target_preflight.fetch("steps").filter_map { |step| step["run"] }.join("\n")
   raise "target preflight must perform a read-only prepare check" unless target_commands.include?("--prepare-only")
+  raise "target preflight must capture the action" unless target_commands.include?(".action | strings")
+  raise "target preflight must allow only safe actions" unless target_commands.include?("would_create|reused")
+  raise "unknown target actions must fail closed" unless target_commands.include?("Unknown target preflight action") && target_commands.include?("exit 1")
   raise "target preflight must not upload an IPA" if target_commands.include?("pilot upload")
   raise "wrong reusable workflow" unless build.fetch("uses") == "./.github/workflows/build-ios-app-store.yml"
   raise "direct review must not distribute internally" unless build.fetch("with").fetch("distribute_internal") == false
   raise "wrong direct source" unless build.fetch("with").fetch("submission_source") == "direct_review"
   submit = jobs.fetch("submit")
   raise "submit must wait for build" unless submit.fetch("needs") == "build"
+  submit_guard = "needs.build.result == #{quote}success#{quote}"
+  raise "submit must require a successful build" unless submit.fetch("if").include?(submit_guard)
   raise "wrong GitHub environment" unless submit.fetch("environment") == "testflight"
   quote = 39.chr
-  expected_if = "${{ github.ref == #{quote}refs/heads/main#{quote} }}"
-  raise "direct submit must run from main" unless submit.fetch("if") == expected_if
+  expected_if = "${{ needs.build.result == #{quote}success#{quote} && github.ref == #{quote}refs/heads/main#{quote} }}"
+  raise "direct submit must require a successful main build" unless submit.fetch("if") == expected_if
   steps = submit.fetch("steps").to_h { |step| [step.fetch("name"), step] }
   key_step = steps.fetch("Create App Store Connect API key")
   %w[APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_PRIVATE_KEY].each do |name|
@@ -100,6 +114,37 @@ ruby -ryaml -e '
   commands = steps.values.filter_map { |step| step["run"] }.join("\n")
   raise "direct workflow must not upload an IPA" if commands.include?("pilot upload")
   raise "direct workflow must use manual release" unless commands.include?("--automatic_release false")
+' "$workflow"
+
+ruby -ryaml -e '
+  workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
+  target_preflight = workflow.fetch("jobs").fetch("preflight-target")
+  build = workflow.fetch("jobs").fetch("build")
+  quote = 39.chr
+  build_guard = "needs.preflight-target.outputs.build_allowed == #{quote}true#{quote}"
+  raise "build guard must reference the target preflight output" unless build.fetch("if").include?(build_guard)
+
+  fixtures = {
+    "equal-live-target" => "skipped",
+    "older-target" => "skipped",
+    "new-target" => "would_create",
+    "existing-editable-target" => "reused",
+    "unknown-action" => "unexpected",
+  }
+  allowed_actions = %w[would_create reused]
+  fixtures.each do |name, action|
+    build_allowed = allowed_actions.include?(action)
+    if %w[equal-live-target older-target].include?(name)
+      raise "#{name} must not start build/upload" if build_allowed
+    elsif %w[new-target existing-editable-target].include?(name)
+      raise "#{name} must start the allowed build path" unless build_allowed
+    else
+      raise "unknown actions must be rejected" if build_allowed
+    end
+  end
+
+  target_commands = target_preflight.fetch("steps").filter_map { |step| step["run"] }.join("\n")
+  raise "unknown action must fail closed" unless target_commands.include?("Unknown target preflight action") && target_commands.include?("exit 1")
 ' "$workflow"
 
 if compgen -G "$repo_root/.github/workflows/release-app-store.yml" >/dev/null; then
