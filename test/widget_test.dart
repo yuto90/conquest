@@ -12,6 +12,7 @@ import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsOwner;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,6 +51,13 @@ final class _WidgetMaxRandom implements Random {
 
   @override
   int nextInt(int max) => max - 1;
+}
+
+SemanticsOwner _semanticsOwner(WidgetTester tester) {
+  // The test binding still exposes this owner for direct action verification;
+  // the production tree is unaffected by this compatibility access.
+  // ignore: deprecated_member_use
+  return tester.binding.pipelineOwner.semanticsOwner!;
 }
 
 void main() {
@@ -576,10 +584,7 @@ void main() {
       expect(sourceData.hasAction(SemanticsAction.tap), isTrue);
       expect(sourceData.flagsCollection.isButton, isTrue);
 
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        sourceNode.id,
-        SemanticsAction.tap,
-      );
+      _semanticsOwner(tester).performAction(sourceNode.id, SemanticsAction.tap);
       await tester.pump();
       expect(container.read(gameControllerProvider).selectedIslandId, 0);
 
@@ -590,10 +595,9 @@ void main() {
         destinationNode.getSemanticsData().hasAction(SemanticsAction.tap),
         isTrue,
       );
-      tester.binding.pipelineOwner.semanticsOwner!.performAction(
-        destinationNode.id,
-        SemanticsAction.tap,
-      );
+      _semanticsOwner(
+        tester,
+      ).performAction(destinationNode.id, SemanticsAction.tap);
       await tester.pump();
       final dispatched = container.read(gameControllerProvider);
       expect(dispatched.selectedIslandId, isNull);
