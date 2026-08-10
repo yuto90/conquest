@@ -7,6 +7,7 @@ import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
+import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/moving_force.dart';
@@ -440,6 +441,112 @@ void main() {
       100,
     );
     semantics.dispose();
+  });
+
+  testWidgets('uses 1P and 2P presentation only while spectating', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomProvider.overrideWithValue(Random(1)),
+          gameConfigurationProvider.overrideWithValue(
+            GameConfiguration(gameMode: GameMode.cpuVsCpu),
+          ),
+        ],
+        child: const MyApp(key: ValueKey('spectator-presentation')),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
+      contains('1P'),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-1'))).label,
+      contains('2P'),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          randomProvider.overrideWithValue(Random(1)),
+          gameConfigurationProvider.overrideWithValue(
+            GameConfiguration(gameMode: GameMode.playerVsCpu),
+          ),
+        ],
+        child: const MyApp(key: ValueKey('standard-presentation')),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
+      contains('Player'),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('uses spectator presentation for moving troops', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final force = const MovingForce(
+      id: 7,
+      faction: Faction.player,
+      sourceIslandId: 0,
+      destinationIslandId: 1,
+      strength: 20,
+      arrivalTimeMs: 1000,
+      durationMs: 1000,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MovingForceWidget(
+          force: force,
+          presentation: FactionPresentation.forMode(
+            GameMode.cpuVsCpu,
+            Faction.player,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('1P'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byType(MovingForceWidget)).label,
+      contains('1P'),
+    );
+    semantics.dispose();
+  });
+
+  testWidgets('spectator islands expose no actionable semantics', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          gameConfigurationProvider.overrideWithValue(
+            GameConfiguration(gameMode: GameMode.cpuVsCpu),
+          ),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    final data = tester
+        .getSemantics(find.byKey(const ValueKey('island-button-0')))
+        .getSemanticsData();
+    expect(data.hasAction(SemanticsAction.tap), isFalse);
+    expect(data.flagsCollection.isButton, isFalse);
+    expect(data.hint, isEmpty);
+    expect(data.label, isNot(contains('dispatch source')));
+    semanticsHandle.dispose();
   });
 
   testWidgets(
@@ -1234,5 +1341,79 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
     expect(find.text('勝利'), findsNothing);
+  });
+
+  testWidgets('labels spectator winners as 1P and 2P', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+
+    controller.finish(
+      const GameResult.victory(elapsedMs: 1, winner: Faction.player),
+    );
+    await tester.pump();
+    expect(find.text('1P WIN'), findsOneWidget);
+
+    controller.returnToConfiguration();
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    controller.finish(
+      const GameResult.defeat(elapsedMs: 2, winner: Faction.cpu),
+    );
+    await tester.pump();
+    expect(find.text('2P WIN'), findsOneWidget);
+  });
+
+  testWidgets('uses mode-specific draw labels', (tester) async {
+    for (final entry in const [
+      (mode: GameMode.playerVsCpu, title: '引き分け'),
+      (mode: GameMode.cpuVsCpu, title: 'DRAW'),
+    ]) {
+      final loop = ManualWidgetGameLoop();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+            gameConfigurationProvider.overrideWithValue(
+              GameConfiguration(gameMode: entry.mode),
+            ),
+          ],
+          child: const MyApp(),
+        ),
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      );
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.startGame();
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      controller.finish(const GameResult.draw(elapsedMs: 1));
+      await tester.pump();
+
+      expect(find.text(entry.title), findsOneWidget);
+    }
   });
 }

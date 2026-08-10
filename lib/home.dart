@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
+import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -101,6 +102,10 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                       child: Base(
                         key: ValueKey('island-button-${island.id}'),
                         base: island,
+                        presentation: FactionPresentation.forMode(
+                          state.configuration.gameMode,
+                          island.faction,
+                        ),
                         selected: state.selectedIslandId == island.id,
                         destinationCandidate:
                             isPlayerInteractionEnabled &&
@@ -118,6 +123,10 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     alignment: Alignment(force.x, force.y),
                     child: MovingForceWidget(
                       force: force,
+                      presentation: FactionPresentation.forMode(
+                        state.configuration.gameMode,
+                        force.faction,
+                      ),
                       semanticsKey: ValueKey('moving-force-${force.id}'),
                     ),
                   ),
@@ -143,6 +152,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             ),
           if (state.phase == GamePhase.result)
             _ResultPanel(
+              configuration: state.configuration,
               result: state.result!,
               onReplay: controller.replayGame,
               onSettings: controller.returnToConfiguration,
@@ -398,25 +408,35 @@ class _PauseMenu extends StatelessWidget {
 
 class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
+    required this.configuration,
     required this.result,
     required this.onReplay,
     required this.onSettings,
   });
 
+  final GameConfiguration configuration;
   final GameResult result;
   final VoidCallback onReplay;
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
-    final title = switch (result.type) {
-      GameResultType.victory => '勝利',
-      GameResultType.defeat => '敗北',
-      GameResultType.draw => '引き分け',
-    };
+    final title = _resultTitle(configuration, result);
     final ruleColor = switch (result.type) {
-      GameResultType.victory => TacticalPalette.player,
-      GameResultType.defeat => TacticalPalette.cpu,
+      GameResultType.victory
+          when configuration.gameMode == GameMode.playerVsCpu =>
+        TacticalPalette.player,
+      GameResultType.defeat
+          when configuration.gameMode == GameMode.playerVsCpu =>
+        TacticalPalette.cpu,
+      GameResultType.victory =>
+        result.winner == Faction.cpu
+            ? TacticalPalette.cpu
+            : TacticalPalette.player,
+      GameResultType.defeat =>
+        result.winner == Faction.cpu
+            ? TacticalPalette.cpu
+            : TacticalPalette.player,
       GameResultType.draw => TacticalPalette.neutral,
     };
     return ColoredBox(
@@ -942,6 +962,21 @@ String _selectionSummary(GameConfiguration configuration) =>
           '${_difficultyLabel(configuration.cpuDifficulty)}'
     : '選択中：${configuration.totalIslandCount}島 / '
           '${_difficultyLabel(configuration.cpuDifficulty)}';
+
+String _resultTitle(GameConfiguration configuration, GameResult result) {
+  if (configuration.gameMode == GameMode.playerVsCpu) {
+    return switch (result.type) {
+      GameResultType.victory => '勝利',
+      GameResultType.defeat => '敗北',
+      GameResultType.draw => '引き分け',
+    };
+  }
+  return switch (result.winner) {
+    Faction.player => '1P WIN',
+    Faction.cpu => '2P WIN',
+    Faction.neutral || null => 'DRAW',
+  };
+}
 
 String _difficultyLabel(CpuDifficulty difficulty) => switch (difficulty) {
   CpuDifficulty.veryEasy => 'Very Easy',

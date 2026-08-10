@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'faction_presentation.dart';
 import 'game/game_state.dart';
 import 'ui/tactical_theme.dart';
 
@@ -12,6 +13,7 @@ class Base extends StatelessWidget {
   const Base({
     required this.base,
     required this.onPressed,
+    this.presentation,
     this.selected = false,
     this.destinationCandidate = false,
     super.key,
@@ -19,6 +21,7 @@ class Base extends StatelessWidget {
 
   final IslandState base;
   final VoidCallback? onPressed;
+  final FactionPresentation? presentation;
   final bool selected;
   final bool destinationCandidate;
 
@@ -28,14 +31,16 @@ class Base extends StatelessWidget {
     final numberColor = base.faction == Faction.neutral
         ? TacticalPalette.foreground
         : TacticalPalette.paper;
+    final interactive = onPressed != null;
 
     return Semantics(
       container: true,
-      button: true,
-      enabled: onPressed != null,
-      selected: selected,
+      excludeSemantics: true,
+      button: interactive,
+      enabled: interactive,
+      selected: interactive && selected,
       label: _semanticLabel,
-      hint: _semanticHint,
+      hint: interactive ? _semanticHint : null,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -59,28 +64,42 @@ class Base extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                base.currentValue.toString(),
-                key: base.faction == Faction.neutral
-                    ? ValueKey('island-${base.id}-value')
-                    : ValueKey('island-${base.id}-current'),
-                style:
-                    TacticalTypography.display(
-                      fontSize: isHeadquarters ? 27 : 20,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _effectivePresentation.marker,
+                    style: TacticalTypography.mono(
+                      fontSize: isHeadquarters ? 10 : 8,
                       fontWeight: FontWeight.w800,
                       color: numberColor,
                       height: 1,
-                      letterSpacing: -0.8,
-                    ).copyWith(
-                      shadows: base.faction == Faction.neutral
-                          ? null
-                          : const <Shadow>[
-                              Shadow(
-                                color: Color(0x47001116),
-                                offset: Offset(0, 1),
-                              ),
-                            ],
                     ),
+                  ),
+                  Text(
+                    base.currentValue.toString(),
+                    key: base.faction == Faction.neutral
+                        ? ValueKey('island-${base.id}-value')
+                        : ValueKey('island-${base.id}-current'),
+                    style:
+                        TacticalTypography.display(
+                          fontSize: isHeadquarters ? 27 : 20,
+                          fontWeight: FontWeight.w800,
+                          color: numberColor,
+                          height: 1,
+                          letterSpacing: -0.8,
+                        ).copyWith(
+                          shadows: base.faction == Faction.neutral
+                              ? null
+                              : const <Shadow>[
+                                  Shadow(
+                                    color: Color(0x47001116),
+                                    offset: Offset(0, 1),
+                                  ),
+                                ],
+                        ),
+                  ),
+                ],
               ),
               if (base.faction != Faction.neutral)
                 Offstage(
@@ -123,11 +142,9 @@ class Base extends StatelessWidget {
     );
   }
 
-  String get _factionName => switch (base.faction) {
-    Faction.player => 'Player',
-    Faction.cpu => 'CPU',
-    Faction.neutral => 'Neutral',
-  };
+  FactionPresentation get _effectivePresentation =>
+      presentation ??
+      FactionPresentation.forMode(GameMode.playerVsCpu, base.faction);
 
   String get _sizeName => switch (base.size) {
     IslandSize.small => 'small island',
@@ -140,17 +157,18 @@ class Base extends StatelessWidget {
     final value = base.faction == Faction.neutral
         ? 'durability ${base.currentDurability}'
         : 'forces ${base.currentForces} of ${base.capacity}';
-    final action = onPressed == null
-        ? 'interaction unavailable'
-        : selected
+    final identity =
+        '${_effectivePresentation.semanticName} $_sizeName, '
+        '$value, current value ${base.currentValue}';
+    if (onPressed == null) return identity;
+    final action = selected
         ? 'selected dispatch source'
         : destinationCandidate
         ? 'valid dispatch destination'
         : base.canDispatch
         ? 'available dispatch source'
         : 'not available as dispatch source';
-    return '$_factionName $_sizeName, $value, current value '
-        '${base.currentValue}, $action';
+    return '$identity, $action';
   }
 
   String? get _semanticHint {
