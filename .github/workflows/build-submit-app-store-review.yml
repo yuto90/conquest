@@ -1,0 +1,272 @@
+name: Build and Submit App Store Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "main上の審査対象commit SHA（40文字）"
+        required: true
+        type: string
+      whats_new_ja:
+        description: "App Storeに表示する日本語の「このバージョンの新機能」"
+        required: true
+        type: string
+      review_notes:
+        description: "App Review向けの補足（空欄なら既存値を保持）"
+        required: false
+        type: string
+
+concurrency:
+  group: app-store-review-submission
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build without TestFlight distribution
+    if: ${{ github.ref == 'refs/heads/main' }}
+    uses: ./.github/workflows/build-ios-app-store.yml
+    with:
+      commit_sha: ${{ inputs.commit_sha }}
+      distribute_internal: false
+      submission_source: direct_review
+      caller_workflow_name: Build and Submit App Store Review
+      caller_workflow_path: .github/workflows/build-submit-app-store-review.yml
+    secrets: inherit
+
+  submit:
+    name: Submit direct build to App Review
+    needs: build
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    environment: testflight
+    timeout-minutes: 20
+    env:
+      APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+      APP_VERSION: ${{ needs.build.outputs.app_version }}
+      BUILD_NUMBER: ${{ needs.build.outputs.build_number }}
+      BUILD_ID: ${{ needs.build.outputs.build_id }}
+      COMMIT_SHA: ${{ needs.build.outputs.commit_sha }}
+      WHATS_NEW_JA: ${{ inputs.whats_new_ja }}
+      REVIEW_NOTES: ${{ inputs.review_notes }}
+
+    steps:
+      - name: Check out release automation
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Validate direct review request
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in \
+            APP_BUNDLE_ID \
+            APP_VERSION \
+            BUILD_NUMBER \
+            BUILD_ID \
+            COMMIT_SHA \
+            APP_STORE_CONNECT_ISSUER_ID \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_PRIVATE_KEY; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::Missing direct review setting: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "::error::App version must be numeric x.y.z"
+            exit 1
+          }
+          [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || {
+            echo "::error::Build number must contain digits only"
+            exit 1
+          }
+          [[ "$BUILD_ID" =~ ^[^[:space:]]+$ ]] || {
+            echo "::error::Build ID must not be blank"
+            exit 1
+          }
+          [[ "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "::error::Commit SHA must be a full 40-character SHA"
+            exit 1
+          }
+          [[ "$WHATS_NEW_JA" =~ [^[:space:]] ]] || {
+            echo "::error::whats_new_ja must not be blank"
+            exit 1
+          }
+
+      - name: Download direct build provenance
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: app-store-build-provenance-${{ github.run_id }}
+          path: "$RUNNER_TEMP/direct-provenance"
+
+      - name: Verify direct build provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          provenance="$RUNNER_TEMP/direct-provenance/app-store-build-provenance.json"
+          [[ -f "$provenance" ]] || {
+            echo "::error::Direct build provenance artifact is missing"
+            exit 1
+          }
+          jq -e \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg app_version "$APP_VERSION" \
+            --arg build_number "$BUILD_NUMBER" \
+            --arg build_id "$BUILD_ID" \
+            --arg commit_sha "$COMMIT_SHA" \
+            '.run_id == $run_id and
+             .repository == $repository and
+             .workflow_name == "Build and Submit App Store Review" and
+             .workflow_path == ".github/workflows/build-submit-app-store-review.yml" and
+             .build_workflow_path == ".github/workflows/build-ios-app-store.yml" and
+             .app_version == $app_version and
+             .build_number == $build_number and
+             .build_id == $build_id and
+             .commit_sha == $commit_sha and
+             .submission_source == "direct_review" and
+             .internal_distributed == false' \
+            "$provenance" >/dev/null || {
+              echo "::error::Direct build provenance does not match this review request"
+              exit 1
+            }
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install App Store dependencies
+        run: |
+          gem install jwt --version 2.10.2 --no-document
+          gem install fastlane --version 2.228.0 --no-document
+
+      - name: Create App Store Connect API key
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          jq -n \
+            --arg key_id "$APP_STORE_CONNECT_KEY_ID" \
+            --arg issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --rawfile key "$RUNNER_TEMP/AuthKey.p8" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' \
+            > "$RUNNER_TEMP/app-store-connect-key.json"
+
+      - name: Prepare App Store version
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby script/app_store_release.rb prepare \
+            --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --bundle-id "$APP_BUNDLE_ID" \
+            --app-version "$APP_VERSION"
+
+      - name: Preflight direct App Store review
+        id: preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$(ruby script/app_store_release.rb preflight \
+            --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --bundle-id "$APP_BUNDLE_ID" \
+            --app-version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --distribution-mode none \
+            --whats-new "$WHATS_NEW_JA" \
+            --review-notes "$REVIEW_NOTES")"
+          actual_build_id="$(jq -r '.build_id' <<<"$result")"
+          if [[ "$actual_build_id" != "$BUILD_ID" ]]; then
+            echo "::error::App Store build ID does not match build provenance"
+            exit 1
+          fi
+          {
+            echo "status=$(jq -r '.status' <<<"$result")"
+            echo "app_id=$(jq -r '.app_id' <<<"$result")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update App Store metadata and build
+        if: ${{ steps.preflight.outputs.status == 'ready' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby script/app_store_release.rb update-metadata \
+            --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --bundle-id "$APP_BUNDLE_ID" \
+            --app-version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --distribution-mode none \
+            --whats-new "$WHATS_NEW_JA" \
+            --review-notes "$REVIEW_NOTES"
+
+      - name: Submit direct build for review
+        id: submit
+        if: ${{ steps.preflight.outputs.status == 'ready' }}
+        shell: bash
+        run: >-
+          fastlane deliver submit_build
+          --api_key_path "$RUNNER_TEMP/app-store-connect-key.json"
+          --app_identifier "$APP_BUNDLE_ID"
+          --app_version "$APP_VERSION"
+          --build_number "$BUILD_NUMBER"
+          --submit_for_review true
+          --skip_binary_upload true
+          --skip_screenshots true
+          --skip_metadata true
+          --automatic_release false
+          --precheck_default_rule_level error
+          --precheck_include_in_app_purchases false
+          --submission_information '{"export_compliance_uses_encryption": false}'
+          --force true
+
+      - name: Write direct review summary
+        if: always()
+        shell: bash
+        env:
+          APP_ID: ${{ steps.preflight.outputs.app_id }}
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          SUBMIT_OUTCOME: ${{ steps.submit.outcome }}
+        run: |
+          result="failed"
+          if [[ "$SUBMIT_OUTCOME" == "success" ]]; then
+            result="submitted"
+          elif [[ "$PREFLIGHT_STATUS" == "already_submitted" ]]; then
+            result="already-submitted"
+          fi
+          {
+            echo "## Direct App Store review submission"
+            echo
+            echo "- App version: \`$APP_VERSION\`"
+            echo "- Build number: \`$BUILD_NUMBER\`"
+            echo "- Build ID: \`$BUILD_ID\`"
+            echo "- Commit SHA: \`$COMMIT_SHA\`"
+            echo "- Internal TestFlight distribution: \`false\`"
+            echo "- Result: \`$result\`"
+            if [[ -n "$APP_ID" ]]; then
+              echo "- App Store Connect: https://appstoreconnect.apple.com/apps/$APP_ID/appstore"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up App Store Connect key
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "$RUNNER_TEMP/AuthKey.p8" \
+            "$RUNNER_TEMP/app-store-connect-key.json"
+          rm -rf "$RUNNER_TEMP/direct-provenance"
