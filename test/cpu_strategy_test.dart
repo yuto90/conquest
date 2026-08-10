@@ -125,6 +125,27 @@ GameState _multipleCandidateState({
   );
 }
 
+List<IslandState> _symmetricDecisionIslands() => [
+  _island(id: 0, faction: Faction.cpu, forces: 40, x: 0.7, y: 0),
+  _island(id: 1, faction: Faction.player, forces: 5, x: -0.7, y: 0),
+  _island(
+    id: 2,
+    faction: Faction.neutral,
+    forces: 5,
+    x: 0,
+    y: 0.8,
+    durability: 5,
+    size: IslandSize.small,
+    capacity: 50,
+  ),
+];
+
+Faction _oppositeFaction(Faction faction) => switch (faction) {
+  Faction.player => Faction.cpu,
+  Faction.cpu => Faction.player,
+  Faction.neutral => Faction.neutral,
+};
+
 void main() {
   test('difficulty profiles match the approved four-tier gradient', () {
     const expected = <CpuDifficulty, CpuDifficultyProfile>{
@@ -905,5 +926,93 @@ void main() {
 
     expect(first.nextDecisionDelayMs(), second.nextDecisionDelayMs());
     expect(first.decide(state), second.decide(state));
+  });
+
+  test('player-controlled strategy dispatches only player forces', () {
+    final strategy = CpuStrategy(
+      controlledFaction: Faction.player,
+      random: Random(1),
+      viewport: _viewport,
+    );
+    final state = _playing(
+      islands: [
+        _island(id: 0, faction: Faction.player, forces: 40, x: 0.7, y: 0.7),
+        _island(id: 1, faction: Faction.cpu, forces: 5, x: -0.7, y: -0.7),
+      ],
+    );
+
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard)!;
+    final next = strategy.applyDecision(state, decision, movingForceId: 9);
+
+    expect(decision.sourceIslandId, 0);
+    expect(next.movingForces.single.id, 9);
+    expect(next.movingForces.single.faction, Faction.player);
+  });
+
+  test('neutral cannot be a controlled CPU faction', () {
+    expect(
+      CpuStrategy.noop(controlledFaction: Faction.player).controlledFaction,
+      Faction.player,
+    );
+    expect(
+      () => CpuStrategy(controlledFaction: Faction.neutral),
+      throwsArgumentError,
+    );
+    expect(
+      () => CpuStrategy.noop(controlledFaction: Faction.neutral),
+      throwsArgumentError,
+    );
+  });
+
+  test('player-controlled strategy rejects stale or foreign sources', () {
+    final strategy = CpuStrategy(
+      controlledFaction: Faction.player,
+      random: Random(1),
+      viewport: _viewport,
+    );
+    final state = _playing(
+      islands: [
+        _island(id: 0, faction: Faction.player, forces: 40),
+        _island(id: 1, faction: Faction.cpu, forces: 5),
+      ],
+    );
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard)!;
+    final stale = state.copyWith(
+      islands: [state.islands[0].copyWith(currentForces: 30), state.islands[1]],
+    );
+    final foreign = state.copyWith(
+      islands: [
+        state.islands[0].copyWith(faction: Faction.cpu),
+        state.islands[1],
+      ],
+    );
+
+    expect(strategy.applyDecision(stale, decision), same(stale));
+    expect(strategy.applyDecision(foreign, decision), same(foreign));
+  });
+
+  test('mirrored factions produce symmetric CPU decisions', () {
+    final cpuStrategy = CpuStrategy(
+      controlledFaction: Faction.cpu,
+      random: Random(9),
+      viewport: _viewport,
+    );
+    final playerStrategy = CpuStrategy(
+      controlledFaction: Faction.player,
+      random: Random(9),
+      viewport: _viewport,
+    );
+    final cpuState = _playing(islands: _symmetricDecisionIslands());
+    final playerState = _playing(
+      islands: [
+        for (final island in _symmetricDecisionIslands())
+          island.copyWith(faction: _oppositeFaction(island.faction)),
+      ],
+    );
+
+    expect(
+      playerStrategy.decide(playerState, difficulty: CpuDifficulty.hard),
+      cpuStrategy.decide(cpuState, difficulty: CpuDifficulty.hard),
+    );
   });
 }
