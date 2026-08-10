@@ -1,0 +1,540 @@
+name: Reusable iOS App Store Build
+
+on:
+  workflow_call:
+    inputs:
+      commit_sha:
+        required: true
+        type: string
+      distribute_internal:
+        required: true
+        type: boolean
+      submission_source:
+        required: true
+        type: string
+      caller_workflow_name:
+        required: true
+        type: string
+      caller_workflow_path:
+        required: true
+        type: string
+    outputs:
+      app_version:
+        value: ${{ jobs.build.outputs.app_version }}
+      build_number:
+        value: ${{ jobs.build.outputs.build_number }}
+      commit_sha:
+        value: ${{ jobs.build.outputs.commit_sha }}
+      build_id:
+        value: ${{ jobs.build.outputs.build_id }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-store-ios-build
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Validate target and run Flutter checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      commit_sha: ${{ steps.target.outputs.sha }}
+      app_version: ${{ steps.version.outputs.app_version }}
+      flutter_version: ${{ steps.version.outputs.flutter_version }}
+
+    steps:
+      - name: Check out repository metadata
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Select and validate target commit
+        id: target
+        shell: bash
+        env:
+          REQUESTED_SHA: ${{ inputs.commit_sha }}
+          DISTRIBUTE_INTERNAL: ${{ inputs.distribute_internal }}
+          SUBMISSION_SOURCE: ${{ inputs.submission_source }}
+          CALLER_WORKFLOW_PATH: ${{ inputs.caller_workflow_path }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          if [[ ! "$REQUESTED_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::commit_sha must be a full 40-character SHA"
+            exit 1
+          fi
+          target_sha="$(git rev-parse --verify "${REQUESTED_SHA}^{commit}")" || {
+            echo "::error::commit_sha does not identify an available commit"
+            exit 1
+          }
+          if ! git merge-base --is-ancestor "$target_sha" origin/main; then
+            echo "::error::Selected commit is not part of origin/main history"
+            exit 1
+          fi
+          case "$SUBMISSION_SOURCE:$DISTRIBUTE_INTERNAL:$CALLER_WORKFLOW_PATH" in
+            testflight:true:.github/workflows/deploy-testflight.yml|direct_review:false:.github/workflows/build-submit-app-store-review.yml) ;;
+            *)
+              echo "::error::submission source, distribution mode, and caller workflow do not match"
+              exit 1
+              ;;
+          esac
+          echo "sha=$target_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check out target commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ steps.target.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Read release versions
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter_version="$(jq -er '.flutterSdkVersion | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .fvm/fvm_config.json)"
+          [[ "$flutter_version" == "3.44.8" ]] || {
+            echo "::error::.fvm/fvm_config.json must select Flutter 3.44.8 for App Store builds"
+            exit 1
+          }
+          version_line="$(grep -E '^version:' pubspec.yaml || true)"
+          if [[ ! "$version_line" =~ ^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)(\+[0-9]+)?[[:space:]]*$ ]]; then
+            echo "::error::pubspec.yaml version must be numeric x.y.z or x.y.z+build"
+            exit 1
+          fi
+          {
+            echo "flutter_version=$flutter_version"
+            echo "app_version=${BASH_REMATCH[1]}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          fvm flutter pub get
+
+      - name: Analyze
+        run: fvm flutter analyze
+
+      - name: Test
+        run: fvm flutter test
+
+  build:
+    name: Build and upload iOS app
+    needs: preflight
+    runs-on: macos-15
+    environment: testflight
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: app
+    outputs:
+      app_version: ${{ needs.preflight.outputs.app_version }}
+      build_number: ${{ github.run_id }}
+      commit_sha: ${{ needs.preflight.outputs.commit_sha }}
+      build_id: ${{ steps.distribution.outputs.build_id }}
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+
+    steps:
+      - name: Check out release automation
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          path: _release_automation
+
+      - name: Check out target commit
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.preflight.outputs.commit_sha }}
+          fetch-depth: 0
+          path: app
+
+      - name: Validate App Store build configuration
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in \
+            APP_BUNDLE_ID \
+            APPLE_TEAM_ID \
+            TESTFLIGHT_INTERNAL_GROUP \
+            IOS_DISTRIBUTION_CERTIFICATE_BASE64 \
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
+            IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 \
+            APP_STORE_CONNECT_ISSUER_ID \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_PRIVATE_KEY; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::Missing testflight environment setting: %s\n' "${missing[*]}"
+            exit 1
+          fi
+          [[ "$APP_BUNDLE_ID" =~ ^[A-Za-z0-9.-]+$ ]] || {
+            echo "::error::APP_BUNDLE_ID contains invalid characters"
+            exit 1
+          }
+          [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || {
+            echo "::error::APPLE_TEAM_ID must be a ten-character Apple Team ID"
+            exit 1
+          }
+
+      - name: Validate App Store Xcode requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d "$DEVELOPER_DIR" ]]; then
+            echo "::error::Configured Xcode was not found at $DEVELOPER_DIR"
+            exit 1
+          fi
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          ios_sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          [[ "$xcode_version" =~ ^([0-9]+)(\.|$) ]] || {
+            echo "::error::Could not determine the selected Xcode version: $xcode_version"
+            exit 1
+          }
+          xcode_major="${BASH_REMATCH[1]}"
+          (( xcode_major >= 26 )) || {
+            echo "::error::Xcode 26 or later is required by App Store Connect; selected $xcode_version"
+            exit 1
+          }
+          [[ "$ios_sdk_version" =~ ^([0-9]+)(\.|$) ]] || {
+            echo "::error::Could not determine the selected iOS SDK version: $ios_sdk_version"
+            exit 1
+          }
+          sdk_major="${BASH_REMATCH[1]}"
+          (( sdk_major >= 26 )) || {
+            echo "::error::iOS SDK 26 or later is required by App Store Connect; selected $ios_sdk_version"
+            exit 1
+          }
+          printf 'Using Xcode %s with iOS SDK %s\n' "$xcode_version" "$ios_sdk_version"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ needs.preflight.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          gem install fastlane --version 2.228.0 --no-document
+          gem install cocoapods --version 1.16.2 --no-document
+          fvm flutter pub get
+
+      - name: Install signing materials
+        id: signing
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_APP_STORE_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/app-store-signing.keychain-db"
+          certificate="$RUNNER_TEMP/distribution.p12"
+          profile="$RUNNER_TEMP/app-store.mobileprovision"
+          keychain_password="$(uuidgen)$(uuidgen)"
+          rm -f "$RUNNER_TEMP/installed-profile-path"
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          printf '%s' "$IOS_APP_STORE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          signing_identities="$(security find-identity -v -p codesigning "$keychain")"
+          grep -Fq '"Apple Distribution:' <<<"$signing_identities" || {
+            echo "::error::The imported certificate does not contain a valid Apple Distribution identity"
+            exit 1
+          }
+
+          profile_plist="$RUNNER_TEMP/profile.plist"
+          security cms -D -i "$profile" > "$profile_plist"
+          python3 - "$profile_plist" "$APPLE_TEAM_ID" "$APP_BUNDLE_ID" <<'PY'
+          import datetime
+          import plistlib
+          import sys
+
+          path, expected_team, bundle_id = sys.argv[1:]
+          with open(path, "rb") as file:
+              profile = plistlib.load(file)
+          team_ids = profile.get("TeamIdentifier", [])
+          prefixes = profile.get("ApplicationIdentifierPrefix", [])
+          entitlements = profile.get("Entitlements", {})
+          app_identifier = entitlements.get("application-identifier")
+          team_identifier = entitlements.get("com.apple.developer.team-identifier")
+          expected_app_identifiers = {f"{prefix}.{bundle_id}" for prefix in prefixes}
+          expiration = profile.get("ExpirationDate")
+          now = datetime.datetime.now(datetime.timezone.utc)
+          if isinstance(expiration, datetime.datetime) and expiration.tzinfo is None:
+              expiration = expiration.replace(tzinfo=datetime.timezone.utc)
+          errors = []
+          if expected_team not in team_ids or team_identifier != expected_team:
+              errors.append("Team ID does not match")
+          if app_identifier not in expected_app_identifiers:
+              errors.append("Bundle ID does not match")
+          if entitlements.get("get-task-allow") is not False:
+              errors.append("profile allows development debugging")
+          if "ProvisionedDevices" in profile:
+              errors.append("profile is device-scoped instead of App Store distribution")
+          if profile.get("ProvisionsAllDevices") is True:
+              errors.append("profile is an enterprise profile instead of App Store distribution")
+          if not isinstance(expiration, datetime.datetime) or expiration <= now:
+              errors.append("profile is expired or has no valid expiration date")
+          if errors:
+              for error in errors:
+                  print(f"::error::Invalid App Store provisioning profile: {error}")
+              sys.exit(1)
+          PY
+          profile_uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$profile_plist")"
+          profile_name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile_plist")"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          installed_profile="$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          printf '%s' "$installed_profile" > "$RUNNER_TEMP/installed-profile-path"
+          cp "$profile" "$installed_profile"
+          echo "profile_name=$profile_name" >> "$GITHUB_OUTPUT"
+
+      - name: Generate export options and App Store Connect key
+        shell: bash
+        env:
+          PROFILE_NAME: ${{ steps.signing.outputs.profile_name }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+            '<plist version="1.0"><dict>' \
+            '<key>method</key><string>app-store-connect</string>' \
+            '<key>signingStyle</key><string>manual</string>' \
+            "<key>teamID</key><string>$APPLE_TEAM_ID</string>" \
+            '<key>provisioningProfiles</key><dict>' \
+            "<key>$APP_BUNDLE_ID</key><string>$PROFILE_NAME</string>" \
+            '</dict><key>uploadBitcode</key><false/><key>uploadSymbols</key><true/>' \
+            '</dict></plist>' > "$RUNNER_TEMP/ExportOptions.plist"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          jq -n \
+            --arg key_id "$APP_STORE_CONNECT_KEY_ID" \
+            --arg issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --rawfile key "$RUNNER_TEMP/AuthKey.p8" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' \
+            > "$RUNNER_TEMP/app-store-connect-key.json"
+
+      - name: Validate manual internal TestFlight group
+        shell: bash
+        env:
+          DISTRIBUTE_INTERNAL: ${{ inputs.distribute_internal }}
+        run: |
+          set -euo pipefail
+          if [[ "$DISTRIBUTE_INTERNAL" == "true" ]]; then
+            ruby ../_release_automation/script/testflight-internal-group.rb validate-manual \
+              "$RUNNER_TEMP/app-store-connect-key.json" \
+              "$APP_BUNDLE_ID" \
+              "$TESTFLIGHT_INTERNAL_GROUP"
+          fi
+
+      - name: Build signed IPA
+        id: build
+        shell: bash
+        env:
+          PROFILE_NAME: ${{ steps.signing.outputs.profile_name }}
+          APP_VERSION: ${{ needs.preflight.outputs.app_version }}
+        run: |
+          set -euo pipefail
+          echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
+          fvm flutter build ios \
+            --release \
+            --config-only \
+            --build-name "$APP_VERSION" \
+            --build-number "${{ github.run_id }}"
+          APP_BUNDLE_ID="$APP_BUNDLE_ID" \
+          APPLE_TEAM_ID="$APPLE_TEAM_ID" \
+          PROFILE_NAME="$PROFILE_NAME" \
+            ruby ../_release_automation/script/configure-ios-signing.rb
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            archive
+          mkdir -p build/ios/ipa
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload and wait for App Store Connect processing
+        shell: bash
+        run: |
+          set -euo pipefail
+          ipa="$(find build/ios/ipa -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          [[ -n "$ipa" ]] || { echo "::error::Built IPA was not found"; exit 1; }
+          fastlane pilot upload \
+            --ipa "$ipa" \
+            --api_key_path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --app_identifier "$APP_BUNDLE_ID" \
+            --skip_submission true \
+            --skip_waiting_for_build_processing false \
+            --wait_processing_interval 30 \
+            --wait_processing_timeout_duration 1800
+
+      - name: Apply and verify TestFlight distribution policy
+        id: distribution
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.build.outputs.app_version }}
+          DISTRIBUTE_INTERNAL: ${{ inputs.distribute_internal }}
+        run: |
+          set -euo pipefail
+          if [[ "$DISTRIBUTE_INTERNAL" == "true" ]]; then
+            result="$(ruby ../_release_automation/script/testflight-internal-group.rb assign-build \
+              "$RUNNER_TEMP/app-store-connect-key.json" \
+              "$APP_BUNDLE_ID" \
+              "$TESTFLIGHT_INTERNAL_GROUP" \
+              "$APP_VERSION" \
+              "$GITHUB_RUN_ID" \
+              300)"
+            internal_distributed=true
+          else
+            result="$(ruby ../_release_automation/script/testflight-internal-group.rb assert-no-groups \
+              "$RUNNER_TEMP/app-store-connect-key.json" \
+              "$APP_BUNDLE_ID" \
+              "$TESTFLIGHT_INTERNAL_GROUP" \
+              "$APP_VERSION" \
+              "$GITHUB_RUN_ID" \
+              300)"
+            internal_distributed=false
+          fi
+          echo "build_id=$(jq -r '.build_id' <<<"$result")" >> "$GITHUB_OUTPUT"
+          echo "internal_distributed=$internal_distributed" >> "$GITHUB_OUTPUT"
+
+      - name: Write build provenance
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.build.outputs.app_version }}
+          BUILD_ID: ${{ steps.distribution.outputs.build_id }}
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          INTERNAL_DISTRIBUTED: ${{ steps.distribution.outputs.internal_distributed }}
+          SUBMISSION_SOURCE: ${{ inputs.submission_source }}
+          CALLER_WORKFLOW_NAME: ${{ inputs.caller_workflow_name }}
+          CALLER_WORKFLOW_PATH: ${{ inputs.caller_workflow_path }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --argjson run_id "$GITHUB_RUN_ID" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg workflow_name "$CALLER_WORKFLOW_NAME" \
+            --arg workflow_path "$CALLER_WORKFLOW_PATH" \
+            --arg build_workflow_path ".github/workflows/build-ios-app-store.yml" \
+            --arg app_version "$APP_VERSION" \
+            --arg build_number "$GITHUB_RUN_ID" \
+            --arg build_id "$BUILD_ID" \
+            --arg commit_sha "$COMMIT_SHA" \
+            --arg submission_source "$SUBMISSION_SOURCE" \
+            --argjson internal_distributed "$INTERNAL_DISTRIBUTED" \
+            '{
+              run_id: $run_id,
+              repository: $repository,
+              workflow_name: $workflow_name,
+              workflow_path: $workflow_path,
+              build_workflow_path: $build_workflow_path,
+              app_version: $app_version,
+              build_number: $build_number,
+              build_id: $build_id,
+              commit_sha: $commit_sha,
+              submission_source: $submission_source,
+              internal_distributed: $internal_distributed
+            }' > "$RUNNER_TEMP/app-store-build-provenance.json"
+
+      - name: Upload build provenance
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: app-store-build-provenance-${{ github.run_id }}
+          path: ${{ runner.temp }}/app-store-build-provenance.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
+      - name: Write build summary
+        shell: bash
+        env:
+          APP_VERSION: ${{ steps.build.outputs.app_version }}
+          BUILD_ID: ${{ steps.distribution.outputs.build_id }}
+          COMMIT_SHA: ${{ needs.preflight.outputs.commit_sha }}
+          INTERNAL_DISTRIBUTED: ${{ steps.distribution.outputs.internal_distributed }}
+          SUBMISSION_SOURCE: ${{ inputs.submission_source }}
+        run: |
+          {
+            echo "## App Store Connect build"
+            echo
+            echo "- App version: \`$APP_VERSION\`"
+            echo "- Build number: \`$GITHUB_RUN_ID\`"
+            echo "- Build ID: \`$BUILD_ID\`"
+            echo "- Commit SHA: \`$COMMIT_SHA\`"
+            echo "- Submission source: \`$SUBMISSION_SOURCE\`"
+            echo "- Internal distributed: \`$INTERNAL_DISTRIBUTED\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up signing materials
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          security delete-keychain "$RUNNER_TEMP/app-store-signing.keychain-db" 2>/dev/null
+          if [[ -f "$RUNNER_TEMP/installed-profile-path" ]]; then
+            profile_path="$(<"$RUNNER_TEMP/installed-profile-path")"
+            profile_root="$HOME/Library/MobileDevice/Provisioning Profiles/"
+            if [[ "$profile_path" == "$profile_root"*.mobileprovision ]]; then
+              rm -f "$profile_path"
+            fi
+          fi
+          rm -f \
+            "$RUNNER_TEMP/AuthKey.p8" \
+            "$RUNNER_TEMP/app-store-connect-key.json" \
+            "$RUNNER_TEMP/ExportOptions.plist" \
+            "$RUNNER_TEMP/distribution.p12" \
+            "$RUNNER_TEMP/app-store.mobileprovision" \
+            "$RUNNER_TEMP/profile.plist" \
+            "$RUNNER_TEMP/installed-profile-path" \
+            "$RUNNER_TEMP/app-store-build-provenance.json"
+          rm -rf "$RUNNER_TEMP/Runner.xcarchive"
