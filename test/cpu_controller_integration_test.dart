@@ -60,8 +60,45 @@ int cpuMovingForceCount(GameState state) {
       .length;
 }
 
+List<IslandState> _simultaneousDecisionBoard(List<IslandState> generated) => [
+  generated[0].copyWith(
+    faction: Faction.player,
+    currentForces: 100,
+    durability: 0,
+    x: -0.8,
+    y: 0,
+  ),
+  generated[1].copyWith(
+    faction: Faction.cpu,
+    currentForces: 10,
+    durability: 0,
+    x: 0.8,
+    y: 0,
+  ),
+  generated[2].copyWith(
+    faction: Faction.cpu,
+    currentForces: 100,
+    durability: 0,
+    x: 0.7,
+    y: 0,
+  ),
+  generated[3].copyWith(
+    faction: Faction.player,
+    currentForces: 10,
+    durability: 0,
+    x: -0.7,
+    y: 0,
+  ),
+];
+
 void completeStartCountdown(ManualGameLoop loop) {
   for (var index = 0; index < 60; index++) {
+    loop.tick();
+  }
+}
+
+void tickMany(ManualGameLoop loop, int count) {
+  for (var index = 0; index < count; index++) {
     loop.tick();
   }
 }
@@ -121,6 +158,363 @@ void main() {
           .where((force) => force.faction == Faction.cpu),
       hasLength(1),
     );
+  });
+
+  test('spectator CPUs use independent difficulty deadlines', () {
+    final localLoop = ManualGameLoop();
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        playerCpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.player,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+        cpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.cpu,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+    controller.selectCpuDifficulty(CpuDifficulty.easy);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+
+    for (var index = 0; index < 29; index++) {
+      localLoop.tick();
+    }
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.player),
+      isEmpty,
+    );
+    localLoop.tick();
+    final state = localContainer.read(gameControllerProvider);
+    expect(
+      state.movingForces.where((force) => force.faction == Faction.player),
+      hasLength(1),
+    );
+    expect(
+      state.movingForces.where((force) => force.faction == Faction.cpu),
+      isEmpty,
+    );
+  });
+
+  test('standard mode never schedules the player CPU', () {
+    final localLoop = ManualGameLoop();
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        playerCpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.player,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+        cpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.cpu,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+    for (var index = 0; index < 30; index++) {
+      localLoop.tick();
+    }
+
+    final state = localContainer.read(gameControllerProvider);
+    expect(state.configuration.gameMode, GameMode.playerVsCpu);
+    expect(
+      state.movingForces.where((force) => force.faction == Faction.player),
+      isEmpty,
+    );
+    expect(
+      state.movingForces.where((force) => force.faction == Faction.cpu),
+      hasLength(1),
+    );
+  });
+
+  test('simultaneous CPUs decide from the same pre-dispatch snapshot', () {
+    final localLoop = ManualGameLoop();
+    final playerStrategy = CpuStrategy(
+      controlledFaction: Faction.player,
+      timingRandom: ZeroRandom(),
+      qualityRandom: MaximumRandom(),
+      viewport: GameRules.defaultMapViewport,
+    );
+    final cpuStrategy = CpuStrategy(
+      controlledFaction: Faction.cpu,
+      timingRandom: ZeroRandom(),
+      qualityRandom: MaximumRandom(),
+      viewport: GameRules.defaultMapViewport,
+    );
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        playerCpuStrategyProvider.overrideWithValue(playerStrategy),
+        cpuStrategyProvider.overrideWithValue(cpuStrategy),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+    final started = localContainer.read(gameControllerProvider);
+    final board = started.copyWith(
+      islands: _simultaneousDecisionBoard(started.islands),
+    );
+    controller.state = board;
+
+    final dueSnapshot = board.copyWith(elapsedMs: 1500);
+    final expectedPlayer = playerStrategy.decide(
+      dueSnapshot,
+      difficulty: CpuDifficulty.hard,
+    )!;
+    final expectedCpu = cpuStrategy.decide(
+      dueSnapshot,
+      difficulty: CpuDifficulty.hard,
+    )!;
+    expect(
+      (expectedPlayer.sourceIslandId, expectedPlayer.destinationIslandId),
+      (0, 1),
+    );
+    expect(
+      (expectedCpu.sourceIslandId, expectedCpu.destinationIslandId),
+      (2, 3),
+    );
+
+    final afterPlayer = playerStrategy.applyDecision(
+      dueSnapshot,
+      expectedPlayer,
+      movingForceId: 0,
+    );
+    final sequentialCpu = cpuStrategy.decide(
+      afterPlayer,
+      difficulty: CpuDifficulty.hard,
+    )!;
+    expect(sequentialCpu.kind, CpuDecisionKind.defense);
+    expect(sequentialCpu.destinationIslandId, 1);
+
+    for (var index = 0; index < 30; index++) {
+      localLoop.tick();
+    }
+    final forces = localContainer.read(gameControllerProvider).movingForces;
+    expect(forces.map((force) => force.faction), [Faction.player, Faction.cpu]);
+    expect(forces.map((force) => force.id).toSet(), hasLength(forces.length));
+    expect(
+      forces.map((force) => (force.sourceIslandId, force.destinationIslandId)),
+      [(0, 1), (2, 3)],
+    );
+  });
+
+  test('one null simultaneous decision does not block the other CPU', () {
+    final localLoop = ManualGameLoop();
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        playerCpuStrategyProvider.overrideWithValue(
+          CpuStrategy.noop(controlledFaction: Faction.player),
+        ),
+        cpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.cpu,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+
+    tickMany(localLoop, 30);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      hasLength(1),
+    );
+    tickMany(localLoop, 30);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.cpu),
+      hasLength(2),
+    );
+  });
+
+  test(
+    'preserves both spectator deadlines across pause and stops at result',
+    () {
+      final localLoop = ManualGameLoop();
+      final localContainer = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(localLoop),
+          randomProvider.overrideWithValue(Random(7)),
+          playerCpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              controlledFaction: Faction.player,
+              timingRandom: ZeroRandom(),
+              qualityRandom: MaximumRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+          cpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              controlledFaction: Faction.cpu,
+              timingRandom: ZeroRandom(),
+              qualityRandom: MaximumRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          ),
+        ],
+      );
+      addTearDown(localContainer.dispose);
+      final controller = localContainer.read(gameControllerProvider.notifier);
+      controller.selectGameMode(GameMode.cpuVsCpu);
+      controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+      controller.selectCpuDifficulty(CpuDifficulty.easy);
+      controller.startGame();
+      completeStartCountdown(localLoop);
+      tickMany(localLoop, 14);
+      expect(localContainer.read(gameControllerProvider).elapsedMs, 700);
+      expect(localContainer.read(gameControllerProvider).movingForces, isEmpty);
+
+      controller.pauseGame();
+      controller.resumeGame();
+      completeStartCountdown(localLoop);
+      expect(localContainer.read(gameControllerProvider).elapsedMs, 700);
+      tickMany(localLoop, 16);
+      expect(
+        localContainer
+            .read(gameControllerProvider)
+            .movingForces
+            .where((force) => force.faction == Faction.player),
+        hasLength(1),
+      );
+      expect(
+        localContainer
+            .read(gameControllerProvider)
+            .movingForces
+            .where((force) => force.faction == Faction.cpu),
+        isEmpty,
+      );
+
+      controller.finish(const GameResult.victory(elapsedMs: 1500));
+      final result = localContainer.read(gameControllerProvider);
+      tickMany(localLoop, 10);
+      expect(localContainer.read(gameControllerProvider), same(result));
+    },
+  );
+
+  test('replays spectator settings with fresh CPU deadlines', () {
+    final localLoop = ManualGameLoop();
+    final localContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(localLoop),
+        randomProvider.overrideWithValue(Random(7)),
+        playerCpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.player,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+        cpuStrategyProvider.overrideWithValue(
+          CpuStrategy(
+            controlledFaction: Faction.cpu,
+            timingRandom: ZeroRandom(),
+            qualityRandom: MaximumRandom(),
+            viewport: GameRules.defaultMapViewport,
+          ),
+        ),
+      ],
+    );
+    addTearDown(localContainer.dispose);
+    final controller = localContainer.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+    controller.selectCpuDifficulty(CpuDifficulty.easy);
+    controller.startGame();
+    completeStartCountdown(localLoop);
+    controller.finish(const GameResult.victory(elapsedMs: 0));
+
+    controller.replayGame();
+    final replayCountdown = localContainer.read(gameControllerProvider);
+    expect(replayCountdown.phase, GamePhase.startCountdown);
+    expect(replayCountdown.configuration.gameMode, GameMode.cpuVsCpu);
+    expect(
+      replayCountdown.configuration.playerCpuDifficulty,
+      CpuDifficulty.hard,
+    );
+    expect(replayCountdown.configuration.cpuDifficulty, CpuDifficulty.easy);
+    expect(replayCountdown.movingForces, isEmpty);
+    completeStartCountdown(localLoop);
+    tickMany(localLoop, 29);
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.player),
+      isEmpty,
+    );
+    localLoop.tick();
+    expect(
+      localContainer
+          .read(gameControllerProvider)
+          .movingForces
+          .where((force) => force.faction == Faction.player),
+      hasLength(1),
+    );
+
+    controller.finish(const GameResult.victory(elapsedMs: 1500));
+    controller.returnToConfiguration();
+    final settings = localContainer.read(gameControllerProvider);
+    expect(settings.phase, GamePhase.configuration);
+    expect(settings.configuration.gameMode, GameMode.cpuVsCpu);
+    expect(settings.configuration.playerCpuDifficulty, CpuDifficulty.hard);
+    expect(settings.configuration.cpuDifficulty, CpuDifficulty.easy);
+    expect(settings.movingForces, isEmpty);
+    expect(localLoop.isRunning, isFalse);
   });
 
   test('uses the selected difficulty interval for the first judgment', () {
