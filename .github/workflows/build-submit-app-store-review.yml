@@ -119,7 +119,7 @@ jobs:
           APP_VERSION: ${{ steps.version.outputs.app_version }}
         run: |
           set -euo pipefail
-          ruby script/app_store_release.rb prepare-check \
+          ruby script/app_store_release.rb preflight --prepare-only \
             --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
             --bundle-id "$APP_BUNDLE_ID" \
             --app-version "$APP_VERSION"

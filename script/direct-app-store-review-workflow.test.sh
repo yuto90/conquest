@@ -42,7 +42,9 @@ assert_contains "$workflow" '--automatic_release false'
 assert_contains "$workflow" '--precheck_include_in_app_purchases false'
 assert_contains "$workflow" 'App Store build ID does not match build provenance'
 assert_contains "$workflow" 'preflight-target:'
-assert_contains "$workflow" 'prepare-check'
+assert_contains "$workflow" '--prepare-only'
+assert_contains "$workflow" 'ruby script/app_store_release.rb preflight --prepare-only'
+assert_not_contains "$workflow" 'ruby script/app_store_release.rb prepare-check'
 assert_contains "$workflow" 'Internal TestFlight distribution: \`false\`'
 assert_contains "$workflow" 'if: always()'
 assert_not_contains "$workflow" 'flutter build ipa'
@@ -76,7 +78,7 @@ ruby -ryaml -e '
   build = jobs.fetch("build")
   raise "target preflight must run before build" unless build.fetch("needs") == "preflight-target"
   target_commands = target_preflight.fetch("steps").filter_map { |step| step["run"] }.join("\n")
-  raise "target preflight must perform a read-only prepare check" unless target_commands.include?("prepare-check")
+  raise "target preflight must perform a read-only prepare check" unless target_commands.include?("--prepare-only")
   raise "target preflight must not upload an IPA" if target_commands.include?("pilot upload")
   raise "wrong reusable workflow" unless build.fetch("uses") == "./.github/workflows/build-ios-app-store.yml"
   raise "direct review must not distribute internally" unless build.fetch("with").fetch("distribute_internal") == false

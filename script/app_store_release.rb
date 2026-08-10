@@ -15,11 +15,14 @@ module AppStoreRelease
 
     def run
       command = @argv.shift
-      commands = %w[prepare prepare-check preflight update-metadata]
+      commands = %w[prepare preflight update-metadata]
       raise OptionParser::MissingArgument, "command" unless commands.include?(command)
 
       options = parse_options(@argv)
       validate_common!(options)
+      if options[:prepare_only] && command != "preflight"
+        raise ValidationError, "--prepare-only is only valid with preflight"
+      end
       client = Client.new(api_key_path: options.fetch(:api_key_path))
       service = Service.new(client: client, bundle_id: options.fetch(:bundle_id))
 
@@ -27,11 +30,13 @@ module AppStoreRelease
                 when "prepare"
                   result = service.prepare_version(target_version: options.fetch(:app_version))
                   { action: result.action, version_id: result.version_id, message: result.message }
-                when "prepare-check"
-                  result = service.prepare_check(target_version: options.fetch(:app_version))
-                  { action: result.action, version_id: result.version_id, message: result.message }
                 when "preflight"
-                  preflight(service, options).to_h
+                  if options[:prepare_only]
+                    result = service.prepare_check(target_version: options.fetch(:app_version))
+                    { action: result.action, version_id: result.version_id, message: result.message }
+                  else
+                    preflight(service, options).to_h
+                  end
                 when "update-metadata"
                   result = preflight(service, options)
                   service.update_submission_metadata(
@@ -60,6 +65,7 @@ module AppStoreRelease
         parser.on("--build-number NUMBER") { |value| options[:build_number] = value }
         parser.on("--internal-group NAME") { |value| options[:internal_group] = value }
         parser.on("--distribution-mode MODE") { |value| options[:distribution_mode] = value }
+        parser.on("--prepare-only") { options[:prepare_only] = true }
         parser.on("--whats-new TEXT") { |value| options[:whats_new] = value }
         parser.on("--review-notes TEXT") { |value| options[:review_notes] = value }
       end.parse!(argv)
