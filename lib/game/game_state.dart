@@ -26,6 +26,8 @@ enum GamePhase {
 /// The selectable CPU decision interval profile for a match.
 enum CpuDifficulty { veryEasy, easy, normal, hard }
 
+enum GameMode { playerVsCpu, cpuVsCpu }
+
 enum Faction {
   player,
   cpu,
@@ -86,6 +88,8 @@ final class GameConfiguration {
   factory GameConfiguration({
     int? totalIslandCount,
     int? islandCount,
+    GameMode? gameMode,
+    CpuDifficulty? playerCpuDifficulty,
     CpuDifficulty? cpuDifficulty,
   }) {
     final count = totalIslandCount ?? islandCount ?? defaultIslandCount;
@@ -96,12 +100,24 @@ final class GameConfiguration {
         'must be one of 6, 8, 10, or 12',
       );
     }
-    return GameConfiguration._(count, cpuDifficulty ?? CpuDifficulty.normal);
+    return GameConfiguration._(
+      count,
+      gameMode ?? GameMode.playerVsCpu,
+      playerCpuDifficulty ?? CpuDifficulty.normal,
+      cpuDifficulty ?? CpuDifficulty.normal,
+    );
   }
 
-  const GameConfiguration._(this.totalIslandCount, this.cpuDifficulty);
+  const GameConfiguration._(
+    this.totalIslandCount,
+    this.gameMode,
+    this.playerCpuDifficulty,
+    this.cpuDifficulty,
+  );
 
   final int totalIslandCount;
+  final GameMode gameMode;
+  final CpuDifficulty playerCpuDifficulty;
   final CpuDifficulty cpuDifficulty;
 
   static bool isValidIslandCount(int count) {
@@ -114,6 +130,8 @@ final class GameConfiguration {
   /// The initial selection required by the rules document.
   static const initial = GameConfiguration._(
     defaultIslandCount,
+    GameMode.playerVsCpu,
+    CpuDifficulty.normal,
     CpuDifficulty.normal,
   );
   static const defaultConfiguration = initial;
@@ -121,11 +139,15 @@ final class GameConfiguration {
   GameConfiguration copyWith({
     int? totalIslandCount,
     int? islandCount,
+    GameMode? gameMode,
+    CpuDifficulty? playerCpuDifficulty,
     CpuDifficulty? cpuDifficulty,
   }) {
     return GameConfiguration(
       totalIslandCount:
           totalIslandCount ?? islandCount ?? this.totalIslandCount,
+      gameMode: gameMode ?? this.gameMode,
+      playerCpuDifficulty: playerCpuDifficulty ?? this.playerCpuDifficulty,
       cpuDifficulty: cpuDifficulty ?? this.cpuDifficulty,
     );
   }
@@ -134,11 +156,18 @@ final class GameConfiguration {
   bool operator ==(Object other) {
     return other is GameConfiguration &&
         other.totalIslandCount == totalIslandCount &&
+        other.gameMode == gameMode &&
+        other.playerCpuDifficulty == playerCpuDifficulty &&
         other.cpuDifficulty == cpuDifficulty;
   }
 
   @override
-  int get hashCode => Object.hash(totalIslandCount, cpuDifficulty);
+  int get hashCode => Object.hash(
+    totalIslandCount,
+    gameMode,
+    playerCpuDifficulty,
+    cpuDifficulty,
+  );
 }
 
 /// A typed island state.  Neutral islands use [durability], while owned
