@@ -307,7 +307,7 @@ module AppStoreRelease
       @bundle_id = bundle_id
     end
 
-    def prepare_version(target_version:)
+    def prepare_version(target_version:, mutate: true)
       validate_version!(target_version)
       app = @client.find_app(bundle_id: @bundle_id)
       app_id = app.fetch("id")
@@ -316,12 +316,29 @@ module AppStoreRelease
       live = versions
              .select { |version| LIVE_STATES.include?(version_state(version)) }
              .max_by { |version| Gem::Version.new(version_string(version)) }
+      conflicting = versions.find do |version|
+        version_string(version) != target_version && SUBMITTED_STATES.include?(version_state(version))
+      end
+      if conflicting
+        raise ConflictError,
+              "Another iOS App Store version is already in review: #{version_string(conflicting)}"
+      end
 
       if live.nil? && exact
         return reusable_version_result(exact)
       end
 
       unless live
+        if exact
+          attached = @client.attached_build(version_id: exact.fetch("id"))
+          if attached
+            raise ConflictError, "App Store version already has a build attached"
+          end
+          return reusable_version_result(exact)
+        end
+
+        return Result.new(:would_create, nil, "App Store version would be created") unless mutate
+
         created = @client.create_app_store_version(
           app_id: app_id,
           version: target_version,
@@ -343,8 +360,14 @@ module AppStoreRelease
       end
 
       if exact
+        attached = @client.attached_build(version_id: exact.fetch("id"))
+        if attached
+          raise ConflictError, "App Store version already has a build attached"
+        end
         return reusable_version_result(exact)
       end
+
+      return Result.new(:would_create, nil, "App Store version would be created") unless mutate
 
       created = @client.create_app_store_version(
         app_id: app_id,
@@ -352,6 +375,10 @@ module AppStoreRelease
         release_type: "MANUAL",
       )
       Result.new(:created, created.fetch("id"), "App Store version created")
+    end
+
+    def prepare_check(target_version:)
+      prepare_version(target_version: target_version, mutate: false)
     end
 
     def preflight(

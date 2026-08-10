@@ -41,6 +41,8 @@ assert_contains "$workflow" 'fastlane deliver submit_build'
 assert_contains "$workflow" '--automatic_release false'
 assert_contains "$workflow" '--precheck_include_in_app_purchases false'
 assert_contains "$workflow" 'App Store build ID does not match build provenance'
+assert_contains "$workflow" 'preflight-target:'
+assert_contains "$workflow" 'prepare-check'
 assert_contains "$workflow" 'Internal TestFlight distribution: \`false\`'
 assert_contains "$workflow" 'if: always()'
 assert_not_contains "$workflow" 'flutter build ipa'
@@ -68,7 +70,14 @@ ruby -ryaml -e '
   concurrency = workflow.fetch("concurrency")
   raise "direct review must not cancel" unless concurrency.fetch("cancel-in-progress") == false
   jobs = workflow.fetch("jobs")
+  target_preflight = jobs.fetch("preflight-target")
+  raise "target preflight must run on Ubuntu" unless target_preflight.fetch("runs-on") == "ubuntu-24.04"
+  raise "target preflight must use testflight environment" unless target_preflight.fetch("environment") == "testflight"
   build = jobs.fetch("build")
+  raise "target preflight must run before build" unless build.fetch("needs") == "preflight-target"
+  target_commands = target_preflight.fetch("steps").filter_map { |step| step["run"] }.join("\n")
+  raise "target preflight must perform a read-only prepare check" unless target_commands.include?("prepare-check")
+  raise "target preflight must not upload an IPA" if target_commands.include?("pilot upload")
   raise "wrong reusable workflow" unless build.fetch("uses") == "./.github/workflows/build-ios-app-store.yml"
   raise "direct review must not distribute internally" unless build.fetch("with").fetch("distribute_internal") == false
   raise "wrong direct source" unless build.fetch("with").fetch("submission_source") == "direct_review"

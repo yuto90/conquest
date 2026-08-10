@@ -15,7 +15,7 @@ module AppStoreRelease
 
     def run
       command = @argv.shift
-      commands = %w[prepare preflight update-metadata]
+      commands = %w[prepare prepare-check preflight update-metadata]
       raise OptionParser::MissingArgument, "command" unless commands.include?(command)
 
       options = parse_options(@argv)
@@ -26,6 +26,9 @@ module AppStoreRelease
       payload = case command
                 when "prepare"
                   result = service.prepare_version(target_version: options.fetch(:app_version))
+                  { action: result.action, version_id: result.version_id, message: result.message }
+                when "prepare-check"
+                  result = service.prepare_check(target_version: options.fetch(:app_version))
                   { action: result.action, version_id: result.version_id, message: result.message }
                 when "preflight"
                   preflight(service, options).to_h

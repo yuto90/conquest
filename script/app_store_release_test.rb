@@ -179,6 +179,27 @@ class AppStoreReleaseTest < Minitest::Test
     )
   end
 
+  def test_prepare_skips_older_target_before_reading_attached_build
+    client = FakeClient.new(
+      versions: [
+        version("1.0.7", "READY_FOR_DISTRIBUTION", id: "version-live"),
+        version("1.0.6", "DEVELOPER_REJECTED", id: "version-old"),
+      ],
+      created_requests: [],
+    )
+    client.define_singleton_method(:attached_build) do |version_id:|
+      raise "attached build must not be read for an older target" if version_id == "version-old"
+
+      attached
+    end
+
+    result = service(client).prepare_version(target_version: "1.0.6")
+
+    assert_equal :skipped, result.action
+    assert_equal "version-old", result.version_id
+    assert_empty client.created_requests
+  end
+
   def test_prepare_creates_initial_manual_version_when_no_live_version_exists
     client = FakeClient.new(versions: [], created_requests: [])
 
@@ -201,6 +222,50 @@ class AppStoreReleaseTest < Minitest::Test
 
     assert_equal :reused, result.action
     assert_equal "version-101", result.version_id
+    assert_empty client.created_requests
+  end
+
+  def test_prepare_rejects_another_version_under_review_before_mutating
+    client = FakeClient.new(
+      versions: [
+        version("1.0.0", "READY_FOR_DISTRIBUTION", id: "version-live"),
+        version("1.0.2", "WAITING_FOR_REVIEW", id: "version-102"),
+      ],
+      created_requests: [],
+    )
+
+    error = assert_raises(AppStoreRelease::ConflictError) do
+      service(client).prepare_version(target_version: "1.0.1")
+    end
+
+    assert_match(/already in review: 1\.0\.2/, error.message)
+    assert_empty client.created_requests
+  end
+
+  def test_prepare_check_accepts_new_version_without_mutating
+    client = FakeClient.new(versions: [], created_requests: [])
+
+    result = service(client).prepare_check(target_version: "1.0.1")
+
+    assert_equal :would_create, result.action
+    assert_empty client.created_requests
+  end
+
+  def test_prepare_rejects_existing_version_with_an_attached_build_before_mutating
+    client = FakeClient.new(
+      versions: [
+        version("1.0.0", "READY_FOR_DISTRIBUTION", id: "version-live"),
+        version("1.0.1", "PREPARE_FOR_SUBMISSION", id: "version-101"),
+      ],
+      created_requests: [],
+      attached: { "id" => "build-existing" },
+    )
+
+    error = assert_raises(AppStoreRelease::ConflictError) do
+      service(client).prepare_version(target_version: "1.0.1")
+    end
+
+    assert_match(/already has a build attached/, error.message)
     assert_empty client.created_requests
   end
 
