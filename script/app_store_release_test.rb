@@ -179,6 +179,31 @@ class AppStoreReleaseTest < Minitest::Test
     )
   end
 
+  def test_prepare_creates_initial_manual_version_when_no_live_version_exists
+    client = FakeClient.new(versions: [], created_requests: [])
+
+    result = service(client).prepare_version(target_version: "1.0.1")
+
+    assert_equal :created, result.action
+    assert_equal(
+      [{ app_id: "app-1", version: "1.0.1", release_type: "MANUAL" }],
+      client.created_requests,
+    )
+  end
+
+  def test_prepare_reuses_existing_manual_version_when_no_live_version_exists
+    client = FakeClient.new(
+      versions: [version("1.0.1", "PREPARE_FOR_SUBMISSION", id: "version-101")],
+      created_requests: [],
+    )
+
+    result = service(client).prepare_version(target_version: "1.0.1")
+
+    assert_equal :reused, result.action
+    assert_equal "version-101", result.version_id
+    assert_empty client.created_requests
+  end
+
   def test_client_creates_manual_app_store_version
     transport = FakeTransport.new(
       response: { "data" => version("1.0.1", "PREPARE_FOR_SUBMISSION") },

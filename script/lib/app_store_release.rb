@@ -316,7 +316,19 @@ module AppStoreRelease
       live = versions
              .select { |version| LIVE_STATES.include?(version_state(version)) }
              .max_by { |version| Gem::Version.new(version_string(version)) }
-      raise ValidationError, "A live App Store version is required for an update" unless live
+
+      if live.nil? && exact
+        return reusable_version_result(exact)
+      end
+
+      unless live
+        created = @client.create_app_store_version(
+          app_id: app_id,
+          version: target_version,
+          release_type: "MANUAL",
+        )
+        return Result.new(:created, created.fetch("id"), "App Store version created")
+      end
 
       if exact && LIVE_STATES.include?(version_state(exact))
         return Result.new(:skipped, exact.fetch("id"), "Target version is already live")
@@ -331,16 +343,7 @@ module AppStoreRelease
       end
 
       if exact
-        release_type = exact.fetch("attributes").fetch("releaseType")
-        unless release_type == "MANUAL"
-          raise ConflictError, "Existing App Store version must use manual release"
-        end
-        state = version_state(exact)
-        unless (EDITABLE_STATES + SUBMITTED_STATES).include?(state)
-          raise ConflictError, "Existing App Store version is not reusable from state #{state}"
-        end
-
-        return Result.new(:reused, exact.fetch("id"), "App Store version already exists")
+        return reusable_version_result(exact)
       end
 
       created = @client.create_app_store_version(
@@ -443,6 +446,19 @@ module AppStoreRelease
     end
 
     private
+
+    def reusable_version_result(version)
+      release_type = version.fetch("attributes").fetch("releaseType")
+      unless release_type == "MANUAL"
+        raise ConflictError, "Existing App Store version must use manual release"
+      end
+      state = version_state(version)
+      unless (EDITABLE_STATES + SUBMITTED_STATES).include?(state)
+        raise ConflictError, "Existing App Store version is not reusable from state #{state}"
+      end
+
+      Result.new(:reused, version.fetch("id"), "App Store version already exists")
+    end
 
     def validate_version!(value)
       return if value&.match?(/\A\d+\.\d+\.\d+\z/)
