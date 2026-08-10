@@ -2,17 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'faction_presentation.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
 import 'ui/tactical_theme.dart';
 
 /// Renders an in-flight group as a flat, top-view tactical aircraft.
 class MovingForceWidget extends StatelessWidget {
-  const MovingForceWidget({required this.force, this.semanticsKey, super.key});
+  const MovingForceWidget({
+    required this.force,
+    this.presentation,
+    this.semanticsKey,
+    super.key,
+  });
 
   static const size = GameRules.movingForceWidgetSize;
 
   final MovingForce force;
+  final FactionPresentation? presentation;
   final Key? semanticsKey;
 
   @override
@@ -37,6 +44,31 @@ class MovingForceWidget extends StatelessWidget {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: TacticalPalette.surface,
+                      border: Border.all(
+                        color: TacticalPalette.foreground.withValues(
+                          alpha: 0.72,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3),
+                      child: Text(
+                        _effectivePresentation.marker,
+                        style: TacticalTypography.mono(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
                   left: 1,
                   top: 5,
@@ -92,14 +124,13 @@ class MovingForceWidget extends StatelessWidget {
     );
   }
 
-  String get _factionName => switch (force.faction) {
-    Faction.player => 'Player',
-    Faction.cpu => 'CPU',
-    Faction.neutral => 'Neutral',
-  };
+  FactionPresentation get _effectivePresentation =>
+      presentation ??
+      FactionPresentation.forMode(GameMode.playerVsCpu, force.faction);
 
   String get _semanticLabel {
-    return '$_factionName moving troop, strength ${force.currentValue}, '
+    return '${_effectivePresentation.semanticName} moving troop, '
+        'strength ${force.currentValue}, '
         'current value ${force.currentValue}, '
         'from island ${force.sourceIslandId} to island '
         '${force.destinationIslandId}, action unavailable, not tappable';

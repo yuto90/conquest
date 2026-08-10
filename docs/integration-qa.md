@@ -5,6 +5,27 @@
 選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
 対応する自動テストを追記した。Issue #15の実施時点では新しいゲームルールは追加していない。
 
+## Issue #32 CPU対CPU観戦モード
+
+CPU対CPU観戦モードの自動QAは、固定乱数とManualGameLoopを使い、実時間待機なしで
+ControllerからGameRules・CpuStrategy・描画状態までを接続して確認する。端末での観戦操作や
+表示確認は別途実施するまで未実行として扱い、自動テストのPASSから推定しない。
+
+| 確認項目 | 自動テスト | 結果 |
+| --- | --- | --- |
+| 6・8・10・12島で両CPUが開始し出兵する | `starts spectator CPUs on every supported island count` | PASS |
+| 個別難易度、独立期限、通常モード互換 | `test/cpu_controller_integration_test.dart` の spectator deadline / standard mode 回帰 | PASS |
+| 同時判断の同一スナップショット、安定適用順、部隊ID重複防止 | `simultaneous CPUs decide from the same pre-dispatch snapshot` | PASS |
+| 一方の判断がnullでも他方のCPUと次回期限を継続 | `one null simultaneous decision does not block the other CPU` | PASS |
+| 一時停止・再開で期限を保持し、結果後に停止 | `preserves both spectator deadlines across pause and stops at result` | PASS |
+| 再戦・設定復帰でモードと両難易度を保持し期限を再作成 | `replays spectator settings with fresh CPU deadlines` | PASS |
+| 固定seedで観戦試合結果を再現し、結果後のtickを停止 | `replays the same spectator result with fixed CPU seeds` | PASS |
+| 1P / 2P表示、結果、観戦中のSemantics操作無効 | `test/widget_test.dart` の presentation/result/Semantics回帰 | PASS |
+| 280 x 500設定、viewport rebuild後の期限保持 | `keeps spectator controls operable on a 280 by 500 screen`、`preserves spectator deadlines across a viewport rebuild` | PASS |
+
+実端末のCPU対CPU観戦、1P / 2Pの視認性、VoiceOver読み上げ、背景復帰はこの自動QA表のPASSに
+含めず、実施するまで未実行として記録する。
+
 ## Issue #40 CPU難易度グラデーションQA（Task 5A/5B）
 
 この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度と、承認済みVery Easy再調整の

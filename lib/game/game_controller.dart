@@ -20,6 +20,8 @@ final randomProvider = Provider<Random>((ref) => Random());
 /// stream independently without changing the other series.
 final cpuTimingRandomProvider = Provider<Random>((ref) => Random());
 final cpuQualityRandomProvider = Provider<Random>((ref) => Random());
+final playerCpuRandomProvider = Provider<Random>((ref) => Random());
+final playerCpuQualityRandomProvider = Provider<Random>((ref) => Random());
 
 final gameConfigurationProvider = Provider<GameConfiguration>(
   (ref) => GameConfiguration.initial,
@@ -45,17 +47,27 @@ final cpuStrategyProvider = Provider<CpuStrategy>((ref) {
   );
 });
 
+final playerCpuStrategyProvider = Provider<CpuStrategy>((ref) {
+  return CpuStrategy(
+    controlledFaction: Faction.player,
+    timingRandom: ref.read(playerCpuRandomProvider),
+    qualityRandom: ref.read(playerCpuQualityRandomProvider),
+    rules: ref.read(gameRulesProvider),
+    viewport: ref.watch(mapViewportProvider),
+  );
+});
+
 @riverpod
 class GameController extends _$GameController {
   late GameLoop _gameLoop;
   late Random _random;
   late GameClock _clock;
   late GameRules _rules;
-  late CpuStrategy _cpuStrategy;
+  late Map<Faction, CpuStrategy> _cpuStrategies;
 
   var _disposed = false;
   int? _lastTickMs;
-  int? _nextCpuDecisionAtMs;
+  final Map<Faction, int> _nextCpuDecisionAtMsByFaction = {};
   IslandMapViewport? _cachedViewport;
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
@@ -76,7 +88,10 @@ class GameController extends _$GameController {
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
     _rules = ref.read(gameRulesProvider);
-    _cpuStrategy = ref.read(cpuStrategyProvider);
+    _cpuStrategies = {
+      Faction.player: ref.read(playerCpuStrategyProvider),
+      Faction.cpu: ref.read(cpuStrategyProvider),
+    };
     final viewport = ref.watch(mapViewportProvider);
     final providerConfiguration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
@@ -117,7 +132,10 @@ class GameController extends _$GameController {
   /// islands, or run CPU decisions during that phase; the first playing tick
   /// after the countdown is the shared start boundary for every subsystem.
   void startGame() {
-    if (_disposed || state.phase == GamePhase.playing) {
+    if (_disposed ||
+        state.phase == GamePhase.playing ||
+        (state.phase == GamePhase.configuration &&
+            state.islands.length != state.configuration.totalIslandCount)) {
       return;
     }
 
@@ -174,7 +192,7 @@ class GameController extends _$GameController {
     state = nextState;
     _gameLoop.stop();
     _lastTickMs = null;
-    _nextCpuDecisionAtMs = null;
+    _clearCpuDecisionDeadlines();
   }
 
   /// Leaves the current match and shows the island-count configuration again.
@@ -190,7 +208,7 @@ class GameController extends _$GameController {
 
     _gameLoop.stop();
     _lastTickMs = null;
-    _nextCpuDecisionAtMs = null;
+    _clearCpuDecisionDeadlines();
     state = _newInitialStateFor(
       configuration: state.configuration,
       viewport: ref.read(mapViewportProvider),
@@ -215,14 +233,14 @@ class GameController extends _$GameController {
       // fixed headquarters. Never start a zero-island replay, which would
       // otherwise resolve immediately as a draw.
       _gameLoop.stop();
-      _nextCpuDecisionAtMs = null;
+      _clearCpuDecisionDeadlines();
       _lastTickMs = null;
       state = initial;
       return;
     }
     final countdown = _rules.startCountdown(initial);
     state = countdown;
-    _nextCpuDecisionAtMs = null;
+    _clearCpuDecisionDeadlines();
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -259,9 +277,43 @@ class GameController extends _$GameController {
       return;
     }
 
-    final configuration = state.configuration.copyWith(
-      cpuDifficulty: difficulty,
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(cpuDifficulty: difficulty),
     );
+  }
+
+  /// Selects the standard player-versus-CPU or CPU-versus-CPU mode before a
+  /// match starts. The current generated map remains visible while settings
+  /// change, so mode selection does not consume map-generation randomness.
+  void selectGameMode(GameMode mode) {
+    if (_disposed || state.phase != GamePhase.configuration) {
+      return;
+    }
+    if (state.configuration.gameMode == mode) {
+      return;
+    }
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(gameMode: mode),
+    );
+  }
+
+  /// Selects the 1P CPU difficulty used by spectator matches. The value is
+  /// retained when switching back to the standard mode.
+  void selectPlayerCpuDifficulty(CpuDifficulty difficulty) {
+    if (_disposed || state.phase != GamePhase.configuration) {
+      return;
+    }
+    if (state.configuration.playerCpuDifficulty == difficulty) {
+      return;
+    }
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(playerCpuDifficulty: difficulty),
+    );
+  }
+
+  void _updateConfigurationWithoutRegeneratingMap(
+    GameConfiguration configuration,
+  ) {
     final updated = state.copyWith(configuration: configuration);
     state = updated;
 
@@ -325,7 +377,9 @@ class GameController extends _$GameController {
   /// Every successful dispatch is appended to the in-flight force list so an
   /// earlier troop cannot be retargeted or cancelled.
   void tapBase(int baseId) {
-    if (_disposed || state.phase != GamePhase.playing) {
+    if (_disposed ||
+        state.phase != GamePhase.playing ||
+        state.configuration.gameMode != GameMode.playerVsCpu) {
       return;
     }
 
@@ -432,47 +486,92 @@ class GameController extends _$GameController {
         // The initial match has no pending CPU deadline yet.  A resume
         // countdown intentionally skips this branch so its frozen, absolute
         // deadline remains unchanged across the pause interval.
-        _scheduleNextCpuDecision();
+        for (final faction in _activeCpuFactions) {
+          _scheduleNextCpuDecision(faction);
+        }
       }
       _runCpuDecisionIfDue();
     }
     if (nextState.phase == GamePhase.result) {
       _gameLoop.stop();
       _lastTickMs = null;
-      _nextCpuDecisionAtMs = null;
+      _clearCpuDecisionDeadlines();
     }
   }
 
-  void _scheduleNextCpuDecision() {
-    _nextCpuDecisionAtMs =
+  Iterable<Faction> get _activeCpuFactions =>
+      state.configuration.gameMode == GameMode.cpuVsCpu
+      ? const [Faction.player, Faction.cpu]
+      : const [Faction.cpu];
+
+  CpuDifficulty _difficultyFor(Faction faction) => switch (faction) {
+    Faction.player => state.configuration.playerCpuDifficulty,
+    Faction.cpu => state.configuration.cpuDifficulty,
+    Faction.neutral => throw ArgumentError.value(faction, 'faction'),
+  };
+
+  void _scheduleNextCpuDecision(Faction faction) {
+    final strategy = _cpuStrategies[faction];
+    if (strategy == null) return;
+    _nextCpuDecisionAtMsByFaction[faction] =
         state.elapsedMs +
-        _cpuStrategy.nextDecisionDelayMs(
-          difficulty: state.configuration.cpuDifficulty,
-        );
+        strategy.nextDecisionDelayMs(difficulty: _difficultyFor(faction));
+  }
+
+  void _clearCpuDecisionDeadlines() {
+    _nextCpuDecisionAtMsByFaction.clear();
   }
 
   void _runCpuDecisionIfDue() {
-    final nextDecisionAtMs = _nextCpuDecisionAtMs;
-    if (nextDecisionAtMs == null) {
-      _scheduleNextCpuDecision();
-      return;
-    }
-    if (state.elapsedMs < nextDecisionAtMs) {
-      return;
-    }
-
-    final decision = _cpuStrategy.decide(state);
-    if (decision != null) {
-      state = _cpuStrategy.applyDecision(
-        state,
-        decision,
-        movingForceId: _nextMovingForceId,
+    final active = _activeCpuFactions.toList(growable: false);
+    for (final faction in active) {
+      _nextCpuDecisionAtMsByFaction.putIfAbsent(
+        faction,
+        () =>
+            state.elapsedMs +
+            _cpuStrategies[faction]!.nextDecisionDelayMs(
+              difficulty: _difficultyFor(faction),
+            ),
       );
     }
-    // Schedule from the current game time rather than catching up missed
-    // wall-clock callbacks.  This keeps every interval in the documented
-    // range and still makes one judgment produce at most one troop.
-    _scheduleNextCpuDecision();
+
+    final due = [
+      for (final faction in const [Faction.player, Faction.cpu])
+        if (active.contains(faction) &&
+            state.elapsedMs >= _nextCpuDecisionAtMsByFaction[faction]!)
+          faction,
+    ];
+    if (due.isEmpty) return;
+
+    // All decisions in one tick use the exact same post-rule-tick state.
+    // Applying the collected decisions afterwards prevents the stable order
+    // from affecting the other CPU's choice.
+    final snapshot = state;
+    final decisions = [
+      for (final faction in due)
+        (
+          faction: faction,
+          decision: _cpuStrategies[faction]!.decide(
+            snapshot,
+            difficulty: _difficultyFor(faction),
+          ),
+        ),
+    ];
+    for (final entry in decisions) {
+      final decision = entry.decision;
+      if (decision != null) {
+        state = _cpuStrategies[entry.faction]!.applyDecision(
+          state,
+          decision,
+          movingForceId: _nextMovingForceId,
+        );
+      }
+    }
+    for (final faction in due) {
+      // Schedule from current game time rather than an old deadline. This
+      // prevents catch-up bursts after a delayed callback.
+      _scheduleNextCpuDecision(faction);
+    }
   }
 
   IslandState? _findIsland(int id) {

@@ -158,6 +158,77 @@ void main() {
     ], everyElement(isTrue));
   });
 
+  test('selects spectator settings without regenerating the displayed map', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    final before = container.read(gameControllerProvider);
+
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+
+    final after = container.read(gameControllerProvider);
+    expect(after.configuration.gameMode, GameMode.cpuVsCpu);
+    expect(after.configuration.playerCpuDifficulty, CpuDifficulty.hard);
+    expect(after.configuration.cpuDifficulty, CpuDifficulty.normal);
+    expect(after.islands, orderedEquals(before.islands));
+    expect([
+      for (var index = 0; index < before.islands.length; index++)
+        identical(after.islands[index], before.islands[index]),
+    ], everyElement(isTrue));
+  });
+
+  test('ignores spectator setting changes after a match starts', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    final started = container.read(gameControllerProvider);
+
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.hard);
+
+    expect(container.read(gameControllerProvider), same(started));
+  });
+
+  test('ignores direct island taps while spectating', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.cpuVsCpu);
+    controller.startGame();
+    controller.state = container
+        .read(gameControllerProvider)
+        .copyWith(phase: GamePhase.playing, countdownRemainingMs: 0);
+    final before = container.read(gameControllerProvider);
+
+    controller.tapBase(0);
+    controller.tapBase(1);
+
+    expect(container.read(gameControllerProvider), same(before));
+  });
+
+  test('does not start spectator CPUs when map generation failed', () {
+    final failedLoop = ManualGameLoop();
+    final failedContainer = ProviderContainer(
+      overrides: [
+        gameConfigurationProvider.overrideWithValue(
+          GameConfiguration(totalIslandCount: 6, gameMode: GameMode.cpuVsCpu),
+        ),
+        gameLoopProvider.overrideWithValue(failedLoop),
+        mapViewportProvider.overrideWithValue(
+          const IslandMapViewport(width: 180, height: 180),
+        ),
+        randomProvider.overrideWithValue(Random(1)),
+        cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+      ],
+    );
+    addTearDown(failedContainer.dispose);
+    final controller = failedContainer.read(gameControllerProvider.notifier);
+    final before = failedContainer.read(gameControllerProvider);
+    expect(before.phase, GamePhase.configuration);
+    expect(before.islands, isEmpty);
+
+    controller.startGame();
+
+    expect(failedContainer.read(gameControllerProvider), same(before));
+    expect(failedLoop.isRunning, isFalse);
+  });
+
   test(
     'preserves CPU difficulty through island count changes and rejects play changes',
     () {

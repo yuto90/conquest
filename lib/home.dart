@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
+import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,6 +74,9 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   Widget build(BuildContext context) {
     final state = ref.watch(gameControllerProvider);
     final controller = ref.read(gameControllerProvider.notifier);
+    final isPlayerInteractionEnabled =
+        state.phase == GamePhase.playing &&
+        state.configuration.gameMode == GameMode.playerVsCpu;
     final showBoardChrome = state.phase != GamePhase.configuration;
 
     return ColoredBox(
@@ -98,11 +102,16 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                       child: Base(
                         key: ValueKey('island-button-${island.id}'),
                         base: island,
+                        presentation: FactionPresentation.forMode(
+                          state.configuration.gameMode,
+                          island.faction,
+                        ),
                         selected: state.selectedIslandId == island.id,
                         destinationCandidate:
+                            isPlayerInteractionEnabled &&
                             state.selectedIslandId != null &&
                             state.selectedIslandId != island.id,
-                        onPressed: state.phase == GamePhase.playing
+                        onPressed: isPlayerInteractionEnabled
                             ? () => controller.tapBase(island.id)
                             : null,
                       ),
@@ -114,6 +123,10 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     alignment: Alignment(force.x, force.y),
                     child: MovingForceWidget(
                       force: force,
+                      presentation: FactionPresentation.forMode(
+                        state.configuration.gameMode,
+                        force.faction,
+                      ),
                       semanticsKey: ValueKey('moving-force-${force.id}'),
                     ),
                   ),
@@ -129,9 +142,14 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             ),
           if (state.hasInteractionFeedback)
             _InteractionFeedback(message: state.interactionFeedback!),
-          if (state.phase == GamePhase.configuration &&
-              state.islands.isNotEmpty)
-            _ConfigurationPanel(state: state, onStart: controller.startGame),
+          if (state.phase == GamePhase.configuration)
+            _ConfigurationPanel(
+              state: state,
+              onStart:
+                  state.islands.length == state.configuration.totalIslandCount
+                  ? controller.startGame
+                  : null,
+            ),
           if (state.phase == GamePhase.paused)
             _PauseMenu(
               onResume: controller.resumeGame,
@@ -139,6 +157,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             ),
           if (state.phase == GamePhase.result)
             _ResultPanel(
+              configuration: state.configuration,
               result: state.result!,
               onReplay: controller.replayGame,
               onSettings: controller.returnToConfiguration,
@@ -189,6 +208,7 @@ class _BoardChrome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = state.selectedIslandId != null;
+    final isSpectator = state.configuration.gameMode == GameMode.cpuVsCpu;
     return IgnorePointer(
       ignoring: false,
       child: Stack(
@@ -242,7 +262,11 @@ class _BoardChrome extends StatelessWidget {
                   Expanded(
                     child: Text(
                       key: const ValueKey('board-status-label'),
-                      selected ? '出兵元を選択中' : '自軍の島を選択',
+                      isSpectator
+                          ? '観戦中'
+                          : selected
+                          ? '出兵元を選択中'
+                          : '自軍の島を選択',
                       style: TacticalTypography.mono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -253,7 +277,11 @@ class _BoardChrome extends StatelessWidget {
                   ),
                   Text(
                     key: const ValueKey('board-status-detail'),
-                    selected ? 'タップで目標を指定\n兵力の半分を派遣' : '島をタップして選択\n兵力2以上で出兵可能',
+                    isSpectator
+                        ? 'CPU同士の対戦を表示中'
+                        : selected
+                        ? 'タップで目標を指定\n兵力の半分を派遣'
+                        : '島をタップして選択\n兵力2以上で出兵可能',
                     textAlign: TextAlign.right,
                     style: TacticalTypography.body(
                       fontSize: 10,
@@ -394,25 +422,35 @@ class _PauseMenu extends StatelessWidget {
 
 class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
+    required this.configuration,
     required this.result,
     required this.onReplay,
     required this.onSettings,
   });
 
+  final GameConfiguration configuration;
   final GameResult result;
   final VoidCallback onReplay;
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
-    final title = switch (result.type) {
-      GameResultType.victory => '勝利',
-      GameResultType.defeat => '敗北',
-      GameResultType.draw => '引き分け',
-    };
+    final title = _resultTitle(configuration, result);
     final ruleColor = switch (result.type) {
-      GameResultType.victory => TacticalPalette.player,
-      GameResultType.defeat => TacticalPalette.cpu,
+      GameResultType.victory
+          when configuration.gameMode == GameMode.playerVsCpu =>
+        TacticalPalette.player,
+      GameResultType.defeat
+          when configuration.gameMode == GameMode.playerVsCpu =>
+        TacticalPalette.cpu,
+      GameResultType.victory =>
+        result.winner == Faction.cpu
+            ? TacticalPalette.cpu
+            : TacticalPalette.player,
+      GameResultType.defeat =>
+        result.winner == Faction.cpu
+            ? TacticalPalette.cpu
+            : TacticalPalette.player,
       GameResultType.draw => TacticalPalette.neutral,
     };
     return ColoredBox(
@@ -493,7 +531,7 @@ class _ConfigurationPanel extends StatelessWidget {
   const _ConfigurationPanel({required this.state, required this.onStart});
 
   final GameState state;
-  final VoidCallback onStart;
+  final VoidCallback? onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -575,9 +613,32 @@ class _ConfigurationPanel extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
                       Text(
-                        'CPU難易度',
+                        'ゲームモード',
+                        style: TacticalTypography.mono(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.9,
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          for (final mode in GameMode.values) ...[
+                            if (mode != GameMode.values.first)
+                              const SizedBox(width: 7),
+                            Expanded(
+                              child: _GameModeChoice(state: state, mode: mode),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        state.configuration.gameMode == GameMode.cpuVsCpu
+                            ? '1P CPU難易度'
+                            : 'CPU難易度',
                         style: TacticalTypography.mono(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -585,6 +646,38 @@ class _ConfigurationPanel extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
+                      if (state.configuration.gameMode ==
+                          GameMode.cpuVsCpu) ...[
+                        Row(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < CpuDifficulty.values.length;
+                              index++
+                            ) ...[
+                              if (index > 0) const SizedBox(width: 7),
+                              Expanded(
+                                child: _DifficultyChoice(
+                                  state: state,
+                                  difficulty: CpuDifficulty.values[index],
+                                  playerCpu: true,
+                                  keyPrefix: 'player-cpu-difficulty',
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          '2P CPU難易度',
+                          style: TacticalTypography.mono(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.9,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       Row(
                         children: [
                           for (
@@ -604,7 +697,8 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 29),
                       Semantics(
-                        button: true,
+                        button: onStart != null,
+                        enabled: onStart != null,
                         child: SizedBox(
                           height: 46,
                           child: ElevatedButton(
@@ -622,8 +716,7 @@ class _ConfigurationPanel extends StatelessWidget {
                             ),
                             child: Semantics(
                               excludeSemantics: true,
-                              label:
-                                  'Start game with ${state.configuration.totalIslandCount} islands on ${_difficultyLabel(state.configuration.cpuDifficulty)} CPU difficulty',
+                              label: _startLabel(state.configuration),
                               child: Text(
                                 'ゲーム開始',
                                 style: TacticalTypography.body(
@@ -639,7 +732,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 17),
                       Text(
-                        '選択中：${state.configuration.totalIslandCount}島 / ${_difficultyLabel(state.configuration.cpuDifficulty)}',
+                        _selectionSummary(state.configuration),
                         textAlign: TextAlign.center,
                         style: TacticalTypography.mono(
                           fontSize: 10,
@@ -722,32 +815,51 @@ class _IslandCountChoice extends StatelessWidget {
 }
 
 class _DifficultyChoice extends StatelessWidget {
-  const _DifficultyChoice({required this.state, required this.difficulty});
+  const _DifficultyChoice({
+    required this.state,
+    required this.difficulty,
+    this.playerCpu = false,
+    this.keyPrefix = 'cpu-difficulty',
+  });
 
   final GameState state;
   final CpuDifficulty difficulty;
+  final bool playerCpu;
+  final String keyPrefix;
 
   @override
   Widget build(BuildContext context) {
-    final selected = state.configuration.cpuDifficulty == difficulty;
+    final selected =
+        (playerCpu
+            ? state.configuration.playerCpuDifficulty
+            : state.configuration.cpuDifficulty) ==
+        difficulty;
     final label = _difficultyLabel(difficulty);
+    final owner = playerCpu
+        ? '1P '
+        : state.configuration.gameMode == GameMode.cpuVsCpu
+        ? '2P '
+        : '';
+    final semanticLabel = '$owner$label CPU difficulty';
     return SizedBox(
       height: 51,
       width: double.infinity,
       child: ChoiceChip(
-        key: ValueKey('cpu-difficulty-${difficulty.name}'),
+        key: ValueKey('$keyPrefix-${difficulty.name}'),
         label: SizedBox(
           width: double.infinity,
           child: Semantics(
             excludeSemantics: true,
-            label: '$label CPU difficulty',
+            label: semanticLabel,
             child: Text(label, textAlign: TextAlign.center),
           ),
         ),
         selected: selected,
         showCheckmark: false,
-        onSelected: (_) => _selectDifficulty(context, difficulty),
-        tooltip: '$label CPU difficulty',
+        onSelected: (_) => playerCpu
+            ? _selectPlayerDifficulty(context, difficulty)
+            : _selectDifficulty(context, difficulty),
+        tooltip: semanticLabel,
         padding: EdgeInsets.zero,
         labelPadding: const EdgeInsets.symmetric(vertical: 9),
         materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -776,6 +888,109 @@ class _DifficultyChoice extends StatelessWidget {
       context,
     ).read(gameControllerProvider.notifier).selectCpuDifficulty(difficulty);
   }
+
+  void _selectPlayerDifficulty(BuildContext context, CpuDifficulty difficulty) {
+    ProviderScope.containerOf(context)
+        .read(gameControllerProvider.notifier)
+        .selectPlayerCpuDifficulty(difficulty);
+  }
+}
+
+class _GameModeChoice extends StatelessWidget {
+  const _GameModeChoice({required this.state, required this.mode});
+
+  final GameState state;
+  final GameMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = state.configuration.gameMode == mode;
+    final label = _modeLabel(mode);
+    return SizedBox(
+      height: 41,
+      width: double.infinity,
+      child: ChoiceChip(
+        key: ValueKey('game-mode-${_modeKey(mode)}'),
+        label: SizedBox(
+          width: double.infinity,
+          child: Semantics(
+            excludeSemantics: true,
+            label: label,
+            child: Text(label, textAlign: TextAlign.center),
+          ),
+        ),
+        selected: selected,
+        showCheckmark: false,
+        onSelected: (_) => ProviderScope.containerOf(
+          context,
+        ).read(gameControllerProvider.notifier).selectGameMode(mode),
+        tooltip: label,
+        padding: EdgeInsets.zero,
+        labelPadding: const EdgeInsets.symmetric(vertical: 9),
+        materialTapTargetSize: MaterialTapTargetSize.padded,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(1)),
+        ),
+        side: BorderSide(
+          color: selected ? TacticalPalette.foreground : TacticalPalette.border,
+        ),
+        selectedColor: TacticalPalette.foreground,
+        backgroundColor: Color.alphaBlend(
+          TacticalPalette.surface.withValues(alpha: 0.62),
+          TacticalPalette.background,
+        ),
+        labelStyle: TacticalTypography.body(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: selected ? TacticalPalette.paper : TacticalPalette.muted,
+        ),
+      ),
+    );
+  }
+}
+
+String _modeKey(GameMode mode) => switch (mode) {
+  GameMode.playerVsCpu => 'player-vs-cpu',
+  GameMode.cpuVsCpu => 'cpu-vs-cpu',
+};
+
+String _modeLabel(GameMode mode) => switch (mode) {
+  GameMode.playerVsCpu => 'PLAY VS CPU',
+  GameMode.cpuVsCpu => 'WATCH CPU VS CPU',
+};
+
+String _startLabel(GameConfiguration configuration) =>
+    switch (configuration.gameMode) {
+      GameMode.playerVsCpu =>
+        'Start game with ${configuration.totalIslandCount} islands on '
+            '${_difficultyLabel(configuration.cpuDifficulty)} CPU difficulty',
+      GameMode.cpuVsCpu =>
+        'Watch CPU versus CPU with ${configuration.totalIslandCount} islands, '
+            '1P ${_difficultyLabel(configuration.playerCpuDifficulty)}, '
+            '2P ${_difficultyLabel(configuration.cpuDifficulty)}',
+    };
+
+String _selectionSummary(GameConfiguration configuration) =>
+    configuration.gameMode == GameMode.cpuVsCpu
+    ? '選択中：${configuration.totalIslandCount}島 / 1P '
+          '${_difficultyLabel(configuration.playerCpuDifficulty)} / 2P '
+          '${_difficultyLabel(configuration.cpuDifficulty)}'
+    : '選択中：${configuration.totalIslandCount}島 / '
+          '${_difficultyLabel(configuration.cpuDifficulty)}';
+
+String _resultTitle(GameConfiguration configuration, GameResult result) {
+  if (configuration.gameMode == GameMode.playerVsCpu) {
+    return switch (result.type) {
+      GameResultType.victory => '勝利',
+      GameResultType.defeat => '敗北',
+      GameResultType.draw => '引き分け',
+    };
+  }
+  return switch (result.winner) {
+    Faction.player => '1P WIN',
+    Faction.cpu => '2P WIN',
+    Faction.neutral || null => 'DRAW',
+  };
 }
 
 String _difficultyLabel(CpuDifficulty difficulty) => switch (difficulty) {

@@ -129,12 +129,14 @@ final class CpuDifficultyProfile {
 /// it does not inspect future player actions or retain a hidden board model.
 final class CpuStrategy {
   CpuStrategy({
+    Faction controlledFaction = Faction.cpu,
     math.Random? random,
     math.Random? timingRandom,
     math.Random? qualityRandom,
     GameRules? rules,
     IslandMapViewport viewport = GameRules.defaultMapViewport,
   }) : this._(
+         controlledFaction: _requirePlayableFaction(controlledFaction),
          timingRandom: timingRandom ?? random ?? math.Random(),
          qualityRandom: qualityRandom ?? math.Random(),
          rules: rules ?? const GameRules(),
@@ -145,9 +147,11 @@ final class CpuStrategy {
   /// player-only loop.  Production uses the default enabled constructor; the
   /// explicit mode keeps controller tests independent from CPU decisions.
   CpuStrategy.noop({
+    Faction controlledFaction = Faction.cpu,
     GameRules? rules,
     IslandMapViewport viewport = GameRules.defaultMapViewport,
   }) : this._(
+         controlledFaction: _requirePlayableFaction(controlledFaction),
          timingRandom: math.Random(0),
          qualityRandom: math.Random(0),
          rules: rules ?? const GameRules(),
@@ -156,6 +160,7 @@ final class CpuStrategy {
        );
 
   CpuStrategy._({
+    required this.controlledFaction,
     required this.timingRandom,
     required this.qualityRandom,
     required this.rules,
@@ -171,7 +176,27 @@ final class CpuStrategy {
   final math.Random qualityRandom;
   final GameRules rules;
   final IslandMapViewport viewport;
+  final Faction controlledFaction;
   final bool enabled;
+
+  static Faction _requirePlayableFaction(Faction faction) {
+    if (faction == Faction.neutral) {
+      throw ArgumentError.value(
+        faction,
+        'controlledFaction',
+        'must be player or cpu',
+      );
+    }
+    return faction;
+  }
+
+  Faction get _opponentFaction => switch (controlledFaction) {
+    Faction.player => Faction.cpu,
+    Faction.cpu => Faction.player,
+    Faction.neutral => throw StateError(
+      'neutral cannot control a CPU strategy',
+    ),
+  };
 
   /// The original constructor's random field now denotes the timing stream.
   math.Random get random => timingRandom;
@@ -243,7 +268,15 @@ final class CpuStrategy {
     if (!enabled || state.phase != GamePhase.playing) {
       return null;
     }
-    final resolvedDifficulty = difficulty ?? state.configuration.cpuDifficulty;
+    final resolvedDifficulty =
+        difficulty ??
+        switch (controlledFaction) {
+          Faction.player => state.configuration.playerCpuDifficulty,
+          Faction.cpu => state.configuration.cpuDifficulty,
+          Faction.neutral => throw StateError(
+            'neutral cannot control a CPU strategy',
+          ),
+        };
     return selectCandidate(
       generateCandidates(state),
       difficulty: resolvedDifficulty,
@@ -275,7 +308,7 @@ final class CpuStrategy {
     final source = state.islands[sourceIndex];
     final destination = state.islands[destinationIndex];
     final expectedStrength = source.currentForces ~/ 2;
-    if (source.faction != Faction.cpu ||
+    if (source.faction != controlledFaction ||
         expectedStrength <= 0 ||
         decision.strength != expectedStrength) {
       return state;
@@ -287,7 +320,7 @@ final class CpuStrategy {
     );
     final force = rules.createMovingForce(
       id: movingForceId ?? _nextMovingForceId(state),
-      faction: Faction.cpu,
+      faction: controlledFaction,
       source: source,
       destination: destination,
       strength: expectedStrength,
@@ -331,13 +364,13 @@ final class CpuStrategy {
   List<CpuDecision> _generateDefenseCandidates(GameState state) {
     final threats = <_Threat>[];
     for (final force in state.movingForces) {
-      if (force.faction != Faction.player ||
+      if (force.faction != _opponentFaction ||
           force.strength <= 0 ||
           force.arrivalTimeMs <= state.elapsedMs) {
         continue;
       }
       final target = _findIsland(state.islands, force.destinationIslandId);
-      if (target?.faction != Faction.cpu) {
+      if (target?.faction != controlledFaction) {
         continue;
       }
       final predicted = forecast(state, atMs: force.arrivalTimeMs);
@@ -345,7 +378,7 @@ final class CpuStrategy {
         predicted.islands,
         force.destinationIslandId,
       );
-      if (predictedTarget?.faction != Faction.cpu) {
+      if (predictedTarget?.faction != controlledFaction) {
         threats.add(
           _Threat(
             arrivalTimeMs: force.arrivalTimeMs,
@@ -370,9 +403,10 @@ final class CpuStrategy {
       return first.forceId.compareTo(second.forceId);
     });
 
-    final cpuIslands = state.islands
+    final controlledIslands = state.islands
         .where(
-          (island) => island.faction == Faction.cpu && island.currentForces > 1,
+          (island) =>
+              island.faction == controlledFaction && island.currentForces > 1,
         )
         .toList();
     final candidates = <CpuDecision>[];
@@ -381,7 +415,7 @@ final class CpuStrategy {
       if (target == null) {
         continue;
       }
-      final sources = cpuIslands
+      final sources = controlledIslands
           .where((island) => island.id != target.id)
           .toList();
       sources.sort((first, second) {
@@ -419,7 +453,7 @@ final class CpuStrategy {
           atMs: threat.arrivalTimeMs,
         );
         final predictedTarget = _findIsland(predicted.islands, target.id);
-        if (predictedTarget?.faction == Faction.cpu) {
+        if (predictedTarget?.faction == controlledFaction) {
           candidates.add(
             CpuDecision(
               kind: CpuDecisionKind.defense,
@@ -442,11 +476,12 @@ final class CpuStrategy {
 
     final sources = state.islands
         .where(
-          (island) => island.faction == Faction.cpu && island.currentForces > 1,
+          (island) =>
+              island.faction == controlledFaction && island.currentForces > 1,
         )
         .toList();
     final enemies = state.islands
-        .where((island) => island.faction == Faction.player)
+        .where((island) => island.faction == _opponentFaction)
         .toList();
     final neutrals = state.islands
         .where((island) => island.faction == Faction.neutral)
@@ -499,7 +534,8 @@ final class CpuStrategy {
   CpuDecision? _chooseAttack(GameState state) {
     final sources = state.islands
         .where(
-          (island) => island.faction == Faction.cpu && island.currentForces > 1,
+          (island) =>
+              island.faction == controlledFaction && island.currentForces > 1,
         )
         .toList();
     if (sources.isEmpty) {
@@ -507,7 +543,7 @@ final class CpuStrategy {
     }
 
     final enemies = state.islands
-        .where((island) => island.faction == Faction.player)
+        .where((island) => island.faction == _opponentFaction)
         .toList();
     final neutrals = state.islands
         .where((island) => island.faction == Faction.neutral)
@@ -607,7 +643,7 @@ final class CpuStrategy {
           predictedWithoutCandidate.islands,
           target.id,
         );
-        if (targetWithoutCandidate?.faction == Faction.cpu) {
+        if (targetWithoutCandidate?.faction == controlledFaction) {
           continue;
         }
         final predicted = _forecastWithCandidate(
@@ -617,7 +653,7 @@ final class CpuStrategy {
           atMs: candidate.arrivalTimeMs,
         );
         final predictedTarget = _findIsland(predicted.islands, target.id);
-        if (predictedTarget?.faction == Faction.cpu) {
+        if (predictedTarget?.faction == controlledFaction) {
           sourceCandidates.add(
             _AttackCandidate(
               source: source,
@@ -697,7 +733,7 @@ final class CpuStrategy {
   }) {
     return rules.createMovingForce(
       id: _nextMovingForceId(state),
-      faction: Faction.cpu,
+      faction: controlledFaction,
       source: source,
       destination: destination,
       strength: strength,

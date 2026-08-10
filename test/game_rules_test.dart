@@ -28,6 +28,8 @@ void main() {
   test('configuration exposes the supported counts and default selection', () {
     expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
     expect(GameConfiguration.initial.totalIslandCount, 10);
+    expect(GameConfiguration.initial.gameMode, GameMode.playerVsCpu);
+    expect(GameConfiguration.initial.playerCpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration.initial.cpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration(islandCount: 6).totalIslandCount, 6);
     expect(
@@ -57,6 +59,25 @@ void main() {
       ),
     );
   });
+
+  test(
+    'configuration copy and equality include mode and both difficulties',
+    () {
+      final spectator = GameConfiguration(
+        totalIslandCount: 8,
+        gameMode: GameMode.cpuVsCpu,
+        playerCpuDifficulty: CpuDifficulty.hard,
+        cpuDifficulty: CpuDifficulty.easy,
+      );
+      final standard = spectator.copyWith(gameMode: GameMode.playerVsCpu);
+
+      expect(standard.gameMode, GameMode.playerVsCpu);
+      expect(standard.playerCpuDifficulty, CpuDifficulty.hard);
+      expect(standard.cpuDifficulty, CpuDifficulty.easy);
+      expect(standard, isNot(spectator));
+      expect(standard.hashCode, isNot(spectator.hashCode));
+    },
+  );
 
   test('configuration copy retains Very Easy CPU difficulty', () {
     final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
