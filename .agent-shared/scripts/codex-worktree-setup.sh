@@ -38,6 +38,11 @@ log "開発サーバーやシミュレーターは起動しません。"
 log "Flutter 依存関係を取得します。"
 fvm flutter pub get
 
+if [ -f "$repo_root/l10n.yaml" ]; then
+  log "gen-l10n で翻訳ソースを更新します。"
+  fvm flutter gen-l10n
+fi
+
 if has_build_runner; then
   log "build_runner で生成ファイルを更新します。"
   fvm dart run build_runner build --delete-conflicting-outputs

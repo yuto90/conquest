@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'faction_presentation.dart';
 import 'game/game_state.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_theme.dart';
 
 /// Tactical-chart renderer for one island.
@@ -27,6 +29,9 @@ class Base extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+        AppLocalizationsEn();
     final isHeadquarters = base.size == IslandSize.headquarters;
     final numberColor = base.faction == Faction.neutral
         ? TacticalPalette.foreground
@@ -40,8 +45,8 @@ class Base extends StatelessWidget {
       enabled: interactive,
       selected: interactive && selected,
       onTap: onPressed,
-      label: _semanticLabel,
-      hint: interactive ? _semanticHint : null,
+      label: _semanticLabel(l10n),
+      hint: interactive ? _semanticHint(l10n) : null,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -124,7 +129,7 @@ class Base extends StatelessWidget {
                         vertical: 3,
                       ),
                       child: Text(
-                        '出兵元',
+                        l10n.sourceBadge,
                         style: TacticalTypography.mono(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
@@ -147,41 +152,63 @@ class Base extends StatelessWidget {
       presentation ??
       FactionPresentation.forMode(GameMode.playerVsCpu, base.faction);
 
-  String get _sizeName => switch (base.size) {
-    IslandSize.small => 'small island',
-    IslandSize.medium => 'medium island',
-    IslandSize.large => 'large island',
-    IslandSize.headquarters => 'headquarters',
+  String _sizeName(AppLocalizations l10n) => switch (base.size) {
+    IslandSize.small => l10n.islandSizeSmall,
+    IslandSize.medium => l10n.islandSizeMedium,
+    IslandSize.large => l10n.islandSizeLarge,
+    IslandSize.headquarters => l10n.islandSizeHeadquarters,
   };
 
-  String get _semanticLabel {
-    final value = base.faction == Faction.neutral
-        ? 'durability ${base.currentDurability}'
-        : 'forces ${base.currentForces} of ${base.capacity}';
-    final identity =
-        '${_effectivePresentation.semanticName} $_sizeName, '
-        '$value, current value ${base.currentValue}';
+  String _factionName(AppLocalizations l10n) {
+    if (_effectivePresentation.semanticName == '1P') {
+      return l10n.factionPlayerOne;
+    }
+    if (_effectivePresentation.semanticName == '2P') {
+      return l10n.factionPlayerTwo;
+    }
+    return switch (base.faction) {
+      Faction.player => l10n.factionPlayer,
+      Faction.cpu => l10n.factionCpu,
+      Faction.neutral => l10n.factionNeutral,
+    };
+  }
+
+  String _semanticLabel(AppLocalizations l10n) {
+    final identity = base.faction == Faction.neutral
+        ? l10n.islandNeutralSemantics(
+            faction: _factionName(l10n),
+            size: _sizeName(l10n),
+            durability: base.currentDurability,
+            value: base.currentValue,
+          )
+        : l10n.islandOwnedSemantics(
+            faction: _factionName(l10n),
+            size: _sizeName(l10n),
+            forces: base.currentForces,
+            capacity: base.capacity,
+            value: base.currentValue,
+          );
     if (onPressed == null) return identity;
     final action = selected
-        ? 'selected dispatch source'
+        ? l10n.islandActionSelected
         : destinationCandidate
-        ? 'valid dispatch destination'
+        ? l10n.islandActionDestination
         : base.canDispatch
-        ? 'available dispatch source'
-        : 'not available as dispatch source';
+        ? l10n.islandActionAvailable
+        : l10n.islandActionUnavailable;
     return '$identity, $action';
   }
 
-  String? get _semanticHint {
+  String? _semanticHint(AppLocalizations l10n) {
     if (onPressed == null) return null;
     if (selected) {
-      return 'Tap again to cancel selection, or choose a valid destination.';
+      return l10n.islandHintSelected;
     }
-    if (destinationCandidate) return 'Tap to dispatch troops here.';
+    if (destinationCandidate) return l10n.islandHintDestination;
     if (base.canDispatch) {
-      return 'Tap to select this island as a dispatch source.';
+      return l10n.islandHintAvailable;
     }
-    return 'This island cannot be selected as a dispatch source.';
+    return l10n.islandHintUnavailable;
   }
 }
 

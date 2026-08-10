@@ -30,8 +30,10 @@ final class _ManualGameLoop implements GameLoop {
 Future<void> _pumpApp(
   WidgetTester tester, {
   required _ManualGameLoop loop,
+  Locale locale = const Locale('ja'),
+  Size size = const Size(390, 844),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(390, 844));
+  await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
@@ -39,7 +41,7 @@ Future<void> _pumpApp(
         gameLoopProvider.overrideWithValue(loop),
         randomProvider.overrideWithValue(Random(1)),
       ],
-      child: const MyApp(),
+      child: MyApp(locale: locale),
     ),
   );
 }
@@ -158,5 +160,23 @@ void main() {
       expect(find.text('再戦'), findsOne);
       expect(find.text('設定へ戻る'), findsOne);
     }
+  });
+
+  testWidgets('keeps English controls operable at the narrow viewport', (
+    tester,
+  ) async {
+    await _pumpApp(
+      tester,
+      loop: _ManualGameLoop(),
+      locale: const Locale('en', 'GB'),
+      size: const Size(280, 500),
+    );
+
+    expect(find.text('Match Setup'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    expect(find.text('Prepare to Deploy'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

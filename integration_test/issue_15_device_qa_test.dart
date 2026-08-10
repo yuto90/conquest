@@ -1,4 +1,4 @@
-import 'dart:ui' show Offset, Rect;
+import 'dart:ui' show Locale, Offset, Rect;
 
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_state.dart';
@@ -45,7 +45,9 @@ void main() {
       };
       addTearDown(() => FlutterError.onError = previousErrorHandler);
 
-      await tester.pumpWidget(const ProviderScope(child: MyApp()));
+      await tester.pumpWidget(
+        const ProviderScope(child: MyApp(locale: Locale('ja'))),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
