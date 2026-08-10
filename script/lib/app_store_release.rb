@@ -316,12 +316,32 @@ module AppStoreRelease
       live = versions
              .select { |version| LIVE_STATES.include?(version_state(version)) }
              .max_by { |version| Gem::Version.new(version_string(version)) }
-      conflicting = versions.find do |version|
+      submitted_conflicting = versions.find do |version|
         version_string(version) != target_version && SUBMITTED_STATES.include?(version_state(version))
       end
-      if conflicting
+      if submitted_conflicting
         raise ConflictError,
-              "Another iOS App Store version is already in review: #{version_string(conflicting)}"
+              "Another iOS App Store version is already in review: #{version_string(submitted_conflicting)}"
+      end
+
+      if exact && LIVE_STATES.include?(version_state(exact))
+        return Result.new(:skipped, exact.fetch("id"), "Target version is already live")
+      end
+
+      if live && AppStoreRelease.compare_versions(target_version, version_string(live)) <= 0
+        return Result.new(
+          :skipped,
+          exact&.fetch("id"),
+          "Target version is not newer than the live App Store version",
+        )
+      end
+
+      editable_conflicting = versions.find do |version|
+        version_string(version) != target_version && EDITABLE_STATES.include?(version_state(version))
+      end
+      if editable_conflicting
+        raise ConflictError,
+              "Another iOS App Store version is editable: #{version_string(editable_conflicting)}"
       end
 
       unless live
@@ -341,18 +361,6 @@ module AppStoreRelease
           release_type: "MANUAL",
         )
         return Result.new(:created, created.fetch("id"), "App Store version created")
-      end
-
-      if exact && LIVE_STATES.include?(version_state(exact))
-        return Result.new(:skipped, exact.fetch("id"), "Target version is already live")
-      end
-
-      if AppStoreRelease.compare_versions(target_version, version_string(live)) <= 0
-        return Result.new(
-          :skipped,
-          exact&.fetch("id"),
-          "Target version is not newer than the live App Store version",
-        )
       end
 
       if exact
@@ -502,9 +510,9 @@ module AppStoreRelease
 
     def validate_review_notes!(value)
       return unless value&.match?(%r{\S})
-      return if value.bytesize <= 4_000
+      return if value.length <= 4_000
 
-      raise ValidationError, "App Review notes must be 4,000 bytes or fewer"
+      raise ValidationError, "App Review notes must be 4,000 characters or fewer"
     end
 
     def validate_build!(build)

@@ -49,7 +49,8 @@ assert_contains "$build_workflow" 'security find-identity -v -p codesigning'
 assert_contains "$build_workflow" 'TeamIdentifier'
 assert_contains "$build_workflow" 'ApplicationIdentifierPrefix'
 assert_contains "$build_workflow" 'ProvisionedDevices'
-assert_contains "$build_workflow" '<key>method</key><string>app-store-connect</string>'
+assert_contains "$build_workflow" '"method": "app-store-connect"'
+assert_contains "$build_workflow" 'plistlib.dump(options'
 assert_contains "$build_workflow" '--skip_submission true'
 assert_contains "$build_workflow" 'assign-build'
 assert_contains "$build_workflow" 'assert-no-groups'
@@ -62,6 +63,7 @@ assert_contains "$build_workflow" 'plistlib'
 assert_contains "$build_workflow" 'APP_BUNDLE_ID'
 assert_contains "$build_workflow" 'APPLE_TEAM_ID'
 assert_contains "$build_workflow" 'TESTFLIGHT_INTERNAL_GROUP'
+assert_contains "$build_workflow" 'Generate export options and App Store Connect key'
 assert_not_contains "$build_workflow" 'SUPABASE'
 assert_not_contains "$build_workflow" '.env'
 assert_not_contains "$build_workflow" '--dart-define-from-file'
@@ -118,5 +120,47 @@ ruby -ryaml -e '
   leaked = secrets & build.fetch("env", {}).keys
   raise "distribution secrets must not be job-scoped" unless leaked.empty?
 ' "$build_workflow"
+
+export_options_script="$(ruby -ryaml -e '
+  workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
+  step = workflow.fetch("jobs").fetch("build").fetch("steps").find do |candidate|
+    candidate["name"] == "Generate export options and App Store Connect key"
+  end
+  abort "export options step is missing" unless step
+  print step.fetch("run")
+' "$build_workflow")"
+[[ -n "$export_options_script" ]] || {
+  printf 'export options step must contain a run script\n' >&2
+  exit 1
+}
+fixture_root="$(mktemp -d)"
+trap 'rm -rf "$fixture_root"' EXIT
+bundle_id="com.example.conquest"
+profile_name='Profile & <Release> "Beta"'
+RUNNER_TEMP="$fixture_root" \
+APP_BUNDLE_ID="$bundle_id" \
+APPLE_TEAM_ID="TEAM123456" \
+PROFILE_NAME="$profile_name" \
+APP_STORE_CONNECT_ISSUER_ID="issuer-fixture" \
+APP_STORE_CONNECT_KEY_ID="key-fixture" \
+APP_STORE_CONNECT_PRIVATE_KEY="private-key-fixture" \
+bash -c "$export_options_script"
+python3 - "$fixture_root/ExportOptions.plist" "$bundle_id" "$profile_name" <<'PY'
+import plistlib
+import sys
+
+path, bundle_id, expected_profile_name = sys.argv[1:]
+with open(path, "rb") as file:
+    options = plistlib.load(file)
+actual_profile_name = options["provisioningProfiles"][bundle_id]
+if actual_profile_name != expected_profile_name:
+    raise SystemExit(
+        f"profile name mismatch: {actual_profile_name!r} != {expected_profile_name!r}"
+    )
+if options["method"] != "app-store-connect":
+    raise SystemExit(f"unexpected export method: {options['method']!r}")
+if options["teamID"] != "TEAM123456":
+    raise SystemExit(f"unexpected team ID: {options['teamID']!r}")
+PY
 
 printf 'TestFlight workflow tests passed\n'

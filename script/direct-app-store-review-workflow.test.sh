@@ -143,6 +143,7 @@ printf '%s\n' \
   '  unknown) printf "%s" "{\"action\":\"unexpected\"}" ;;' \
   '  non_string) printf "%s" "{\"action\":123}" ;;' \
   '  missing) printf "%s" "{}" ;;' \
+  '  editable_conflict) printf "%s\n" "Another iOS App Store version is editable" >&2; exit 1 ;;' \
   '  *) printf "unknown fixture: %s\\n" "$TARGET_PREFLIGHT_FIXTURE" >&2; exit 2 ;;' \
   'esac' > "$stub_bin/ruby"
 chmod +x "$stub_bin/ruby"
@@ -197,6 +198,7 @@ run_target_state skipped 0 $'action=skipped\nbuild_allowed=false'
 run_target_state unknown nonzero ''
 run_target_state non_string nonzero ''
 run_target_state missing nonzero ''
+run_target_state editable_conflict nonzero ''
 
 if compgen -G "$repo_root/.github/workflows/release-app-store.yml" >/dev/null; then
   printf 'unexpected automatic Release App Store workflow\n' >&2

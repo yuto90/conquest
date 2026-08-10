@@ -257,6 +257,23 @@ class AppStoreReleaseTest < Minitest::Test
     assert_empty client.created_requests
   end
 
+  def test_prepare_check_rejects_another_editable_version_before_creating
+    client = FakeClient.new(
+      versions: [
+        version("1.0.0", "READY_FOR_DISTRIBUTION", id: "version-live"),
+        version("1.0.2", "PREPARE_FOR_SUBMISSION", id: "version-102"),
+      ],
+      created_requests: [],
+    )
+
+    error = assert_raises(AppStoreRelease::ConflictError) do
+      service(client).prepare_check(target_version: "1.0.1")
+    end
+
+    assert_match(/editable: 1\.0\.2/, error.message)
+    assert_empty client.created_requests
+  end
+
   def test_prepare_check_accepts_new_version_without_mutating
     client = FakeClient.new(versions: [], created_requests: [])
 
@@ -404,18 +421,30 @@ class AppStoreReleaseTest < Minitest::Test
     assert_match(/must not belong to a TestFlight group/, error.message)
   end
 
-  def test_preflight_rejects_review_notes_over_four_thousand_bytes
+  def test_preflight_accepts_multibyte_review_notes_up_to_four_thousand_characters
+    result = service(release_client).preflight(
+      app_version: "1.0.1",
+      build_number: "123",
+      internal_group: "Internal",
+      whats_new: "改善しました",
+      review_notes: "あ" * 4_000,
+    )
+
+    assert_equal :ready, result.status
+  end
+
+  def test_preflight_rejects_review_notes_over_four_thousand_characters
     error = assert_raises(AppStoreRelease::ValidationError) do
       service(release_client).preflight(
         app_version: "1.0.1",
         build_number: "123",
         internal_group: "Internal",
         whats_new: "改善しました",
-        review_notes: "あ" * 1_334,
+        review_notes: "あ" * 4_001,
       )
     end
 
-    assert_match(/4,000 bytes/, error.message)
+    assert_match(/4,000 characters/, error.message)
   end
 
   def test_preflight_requires_demo_credentials_when_demo_account_is_required
