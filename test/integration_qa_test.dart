@@ -93,6 +93,45 @@ ProviderContainer _createContainer({
   );
 }
 
+ProviderContainer _createSpectatorContainer({
+  required _QaManualLoop loop,
+  required int islandCount,
+  required int mapSeed,
+  required int playerCpuSeed,
+  required int cpuSeed,
+}) {
+  return ProviderContainer(
+    overrides: [
+      gameConfigurationProvider.overrideWithValue(
+        GameConfiguration(
+          totalIslandCount: islandCount,
+          gameMode: GameMode.cpuVsCpu,
+          playerCpuDifficulty: CpuDifficulty.hard,
+          cpuDifficulty: CpuDifficulty.hard,
+        ),
+      ),
+      gameLoopProvider.overrideWithValue(loop),
+      randomProvider.overrideWithValue(Random(mapSeed)),
+      playerCpuStrategyProvider.overrideWithValue(
+        CpuStrategy(
+          controlledFaction: Faction.player,
+          timingRandom: Random(playerCpuSeed),
+          qualityRandom: Random(playerCpuSeed + 1000),
+          viewport: GameRules.defaultMapViewport,
+        ),
+      ),
+      cpuStrategyProvider.overrideWithValue(
+        CpuStrategy(
+          controlledFaction: Faction.cpu,
+          timingRandom: Random(cpuSeed),
+          qualityRandom: Random(cpuSeed + 1000),
+          viewport: GameRules.defaultMapViewport,
+        ),
+      ),
+    ],
+  );
+}
+
 GameState _startMatch(ProviderContainer container, _QaManualLoop loop) {
   final controller = container.read(gameControllerProvider.notifier);
   controller.startGame();
@@ -228,7 +267,128 @@ int _cpuMovingForceCount(GameState state) {
       .length;
 }
 
+_MatchTrace _runSpectatorMatch({
+  required int islandCount,
+  required int mapSeed,
+  required int playerCpuSeed,
+  required int cpuSeed,
+}) {
+  final loop = _QaManualLoop();
+  final container = _createSpectatorContainer(
+    loop: loop,
+    islandCount: islandCount,
+    mapSeed: mapSeed,
+    playerCpuSeed: playerCpuSeed,
+    cpuSeed: cpuSeed,
+  );
+  try {
+    final controller = container.read(gameControllerProvider.notifier);
+    final started = _startMatch(container, loop);
+    controller.state = started.copyWith(
+      islands: [
+        for (final island in started.islands)
+          if (island.id == 0)
+            island.copyWith(
+              faction: Faction.player,
+              currentForces: 100,
+              durability: 0,
+            )
+          else if (island.id == 1)
+            island.copyWith(
+              faction: Faction.cpu,
+              currentForces: 1,
+              durability: 0,
+            )
+          else
+            island.copyWith(
+              faction: Faction.player,
+              currentForces: 1,
+              durability: 0,
+            ),
+      ],
+    );
+
+    var ticks = 0;
+    while (container.read(gameControllerProvider).phase != GamePhase.result &&
+        ticks < 600) {
+      loop.tick();
+      ticks++;
+    }
+    final resultState = container.read(gameControllerProvider);
+    expect(resultState.phase, GamePhase.result);
+    expect(resultState.result, isNotNull);
+    final trace = _MatchTrace(
+      resultType: resultState.result!.type,
+      winner: resultState.result!.winner,
+      elapsedMs: resultState.result!.elapsedMs,
+      ticks: ticks,
+    );
+    loop.tickMany(10);
+    expect(container.read(gameControllerProvider), same(resultState));
+    return trace;
+  } finally {
+    container.dispose();
+  }
+}
+
 void main() {
+  test('starts spectator CPUs on every supported island count', () {
+    for (final islandCount in GameConfiguration.allowedIslandCounts) {
+      final loop = _QaManualLoop();
+      final container = _createSpectatorContainer(
+        loop: loop,
+        islandCount: islandCount,
+        mapSeed: 3200 + islandCount,
+        playerCpuSeed: 10,
+        cpuSeed: 20,
+      );
+      try {
+        final controller = container.read(gameControllerProvider.notifier);
+        _startMatch(container, loop);
+        final observedFactions = <Faction>{};
+        for (var tick = 0; tick < 120; tick++) {
+          loop.tick();
+          observedFactions.addAll(
+            container
+                .read(gameControllerProvider)
+                .movingForces
+                .map((force) => force.faction),
+          );
+        }
+        expect(
+          container.read(gameControllerProvider).configuration.gameMode,
+          GameMode.cpuVsCpu,
+        );
+        expect(observedFactions, contains(Faction.player));
+        expect(observedFactions, contains(Faction.cpu));
+        // Keep the controller referenced so the test also exercises the
+        // notifier path used by the production Home widget.
+        expect(controller, isNotNull);
+      } finally {
+        container.dispose();
+      }
+    }
+  });
+
+  test('replays the same spectator result with fixed CPU seeds', () {
+    final first = _runSpectatorMatch(
+      islandCount: 6,
+      mapSeed: 3206,
+      playerCpuSeed: 41,
+      cpuSeed: 42,
+    );
+    final second = _runSpectatorMatch(
+      islandCount: 6,
+      mapSeed: 3206,
+      playerCpuSeed: 41,
+      cpuSeed: 42,
+    );
+
+    expect(second, first);
+    expect(first.resultType, GameResultType.victory);
+    expect(first.winner, Faction.player);
+  });
+
   test(
     'starts every supported map deterministically through the countdown',
     () {
