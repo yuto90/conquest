@@ -116,36 +116,87 @@ ruby -ryaml -e '
   raise "direct workflow must use manual release" unless commands.include?("--automatic_release false")
 ' "$workflow"
 
-ruby -ryaml -e '
+target_state_script="$(ruby -ryaml -e '
   workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
-  target_preflight = workflow.fetch("jobs").fetch("preflight-target")
-  build = workflow.fetch("jobs").fetch("build")
-  quote = 39.chr
-  build_guard = "needs.preflight-target.outputs.build_allowed == #{quote}true#{quote}"
-  raise "build guard must reference the target preflight output" unless build.fetch("if").include?(build_guard)
-
-  fixtures = {
-    "equal-live-target" => "skipped",
-    "older-target" => "skipped",
-    "new-target" => "would_create",
-    "existing-editable-target" => "reused",
-    "unknown-action" => "unexpected",
-  }
-  allowed_actions = %w[would_create reused]
-  fixtures.each do |name, action|
-    build_allowed = allowed_actions.include?(action)
-    if %w[equal-live-target older-target].include?(name)
-      raise "#{name} must not start build/upload" if build_allowed
-    elsif %w[new-target existing-editable-target].include?(name)
-      raise "#{name} must start the allowed build path" unless build_allowed
-    else
-      raise "unknown actions must be rejected" if build_allowed
-    end
+  step = workflow.fetch("jobs").fetch("preflight-target").fetch("steps").find do |candidate|
+    candidate["id"] == "target-state"
   end
+  abort "target-state step is missing" unless step
+  print step.fetch("run")
+' "$workflow")"
+[[ -n "$target_state_script" ]] || {
+  printf 'target-state step must contain a run script\n' >&2
+  exit 1
+}
 
-  target_commands = target_preflight.fetch("steps").filter_map { |step| step["run"] }.join("\n")
-  raise "unknown action must fail closed" unless target_commands.include?("Unknown target preflight action") && target_commands.include?("exit 1")
-' "$workflow"
+fixture_root="$(mktemp -d)"
+trap 'rm -rf "$fixture_root"' EXIT
+stub_bin="$fixture_root/bin"
+mkdir -p "$stub_bin"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -euo pipefail' \
+  'case "$TARGET_PREFLIGHT_FIXTURE" in' \
+  '  would_create) printf "%s" "{\"action\":\"would_create\"}" ;;' \
+  '  reused) printf "%s" "{\"action\":\"reused\"}" ;;' \
+  '  skipped) printf "%s" "{\"action\":\"skipped\"}" ;;' \
+  '  unknown) printf "%s" "{\"action\":\"unexpected\"}" ;;' \
+  '  non_string) printf "%s" "{\"action\":123}" ;;' \
+  '  missing) printf "%s" "{}" ;;' \
+  '  *) printf "unknown fixture: %s\\n" "$TARGET_PREFLIGHT_FIXTURE" >&2; exit 2 ;;' \
+  'esac' > "$stub_bin/ruby"
+chmod +x "$stub_bin/ruby"
+
+run_target_state() {
+  local fixture="$1"
+  local expected_status="$2"
+  local expected_output="$3"
+  local run_dir="$fixture_root/$fixture"
+  local status
+  mkdir -p "$run_dir"
+  : > "$run_dir/output"
+  : > "$run_dir/summary"
+  if TARGET_PREFLIGHT_FIXTURE="$fixture" \
+    RUNNER_TEMP="$run_dir" \
+    APP_BUNDLE_ID="com.example.conquest" \
+    APP_VERSION="1.0.1" \
+    GITHUB_OUTPUT="$run_dir/output" \
+    GITHUB_STEP_SUMMARY="$run_dir/summary" \
+    PATH="$stub_bin:$PATH" \
+    bash -c "$target_state_script" > "$run_dir/stdout" 2> "$run_dir/stderr"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$expected_status" == "nonzero" ]]; then
+    if [[ "$status" -eq 0 ]]; then
+      printf '%s fixture unexpectedly succeeded\n' "$fixture" >&2
+      cat "$run_dir/stderr" >&2
+      return 1
+    fi
+  elif [[ "$status" -ne "$expected_status" ]]; then
+    printf '%s fixture returned status %s, expected %s\n' "$fixture" "$status" "$expected_status" >&2
+    cat "$run_dir/stderr" >&2
+    return 1
+  fi
+  if [[ "$expected_status" == "0" ]]; then
+    actual_output="$(<"$run_dir/output")"
+    if [[ "$actual_output" != "$expected_output" ]]; then
+      printf '%s fixture output was %q, expected %q\n' "$fixture" "$actual_output" "$expected_output" >&2
+      return 1
+    fi
+  elif grep -Fq 'build_allowed=true' "$run_dir/output"; then
+    printf '%s fixture must not allow a build\n' "$fixture" >&2
+    return 1
+  fi
+}
+
+run_target_state would_create 0 $'action=would_create\nbuild_allowed=true'
+run_target_state reused 0 $'action=reused\nbuild_allowed=true'
+run_target_state skipped 0 $'action=skipped\nbuild_allowed=false'
+run_target_state unknown nonzero ''
+run_target_state non_string nonzero ''
+run_target_state missing nonzero ''
 
 if compgen -G "$repo_root/.github/workflows/release-app-store.yml" >/dev/null; then
   printf 'unexpected automatic Release App Store workflow\n' >&2
