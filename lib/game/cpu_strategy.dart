@@ -46,8 +46,8 @@ final class CpuDecision {
 ///
 /// The percentages are intentionally integer values so fixed [math.Random]
 /// implementations can exercise every boundary without floating-point
-/// rounding.  Normal and Hard retain the deterministic strategy by disabling
-/// both Easy quality effects.
+/// rounding.  Each difficulty profile independently controls timing,
+/// intentional skips, and primary-candidate selection quality.
 final class CpuDifficultyProfile {
   const CpuDifficultyProfile({
     required this.difficulty,
@@ -57,26 +57,34 @@ final class CpuDifficultyProfile {
     required this.primaryCandidateRatePercent,
   });
 
+  static const veryEasy = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.veryEasy,
+    minDecisionIntervalMs: 5500,
+    maxDecisionIntervalMs: 7000,
+    skipDecisionRatePercent: 55,
+    primaryCandidateRatePercent: 20,
+  );
+
   static const easy = CpuDifficultyProfile(
     difficulty: CpuDifficulty.easy,
-    minDecisionIntervalMs: 3000,
-    maxDecisionIntervalMs: 4500,
-    skipDecisionRatePercent: 25,
-    primaryCandidateRatePercent: 60,
+    minDecisionIntervalMs: 4000,
+    maxDecisionIntervalMs: 5500,
+    skipDecisionRatePercent: 35,
+    primaryCandidateRatePercent: 50,
   );
 
   static const normal = CpuDifficultyProfile(
     difficulty: CpuDifficulty.normal,
-    minDecisionIntervalMs: 1500,
-    maxDecisionIntervalMs: 3000,
-    skipDecisionRatePercent: 0,
-    primaryCandidateRatePercent: 100,
+    minDecisionIntervalMs: 2750,
+    maxDecisionIntervalMs: 4000,
+    skipDecisionRatePercent: 15,
+    primaryCandidateRatePercent: 80,
   );
 
   static const hard = CpuDifficultyProfile(
     difficulty: CpuDifficulty.hard,
-    minDecisionIntervalMs: 750,
-    maxDecisionIntervalMs: 1500,
+    minDecisionIntervalMs: 1500,
+    maxDecisionIntervalMs: 2750,
     skipDecisionRatePercent: 0,
     primaryCandidateRatePercent: 100,
   );
@@ -89,6 +97,7 @@ final class CpuDifficultyProfile {
 
   static CpuDifficultyProfile forDifficulty(CpuDifficulty difficulty) {
     return switch (difficulty) {
+      CpuDifficulty.veryEasy => veryEasy,
       CpuDifficulty.easy => easy,
       CpuDifficulty.normal => normal,
       CpuDifficulty.hard => hard,
@@ -154,9 +163,9 @@ final class CpuStrategy {
     this.enabled = true,
   });
 
-  /// Compatibility aliases for callers that referenced the Normal interval.
-  static const minDecisionIntervalMs = 1500;
-  static const maxDecisionIntervalMs = 3000;
+  /// Compatibility aliases that mirror the current Normal profile bounds.
+  static const minDecisionIntervalMs = 2750;
+  static const maxDecisionIntervalMs = 4000;
 
   final math.Random timingRandom;
   final math.Random qualityRandom;
@@ -169,8 +178,8 @@ final class CpuStrategy {
 
   /// Returns the next interval in the inclusive range for [difficulty].
   ///
-  /// The default keeps the original Normal profile for source compatibility
-  /// with callers that do not yet provide a difficulty.
+  /// The default uses the current Normal profile for source compatibility with
+  /// callers that do not yet provide a difficulty.
   int nextDecisionDelayMs({CpuDifficulty difficulty = CpuDifficulty.normal}) {
     final profile = CpuDifficultyProfile.forDifficulty(difficulty);
     return profile.minDecisionIntervalMs +
@@ -188,8 +197,8 @@ final class CpuStrategy {
   ///
   /// Defense candidates are returned exclusively when a defense is possible;
   /// otherwise attack candidates are returned.  Separating this pure list
-  /// from [selectCandidate] lets Easy add quality noise without changing the
-  /// legal-move rules or Normal/Hard's first candidate.
+  /// from [selectCandidate] lets each difficulty apply its quality profile
+  /// without changing legal-move rules or candidate priority.
   List<CpuDecision> generateCandidates(GameState state) {
     if (!enabled || state.phase != GamePhase.playing) {
       return const [];
@@ -202,7 +211,8 @@ final class CpuStrategy {
     return _generateAttackCandidates(state);
   }
 
-  /// Selects one candidate, or intentionally skips it for Easy.
+  /// Selects one candidate, or intentionally skips it per the difficulty
+  /// profile.
   CpuDecision? selectCandidate(
     List<CpuDecision> candidates, {
     CpuDifficulty difficulty = CpuDifficulty.normal,
@@ -461,8 +471,8 @@ final class CpuStrategy {
       if (neutralCandidates.isNotEmpty) {
         candidates.addAll(neutralCandidates);
       } else if (enemies.isNotEmpty) {
-        // Keep all legal fallback pairs available to Easy while the first
-        // candidate remains the existing strongest/weakest priority.
+        // Keep all legal fallback pairs available to quality profiles while
+        // the first candidate remains the existing strongest/weakest priority.
         candidates.addAll([
           for (final source in sources)
             for (final target in enemies)

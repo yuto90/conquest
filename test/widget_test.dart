@@ -40,6 +40,17 @@ final class _WidgetZeroRandom implements Random {
   int nextInt(int max) => 0;
 }
 
+final class _WidgetMaxRandom implements Random {
+  @override
+  bool nextBool() => true;
+
+  @override
+  double nextDouble() => 0.999;
+
+  @override
+  int nextInt(int max) => max - 1;
+}
+
 void main() {
   testWidgets('offers every island-count preset with ten selected initially', (
     tester,
@@ -88,23 +99,27 @@ void main() {
         child: const MyApp(),
       ),
     );
-    for (final difficulty in CpuDifficulty.values) {
+    const expectedLabels = <CpuDifficulty, String>{
+      CpuDifficulty.veryEasy: 'Very Easy',
+      CpuDifficulty.easy: 'Easy',
+      CpuDifficulty.normal: 'Normal',
+      CpuDifficulty.hard: 'Hard',
+    };
+    for (final entry in expectedLabels.entries) {
       expect(
-        find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
+        find.byKey(ValueKey('cpu-difficulty-${entry.key.name}')),
         findsOneWidget,
       );
     }
-    for (final difficulty in CpuDifficulty.values) {
-      final label =
-          '${difficulty.name[0].toUpperCase()}${difficulty.name.substring(1)} CPU difficulty';
-      final chip = find.byKey(ValueKey('cpu-difficulty-${difficulty.name}'));
+    for (final entry in expectedLabels.entries) {
+      final chip = find.byKey(ValueKey('cpu-difficulty-${entry.key.name}'));
       final semanticsNode = tester.getSemantics(chip);
       final data = semanticsNode.getSemanticsData();
-      expect(semanticsNode.label, label);
+      expect(semanticsNode.label, '${entry.value} CPU difficulty');
       expect(data.hasAction(SemanticsAction.tap), isTrue);
       expect(
         data.flagsCollection.isSelected,
-        difficulty == CpuDifficulty.normal ? Tristate.isTrue : Tristate.isFalse,
+        entry.key == CpuDifficulty.normal ? Tristate.isTrue : Tristate.isFalse,
       );
     }
     final normalChip = find.byKey(const ValueKey('cpu-difficulty-normal'));
@@ -113,31 +128,32 @@ void main() {
     final mapBefore = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
     ).read(gameControllerProvider).islands;
-    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
     await tester.pump();
 
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
     );
     final selected = container.read(gameControllerProvider);
-    expect(selected.configuration.cpuDifficulty, CpuDifficulty.easy);
+    expect(selected.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
     expect(selected.islands, orderedEquals(mapBefore));
     expect(tester.widget<ChoiceChip>(normalChip).selected, isFalse);
-    final easySemantics = tester.getSemantics(
-      find.byKey(const ValueKey('cpu-difficulty-easy')),
+    final veryEasySemantics = tester.getSemantics(
+      find.byKey(const ValueKey('cpu-difficulty-veryEasy')),
     );
-    expect(easySemantics.label, 'Easy CPU difficulty');
+    expect(veryEasySemantics.label, 'Very Easy CPU difficulty');
     expect(
-      easySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
+      veryEasySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
       isTrue,
     );
     expect(
-      easySemantics.getSemanticsData().flagsCollection.isSelected,
+      veryEasySemantics.getSemanticsData().flagsCollection.isSelected,
       Tristate.isTrue,
     );
+    expect(find.text('選択中：10島 / Very Easy'), findsOneWidget);
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
-      'Start game with 10 islands on Easy CPU difficulty',
+      'Start game with 10 islands on Very Easy CPU difficulty',
     );
     semantics.dispose();
   });
@@ -573,15 +589,45 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('cpu-difficulty-veryEasy')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('cpu-difficulty-easy')), findsOneWidget);
     expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsOneWidget);
     expect(find.byKey(const ValueKey('cpu-difficulty-hard')), findsOneWidget);
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
-    expect(
-      tester.getBottomRight(find.byKey(const ValueKey('start-game'))).dy,
-      lessThanOrEqualTo(500),
-    );
 
+    final safeBounds = tester.getRect(
+      find.byKey(const ValueKey('settings-view')),
+    );
+    final difficultyRects = [
+      for (final difficulty in CpuDifficulty.values)
+        tester.getRect(
+          find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
+        ),
+    ];
+    for (final rectangle in [
+      ...difficultyRects,
+      tester.getRect(find.byKey(const ValueKey('start-game'))),
+    ]) {
+      expect(rectangle.left, greaterThanOrEqualTo(safeBounds.left));
+      expect(rectangle.top, greaterThanOrEqualTo(safeBounds.top));
+      expect(rectangle.right, lessThanOrEqualTo(safeBounds.right));
+      expect(rectangle.bottom, lessThanOrEqualTo(safeBounds.bottom));
+    }
+    expect(difficultyRects.first.left, lessThan(difficultyRects.last.left));
+    expect(
+      difficultyRects
+          .skip(1)
+          .every((rectangle) => rectangle.top == difficultyRects.first.top),
+      isTrue,
+    );
+    final startRect = tester.getRect(find.byKey(const ValueKey('start-game')));
+    expect(startRect.top, greaterThan(difficultyRects.first.bottom));
+
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('cpu-difficulty-hard')));
     await tester.pump();
     expect(
@@ -715,6 +761,7 @@ void main() {
             cpuStrategyProvider.overrideWithValue(
               CpuStrategy(
                 random: _WidgetZeroRandom(),
+                qualityRandom: _WidgetMaxRandom(),
                 viewport: GameRules.defaultMapViewport,
               ),
             ),
@@ -723,7 +770,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byKey(const ValueKey('cpu-difficulty-hard')));
+      await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
       await tester.pump();
       await tester.tap(find.byKey(const ValueKey('start-game')));
       for (var index = 0; index < 60; index++) {
@@ -740,7 +787,7 @@ void main() {
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.playing);
       expect(before.elapsedMs, 450);
-      expect(before.configuration.cpuDifficulty, CpuDifficulty.hard);
+      expect(before.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
       expect(
         before.movingForces.where((force) => force.faction == Faction.cpu),
         isEmpty,
@@ -753,11 +800,11 @@ void main() {
       );
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.playing);
-      expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
+      expect(after.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
       expect(after.elapsedMs, before.elapsedMs);
       expect(loop.isRunning, isTrue);
 
-      for (var index = 0; index < 5; index++) {
+      for (var index = 0; index < 100; index++) {
         loop.tick();
       }
       expect(

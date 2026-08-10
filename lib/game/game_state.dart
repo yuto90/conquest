@@ -24,7 +24,7 @@ enum GamePhase {
 }
 
 /// The selectable CPU decision interval profile for a match.
-enum CpuDifficulty { easy, normal, hard }
+enum CpuDifficulty { veryEasy, easy, normal, hard }
 
 enum Faction {
   player,

@@ -59,6 +59,17 @@ final class _QaZeroRandom implements Random {
   int nextInt(int max) => 0;
 }
 
+final class _QaMaximumRandom implements Random {
+  @override
+  bool nextBool() => true;
+
+  @override
+  double nextDouble() => 0.9999999999999999;
+
+  @override
+  int nextInt(int max) => max - 1;
+}
+
 ProviderContainer _createContainer({
   required _QaManualLoop loop,
   required int islandCount,
@@ -145,6 +156,9 @@ _MatchTrace _runCpuVictory({required int islandCount, required int seed}) {
 
   try {
     final controller = container.read(gameControllerProvider.notifier);
+    // This scripted result regression is a deterministic Hard-profile path;
+    // Normal now includes intentional quality noise and may skip a judgment.
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
     final started = _startMatch(container, loop);
 
     // Keep the generated map and its viewport geometry, but reduce the
@@ -208,6 +222,12 @@ void _assertIslandCountAndMap(GameState state, int islandCount) {
   }
 }
 
+int _cpuMovingForceCount(GameState state) {
+  return state.movingForces
+      .where((force) => force.faction == Faction.cpu)
+      .length;
+}
+
 void main() {
   test(
     'starts every supported map deterministically through the countdown',
@@ -247,6 +267,107 @@ void main() {
     },
   );
 
+  test(
+    'starts every map and difficulty with one legal CPU judgment at its deadline',
+    () {
+      for (final islandCount in GameConfiguration.allowedIslandCounts) {
+        for (final difficulty in CpuDifficulty.values) {
+          final loop = _QaManualLoop();
+          final container = _createContainer(
+            loop: loop,
+            islandCount: islandCount,
+            seed: 1500 + islandCount,
+            cpuStrategy: CpuStrategy(
+              timingRandom: _QaZeroRandom(),
+              qualityRandom: _QaMaximumRandom(),
+              viewport: GameRules.defaultMapViewport,
+            ),
+          );
+
+          try {
+            final controller = container.read(gameControllerProvider.notifier);
+            controller.selectCpuDifficulty(difficulty);
+            final configured = container.read(gameControllerProvider);
+            expect(
+              configured.configuration.cpuDifficulty,
+              difficulty,
+              reason: 'difficulty=$difficulty islands=$islandCount',
+            );
+            _assertIslandCountAndMap(configured, islandCount);
+            expect(
+              configured.islands.where(
+                (island) => island.size == IslandSize.headquarters,
+              ),
+              hasLength(2),
+              reason: 'difficulty=$difficulty islands=$islandCount',
+            );
+
+            final started = _startMatch(container, loop);
+            expect(started.phase, GamePhase.playing);
+            expect(started.islands, hasLength(islandCount));
+            expect(
+              started.islands.where(
+                (island) => island.size == IslandSize.headquarters,
+              ),
+              hasLength(2),
+              reason: 'difficulty=$difficulty islands=$islandCount',
+            );
+
+            final profile = CpuDifficultyProfile.forDifficulty(difficulty);
+            final dueTicks = profile.minDecisionIntervalMs ~/ 50;
+            for (var index = 0; index < dueTicks - 1; index++) {
+              loop.tick();
+            }
+            expect(
+              _cpuMovingForceCount(container.read(gameControllerProvider)),
+              0,
+              reason:
+                  '$difficulty islands=$islandCount dispatched before deadline',
+            );
+
+            loop.tick();
+            final due = container.read(gameControllerProvider);
+            expect(
+              _cpuMovingForceCount(due),
+              1,
+              reason:
+                  '$difficulty islands=$islandCount did not dispatch exactly one legal troop',
+            );
+            final cpuForce = due.movingForces.singleWhere(
+              (force) => force.faction == Faction.cpu,
+            );
+            expect(
+              due.islands.any((island) => island.id == cpuForce.sourceIslandId),
+              isTrue,
+            );
+            expect(
+              due.islands.any(
+                (island) => island.id == cpuForce.destinationIslandId,
+              ),
+              isTrue,
+            );
+            expect(
+              cpuForce.sourceIslandId,
+              isNot(cpuForce.destinationIslandId),
+            );
+
+            // A judgment schedules the next deadline from the current time;
+            // the immediately following engine step cannot create a second
+            // troop for the same judgment.
+            loop.tick();
+            expect(
+              _cpuMovingForceCount(container.read(gameControllerProvider)),
+              lessThanOrEqualTo(1),
+              reason: 'difficulty=$difficulty islands=$islandCount',
+            );
+          } finally {
+            container.dispose();
+          }
+        }
+      }
+    },
+  );
+
   test('replays the same CPU result with a fixed seed and manual loop', () {
     for (final islandCount in GameConfiguration.allowedIslandCounts) {
       final first = _runCpuVictory(islandCount: islandCount, seed: 9000);
@@ -271,6 +392,9 @@ void main() {
     );
     try {
       final controller = container.read(gameControllerProvider.notifier);
+      // The defense timing assertion targets the 1.5s Hard profile so the
+      // threat is observed before its 2.8s arrival.
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
       final started = _startMatch(container, loop);
       final playerHeadquarters = started.islands[0].copyWith(
         position: const IslandPosition(x: 0.8, y: 0.8),

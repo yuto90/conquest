@@ -89,6 +89,28 @@ final class _SequenceRandom implements Random {
   }
 }
 
+final class _PatternRandom implements Random {
+  _PatternRandom(Iterable<int> values) : _values = [...values];
+
+  final List<int> _values;
+  var _index = 0;
+
+  @override
+  bool nextBool() => nextInt(2) == 1;
+
+  @override
+  double nextDouble() => nextInt(1000) / 1000;
+
+  @override
+  int nextInt(int max) {
+    if (max <= 0) {
+      throw ArgumentError.value(max, 'max', 'must be positive');
+    }
+    final value = _values[_index++ % _values.length];
+    return value < max ? value : max - 1;
+  }
+}
+
 GameState _multipleCandidateState({
   CpuDifficulty difficulty = CpuDifficulty.easy,
 }) {
@@ -104,37 +126,94 @@ GameState _multipleCandidateState({
 }
 
 void main() {
-  test('difficulty profiles centralize timing and Easy quality constants', () {
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.easy),
-      const CpuDifficultyProfile(
+  test('difficulty profiles match the approved four-tier gradient', () {
+    const expected = <CpuDifficulty, CpuDifficultyProfile>{
+      CpuDifficulty.veryEasy: CpuDifficultyProfile(
+        difficulty: CpuDifficulty.veryEasy,
+        minDecisionIntervalMs: 5500,
+        maxDecisionIntervalMs: 7000,
+        skipDecisionRatePercent: 55,
+        primaryCandidateRatePercent: 20,
+      ),
+      CpuDifficulty.easy: CpuDifficultyProfile(
         difficulty: CpuDifficulty.easy,
-        minDecisionIntervalMs: 3000,
-        maxDecisionIntervalMs: 4500,
-        skipDecisionRatePercent: 25,
-        primaryCandidateRatePercent: 60,
+        minDecisionIntervalMs: 4000,
+        maxDecisionIntervalMs: 5500,
+        skipDecisionRatePercent: 35,
+        primaryCandidateRatePercent: 50,
       ),
-    );
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.normal),
-      const CpuDifficultyProfile(
+      CpuDifficulty.normal: CpuDifficultyProfile(
         difficulty: CpuDifficulty.normal,
-        minDecisionIntervalMs: 1500,
-        maxDecisionIntervalMs: 3000,
-        skipDecisionRatePercent: 0,
-        primaryCandidateRatePercent: 100,
+        minDecisionIntervalMs: 2750,
+        maxDecisionIntervalMs: 4000,
+        skipDecisionRatePercent: 15,
+        primaryCandidateRatePercent: 80,
       ),
-    );
-    expect(
-      CpuDifficultyProfile.forDifficulty(CpuDifficulty.hard),
-      const CpuDifficultyProfile(
+      CpuDifficulty.hard: CpuDifficultyProfile(
         difficulty: CpuDifficulty.hard,
-        minDecisionIntervalMs: 750,
-        maxDecisionIntervalMs: 1500,
+        minDecisionIntervalMs: 1500,
+        maxDecisionIntervalMs: 2750,
         skipDecisionRatePercent: 0,
         primaryCandidateRatePercent: 100,
       ),
-    );
+    };
+
+    expect(CpuDifficulty.values, expected.keys.toList());
+    for (final entry in expected.entries) {
+      expect(CpuDifficultyProfile.forDifficulty(entry.key), entry.value);
+    }
+  });
+
+  test('difficulty profiles form a bounded monotonic gradient', () {
+    final profiles = CpuDifficulty.values
+        .map(CpuDifficultyProfile.forDifficulty)
+        .toList();
+
+    for (final profile in profiles) {
+      expect(profile.minDecisionIntervalMs, greaterThan(0));
+      expect(
+        profile.maxDecisionIntervalMs,
+        greaterThanOrEqualTo(profile.minDecisionIntervalMs),
+      );
+      expect(profile.skipDecisionRatePercent, inInclusiveRange(0, 100));
+      expect(profile.primaryCandidateRatePercent, inInclusiveRange(0, 100));
+    }
+
+    for (var index = 0; index < profiles.length - 1; index += 1) {
+      final easier = profiles[index];
+      final harder = profiles[index + 1];
+      final easierMidpoint =
+          (easier.minDecisionIntervalMs + easier.maxDecisionIntervalMs) / 2;
+      final harderMidpoint =
+          (harder.minDecisionIntervalMs + harder.maxDecisionIntervalMs) / 2;
+      final easierExpectedActionInterval =
+          easierMidpoint / (1 - easier.skipDecisionRatePercent / 100);
+      final harderExpectedActionInterval =
+          harderMidpoint / (1 - harder.skipDecisionRatePercent / 100);
+
+      expect(easierMidpoint, greaterThan(harderMidpoint));
+      expect(easierMidpoint - harderMidpoint, lessThanOrEqualTo(1500));
+      expect(
+        easier.skipDecisionRatePercent,
+        greaterThan(harder.skipDecisionRatePercent),
+      );
+      expect(
+        easier.skipDecisionRatePercent - harder.skipDecisionRatePercent,
+        lessThanOrEqualTo(20),
+      );
+      expect(
+        easier.primaryCandidateRatePercent,
+        lessThan(harder.primaryCandidateRatePercent),
+      );
+      expect(
+        harder.primaryCandidateRatePercent - easier.primaryCandidateRatePercent,
+        lessThanOrEqualTo(30),
+      );
+      expect(
+        easierExpectedActionInterval / harderExpectedActionInterval,
+        lessThan(2),
+      );
+    }
   });
 
   test('Easy can skip a due judgment with the injected quality random', () {
@@ -159,7 +238,7 @@ void main() {
     final candidates = strategy.generateCandidates(state);
     expect(candidates, hasLength(greaterThan(1)));
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.easy);
     expect(decision, isNotNull);
     expect(decision, isNot(candidates.first));
     expect(
@@ -169,89 +248,134 @@ void main() {
     );
   });
 
-  test(
-    'Normal and Hard keep deterministic strategy without quality RNG use',
-    () {
-      final state = _multipleCandidateState(difficulty: CpuDifficulty.normal);
-      final qualityRandom = _SequenceRandom(const []);
+  test('quality boundaries use half-open percentage ranges', () {
+    const cases = <(CpuDifficulty, int, int, int, bool, bool)>[
+      (CpuDifficulty.veryEasy, 54, 0, 0, true, false),
+      (CpuDifficulty.veryEasy, 55, 19, 0, false, true),
+      (CpuDifficulty.veryEasy, 55, 20, 0, false, false),
+      (CpuDifficulty.easy, 34, 0, 0, true, false),
+      (CpuDifficulty.easy, 35, 49, 0, false, true),
+      (CpuDifficulty.easy, 35, 50, 0, false, false),
+      (CpuDifficulty.normal, 14, 0, 0, true, false),
+      (CpuDifficulty.normal, 15, 79, 0, false, true),
+      (CpuDifficulty.normal, 15, 80, 0, false, false),
+    ];
+
+    for (final testCase in cases) {
+      final (
+        difficulty,
+        skipRoll,
+        primaryRoll,
+        alternativeRoll,
+        skipped,
+        primary,
+      ) = testCase;
       final strategy = CpuStrategy(
-        timingRandom: _MinimumRandom(),
-        qualityRandom: qualityRandom,
+        qualityRandom: _SequenceRandom([
+          skipRoll,
+          primaryRoll,
+          alternativeRoll,
+        ]),
+        viewport: _viewport,
+      );
+      final candidates = strategy.generateCandidates(
+        _multipleCandidateState(difficulty: difficulty),
+      );
+      final decision = strategy.selectCandidate(
+        candidates,
+        difficulty: difficulty,
+      );
+
+      expect(decision == null, skipped, reason: '$difficulty skip boundary');
+      if (!skipped) {
+        expect(
+          decision == candidates.first,
+          primary,
+          reason: '$difficulty primary boundary',
+        );
+      }
+    }
+  });
+
+  test('Hard always selects the first candidate without quality RNG use', () {
+    final state = _multipleCandidateState(difficulty: CpuDifficulty.hard);
+    final strategy = CpuStrategy(
+      timingRandom: _MinimumRandom(),
+      qualityRandom: _SequenceRandom(const []),
+      viewport: _viewport,
+    );
+    final candidates = strategy.generateCandidates(state);
+
+    expect(candidates, hasLength(greaterThan(1)));
+    expect(strategy.decide(state), candidates.first);
+  });
+
+  test('timing and quality random streams remain independent', () {
+    for (final difficulty in CpuDifficulty.values) {
+      final state = _multipleCandidateState(difficulty: difficulty);
+      final withQuality = CpuStrategy(
+        timingRandom: Random(123),
+        qualityRandom: _MaximumRandom(),
+        viewport: _viewport,
+      );
+      final baseline = CpuStrategy(
+        timingRandom: Random(123),
+        qualityRandom: _MaximumRandom(),
         viewport: _viewport,
       );
 
-      expect(strategy.decide(state), strategy.generateCandidates(state).first);
-      expect(
-        () => strategy.decide(
-          state.copyWith(
-            configuration: GameConfiguration(
-              totalIslandCount: 10,
-              cpuDifficulty: CpuDifficulty.hard,
-            ),
-          ),
-        ),
-        returnsNormally,
-      );
-    },
-  );
-
-  test('timing and quality random streams remain independent', () {
-    final state = _multipleCandidateState();
-    final withQuality = CpuStrategy(
-      timingRandom: Random(123),
-      qualityRandom: _SequenceRandom([0]),
-      viewport: _viewport,
-    );
-    final baseline = CpuStrategy(
-      timingRandom: Random(123),
-      qualityRandom: _SequenceRandom([99]),
-      viewport: _viewport,
-    );
-
-    final firstDelay = withQuality.nextDecisionDelayMs(
-      difficulty: CpuDifficulty.easy,
-    );
-    expect(
-      firstDelay,
-      baseline.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
-    );
-    expect(withQuality.decide(state), isNull);
-    expect(
-      withQuality.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
-      baseline.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
-    );
+      for (var index = 0; index < 20; index += 1) {
+        expect(
+          withQuality.nextDecisionDelayMs(difficulty: difficulty),
+          baseline.nextDecisionDelayMs(difficulty: difficulty),
+          reason: '$difficulty timing before decision $index',
+        );
+        expect(
+          withQuality.decide(state),
+          isNotNull,
+          reason: '$difficulty quality decision $index',
+        );
+        expect(
+          withQuality.nextDecisionDelayMs(difficulty: difficulty),
+          baseline.nextDecisionDelayMs(difficulty: difficulty),
+          reason: '$difficulty timing after decision $index',
+        );
+      }
+    }
   });
 
-  test('same timing and quality seeds reproduce the Easy decision column', () {
-    final state = _multipleCandidateState();
-    final first = CpuStrategy(
-      timingRandom: Random(42),
-      qualityRandom: Random(7),
-      viewport: _viewport,
-    );
-    final second = CpuStrategy(
-      timingRandom: Random(42),
-      qualityRandom: Random(7),
-      viewport: _viewport,
-    );
-
-    for (var index = 0; index < 20; index++) {
-      expect(
-        first.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
-        second.nextDecisionDelayMs(difficulty: CpuDifficulty.easy),
+  test('same timing and quality seeds reproduce every decision column', () {
+    for (final difficulty in CpuDifficulty.values) {
+      final state = _multipleCandidateState(difficulty: difficulty);
+      final first = CpuStrategy(
+        timingRandom: Random(42),
+        qualityRandom: Random(7),
+        viewport: _viewport,
       );
-      expect(first.decide(state), second.decide(state));
+      final second = CpuStrategy(
+        timingRandom: Random(42),
+        qualityRandom: Random(7),
+        viewport: _viewport,
+      );
+
+      for (var index = 0; index < 20; index += 1) {
+        expect(
+          first.nextDecisionDelayMs(difficulty: difficulty),
+          second.nextDecisionDelayMs(difficulty: difficulty),
+          reason: '$difficulty timing $index',
+        );
+        expect(
+          first.decide(state),
+          second.decide(state),
+          reason: '$difficulty decision $index',
+        );
+      }
     }
   });
 
   test(
-    'candidate generation handles zero, one, and multiple legal choices',
+    'candidate selection preserves zero, one, and multiple legal choices',
     () {
-      final strategy = CpuStrategy(
-        timingRandom: _MinimumRandom(),
-        qualityRandom: _SequenceRandom([99, 0]),
-        viewport: _viewport,
-      );
       final zero = _playing(
         configuration: GameConfiguration(
           totalIslandCount: 10,
@@ -273,14 +397,121 @@ void main() {
         ],
       );
 
-      expect(strategy.generateCandidates(zero), isEmpty);
-      expect(strategy.generateCandidates(one), hasLength(1));
-      expect(
-        strategy.generateCandidates(_multipleCandidateState()),
-        hasLength(greaterThan(1)),
-      );
+      for (final difficulty in CpuDifficulty.values) {
+        final zeroCandidates = CpuStrategy(viewport: _viewport)
+            .generateCandidates(
+              zero.copyWith(
+                configuration: zero.configuration.copyWith(
+                  cpuDifficulty: difficulty,
+                ),
+              ),
+            );
+        expect(zeroCandidates, isEmpty, reason: '$difficulty zero candidates');
+        expect(
+          CpuStrategy(
+            viewport: _viewport,
+          ).selectCandidate(zeroCandidates, difficulty: difficulty),
+          isNull,
+          reason: '$difficulty zero decision',
+        );
+
+        final oneState = one.copyWith(
+          configuration: one.configuration.copyWith(cpuDifficulty: difficulty),
+        );
+        final oneCandidates = CpuStrategy(
+          viewport: _viewport,
+        ).generateCandidates(oneState);
+        expect(
+          oneCandidates,
+          hasLength(1),
+          reason: '$difficulty one candidate',
+        );
+        final skippedOne = CpuStrategy(
+          qualityRandom: _MinimumRandom(),
+          viewport: _viewport,
+        ).selectCandidate(oneCandidates, difficulty: difficulty);
+        expect(
+          skippedOne,
+          difficulty == CpuDifficulty.hard ? oneCandidates.single : isNull,
+          reason: '$difficulty one candidate skip boundary',
+        );
+        final selectedOne = CpuStrategy(
+          qualityRandom: _MaximumRandom(),
+          viewport: _viewport,
+        ).selectCandidate(oneCandidates, difficulty: difficulty);
+        expect(selectedOne, oneCandidates.single);
+
+        final multipleCandidates = CpuStrategy(
+          viewport: _viewport,
+        ).generateCandidates(_multipleCandidateState(difficulty: difficulty));
+        expect(
+          multipleCandidates,
+          hasLength(greaterThan(1)),
+          reason: '$difficulty multiple candidates',
+        );
+        final selectedMultiple = CpuStrategy(
+          qualityRandom: _MaximumRandom(),
+          viewport: _viewport,
+        ).selectCandidate(multipleCandidates, difficulty: difficulty);
+        expect(
+          selectedMultiple,
+          isNotNull,
+          reason: '$difficulty multiple decision',
+        );
+        expect(
+          multipleCandidates,
+          contains(selectedMultiple),
+          reason: '$difficulty decision must be legal',
+        );
+      }
     },
   );
+
+  test('fixed observation action counts are monotonic by difficulty', () {
+    const observationMs = 60000;
+    final actionCounts = <CpuDifficulty, int>{};
+
+    for (final difficulty in CpuDifficulty.values) {
+      final state = _multipleCandidateState(difficulty: difficulty);
+      final strategy = CpuStrategy(
+        timingRandom: _MinimumRandom(),
+        qualityRandom: _PatternRandom([0, 99, 99]),
+        viewport: _viewport,
+      );
+      expect(
+        strategy.generateCandidates(state),
+        hasLength(greaterThan(1)),
+        reason: '$difficulty requires a fixed multiple-candidate state',
+      );
+
+      var elapsedMs = 0;
+      var actions = 0;
+      while (true) {
+        elapsedMs += strategy.nextDecisionDelayMs(difficulty: difficulty);
+        if (elapsedMs > observationMs) {
+          break;
+        }
+        if (strategy.decide(state) != null) {
+          actions += 1;
+        }
+      }
+      actionCounts[difficulty] = actions;
+    }
+
+    expect(
+      actionCounts[CpuDifficulty.veryEasy]!,
+      lessThanOrEqualTo(actionCounts[CpuDifficulty.easy]!),
+    );
+    expect(
+      actionCounts[CpuDifficulty.easy]!,
+      lessThanOrEqualTo(actionCounts[CpuDifficulty.normal]!),
+    );
+    expect(
+      actionCounts[CpuDifficulty.normal]!,
+      lessThanOrEqualTo(actionCounts[CpuDifficulty.hard]!),
+    );
+    expect(actionCounts.values.toSet(), hasLength(greaterThan(1)));
+  });
 
   test('Easy decisions stay legal and dispatch at most one troop', () {
     for (final islandCount in GameConfiguration.allowedIslandCounts) {
@@ -325,21 +556,26 @@ void main() {
     }
   });
 
-  test('decision delays stay within the inclusive 1.5 to 3 second range', () {
-    final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
+  test(
+    'no-argument delays stay within the inclusive Normal 2.75 to 4 second range',
+    () {
+      final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
 
-    final delays = [
-      for (var index = 0; index < 100; index++) strategy.nextDecisionDelayMs(),
-    ];
+      final delays = [
+        for (var index = 0; index < 100; index++)
+          strategy.nextDecisionDelayMs(),
+      ];
 
-    expect(delays, everyElement(inInclusiveRange(1500, 3000)));
-  });
+      expect(delays, everyElement(inInclusiveRange(2750, 4000)));
+    },
+  );
 
   test('each CPU difficulty uses its inclusive decision interval', () {
     const bounds = <CpuDifficulty, (int, int)>{
-      CpuDifficulty.easy: (3000, 4500),
-      CpuDifficulty.normal: (1500, 3000),
-      CpuDifficulty.hard: (750, 1500),
+      CpuDifficulty.veryEasy: (5500, 7000),
+      CpuDifficulty.easy: (4000, 5500),
+      CpuDifficulty.normal: (2750, 4000),
+      CpuDifficulty.hard: (1500, 2750),
     };
 
     for (final entry in bounds.entries) {
@@ -355,6 +591,17 @@ void main() {
       expect(minimum, entry.value.$1, reason: '${entry.key} minimum');
       expect(maximum, entry.value.$2, reason: '${entry.key} maximum');
     }
+  });
+
+  test('compatibility interval aliases match the Normal profile', () {
+    expect(
+      CpuStrategy.minDecisionIntervalMs,
+      CpuDifficultyProfile.normal.minDecisionIntervalMs,
+    );
+    expect(
+      CpuStrategy.maxDecisionIntervalMs,
+      CpuDifficultyProfile.normal.maxDecisionIntervalMs,
+    );
   });
 
   test('the no-argument delay remains the seeded Normal profile', () {
@@ -414,7 +661,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.kind, CpuDecisionKind.defense);
@@ -446,7 +693,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.kind, CpuDecisionKind.attack);
@@ -472,7 +719,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.destinationIslandId, 2);
@@ -501,7 +748,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.destinationIslandId, 3);
@@ -517,7 +764,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.sourceIslandId, 2);
@@ -533,7 +780,10 @@ void main() {
               : island,
       ],
     );
-    final nearerDecision = strategy.decide(equalForceState);
+    final nearerDecision = strategy.decide(
+      equalForceState,
+      difficulty: CpuDifficulty.hard,
+    );
     expect(nearerDecision!.sourceIslandId, 2);
   });
 
@@ -550,7 +800,7 @@ void main() {
         ],
       );
 
-      final decision = strategy.decide(state);
+      final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
       expect(decision, isNotNull);
       expect(decision!.sourceIslandId, 2);
@@ -569,7 +819,7 @@ void main() {
       ],
     );
 
-    final decision = strategy.decide(state);
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
     expect(decision, isNotNull);
     expect(decision!.destinationIslandId, 3);
@@ -592,7 +842,7 @@ void main() {
       y: 0.5,
     );
     final state = _playing(islands: [source, destination]);
-    final decision = strategy.decide(state)!;
+    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard)!;
 
     final next = strategy.applyDecision(state, decision);
     final playerForce = GameRules().createMovingForce(
@@ -636,8 +886,16 @@ void main() {
   });
 
   test('same seed and state reproduce delays and decisions', () {
-    final first = CpuStrategy(random: Random(42), viewport: _viewport);
-    final second = CpuStrategy(random: Random(42), viewport: _viewport);
+    final first = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
+    final second = CpuStrategy(
+      timingRandom: Random(42),
+      qualityRandom: Random(7),
+      viewport: _viewport,
+    );
     final state = _playing(
       islands: [
         _island(id: 1, faction: Faction.cpu, forces: 20),

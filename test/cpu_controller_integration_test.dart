@@ -54,6 +54,12 @@ final class SequenceRandom implements Random {
   }
 }
 
+int cpuMovingForceCount(GameState state) {
+  return state.movingForces
+      .where((force) => force.faction == Faction.cpu)
+      .length;
+}
+
 void completeStartCountdown(ManualGameLoop loop) {
   for (var index = 0; index < 60; index++) {
     loop.tick();
@@ -85,6 +91,7 @@ void main() {
 
   test('dispatches at most one CPU troop per due judgment', () {
     final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
     controller.startGame();
     completeStartCountdown(loop);
 
@@ -118,9 +125,10 @@ void main() {
 
   test('uses the selected difficulty interval for the first judgment', () {
     const dueTicks = <CpuDifficulty, int>{
-      CpuDifficulty.easy: 60,
-      CpuDifficulty.normal: 30,
-      CpuDifficulty.hard: 15,
+      CpuDifficulty.veryEasy: 110,
+      CpuDifficulty.easy: 80,
+      CpuDifficulty.normal: 55,
+      CpuDifficulty.hard: 30,
     };
 
     for (final entry in dueTicks.entries) {
@@ -131,8 +139,10 @@ void main() {
           randomProvider.overrideWithValue(Random(7)),
           cpuStrategyProvider.overrideWithValue(
             CpuStrategy(
-              random: ZeroRandom(),
-              qualityRandom: MaximumRandom(),
+              timingRandom: ZeroRandom(),
+              qualityRandom: entry.key == CpuDifficulty.hard
+                  ? SequenceRandom(const [])
+                  : MaximumRandom(),
               viewport: GameRules.defaultMapViewport,
             ),
           ),
@@ -149,21 +159,15 @@ void main() {
           localLoop.tick();
         }
         expect(
-          localContainer
-              .read(gameControllerProvider)
-              .movingForces
-              .where((force) => force.faction == Faction.cpu),
-          isEmpty,
+          cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+          0,
           reason: '${entry.key} dispatched before its deadline',
         );
 
         localLoop.tick();
         expect(
-          localContainer
-              .read(gameControllerProvider)
-              .movingForces
-              .where((force) => force.faction == Faction.cpu),
-          hasLength(1),
+          cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+          1,
           reason: '${entry.key} did not dispatch at its deadline',
         );
       } finally {
@@ -204,10 +208,10 @@ void main() {
     controller.startGame();
     completeStartCountdown(loop);
 
-    for (var index = 0; index < 29; index++) {
+    for (var index = 0; index < 54; index++) {
       loop.tick();
     }
-    expect(container.read(gameControllerProvider).elapsedMs, 1450);
+    expect(container.read(gameControllerProvider).elapsedMs, 2700);
     expect(
       container
           .read(gameControllerProvider)
@@ -223,7 +227,7 @@ void main() {
       GamePhase.resumeCountdown,
     );
     completeStartCountdown(loop);
-    expect(container.read(gameControllerProvider).elapsedMs, 1450);
+    expect(container.read(gameControllerProvider).elapsedMs, 2700);
 
     loop.tick();
     expect(
@@ -251,7 +255,7 @@ void main() {
     completeStartCountdown(loop);
     expect(container.read(gameControllerProvider).elapsedMs, 450);
 
-    for (var index = 0; index < 5; index++) {
+    for (var index = 0; index < 20; index++) {
       loop.tick();
     }
     expect(
@@ -271,73 +275,103 @@ void main() {
     );
   });
 
-  test('reschedules a skipped Easy judgment once from current game time', () {
-    final localLoop = ManualGameLoop();
-    final localContainer = ProviderContainer(
-      overrides: [
-        gameLoopProvider.overrideWithValue(localLoop),
-        randomProvider.overrideWithValue(Random(7)),
-        cpuStrategyProvider.overrideWithValue(
-          CpuStrategy(
-            timingRandom: ZeroRandom(),
-            qualityRandom: SequenceRandom([0, 99, 0]),
-            viewport: GameRules.defaultMapViewport,
+  test('reschedules skipped judgments from current game time', () {
+    const dueTicks = <CpuDifficulty, int>{
+      CpuDifficulty.veryEasy: 110,
+      CpuDifficulty.easy: 80,
+      CpuDifficulty.normal: 55,
+      CpuDifficulty.hard: 30,
+    };
+
+    for (final entry in dueTicks.entries) {
+      final difficulty = entry.key;
+      final due = entry.value;
+      final localLoop = ManualGameLoop();
+      final localContainer = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(localLoop),
+          randomProvider.overrideWithValue(Random(7)),
+          cpuStrategyProvider.overrideWithValue(
+            CpuStrategy(
+              // Keep every deadline one millisecond past a 50ms callback so
+              // the judgment is processed late and current-time rescheduling
+              // can be distinguished from rescheduling from the old due
+              // timestamp. The third value is consumed when the second due
+              // judgment schedules its following deadline.
+              timingRandom: SequenceRandom([1, 1, 1]),
+              qualityRandom: difficulty == CpuDifficulty.hard
+                  ? SequenceRandom(const [])
+                  : SequenceRandom([0, 99, 0]),
+              viewport: GameRules.defaultMapViewport,
+            ),
           ),
-        ),
-      ],
-    );
-    addTearDown(localContainer.dispose);
+        ],
+      );
+      addTearDown(localContainer.dispose);
 
-    final controller = localContainer.read(gameControllerProvider.notifier);
-    controller.selectCpuDifficulty(CpuDifficulty.easy);
-    controller.startGame();
-    completeStartCountdown(localLoop);
+      final controller = localContainer.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(difficulty);
+      controller.startGame();
+      completeStartCountdown(localLoop);
 
-    for (var index = 0; index < 59; index++) {
+      for (var index = 0; index < due; index += 1) {
+        localLoop.tick();
+      }
+      expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 50,
+        reason: '$difficulty before first deadline',
+      );
       localLoop.tick();
-    }
-    expect(localContainer.read(gameControllerProvider).elapsedMs, 2950);
-    localLoop.tick();
-    expect(localContainer.read(gameControllerProvider).elapsedMs, 3000);
-    expect(
-      localContainer
-          .read(gameControllerProvider)
-          .movingForces
-          .where((force) => force.faction == Faction.cpu),
-      isEmpty,
-    );
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 1 : 0,
+        reason: '$difficulty first deadline',
+      );
 
-    // The skipped 3000ms judgment schedules from 3000ms, so no catch-up
-    // judgment occurs on the next 50ms tick.
-    localLoop.tick();
-    expect(localContainer.read(gameControllerProvider).elapsedMs, 3050);
-    expect(
-      localContainer
-          .read(gameControllerProvider)
-          .movingForces
-          .where((force) => force.faction == Faction.cpu),
-      isEmpty,
-    );
-
-    for (var index = 0; index < 58; index++) {
+      // A skipped judgment must not be caught up on the next 50ms callback.
       localLoop.tick();
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 1 : 0,
+        reason: '$difficulty catch-up after first deadline',
+      );
+
+      for (var index = 0; index < due - 2; index += 1) {
+        localLoop.tick();
+      }
+      expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50,
+        reason: '$difficulty before old rescheduled deadline',
+      );
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 1 : 0,
+        reason: '$difficulty before old rescheduled deadline',
+      );
+      localLoop.tick();
+      expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50 + 50,
+        reason: '$difficulty old rescheduled deadline',
+      );
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 1 : 0,
+        reason: '$difficulty old rescheduled deadline must not fire',
+      );
+      localLoop.tick();
+      expect(
+        localContainer.read(gameControllerProvider).elapsedMs,
+        due * 2 * 50 + 100,
+        reason: '$difficulty current-time rescheduled deadline',
+      );
+      expect(
+        cpuMovingForceCount(localContainer.read(gameControllerProvider)),
+        difficulty == CpuDifficulty.hard ? 2 : 1,
+        reason: '$difficulty current-time rescheduled deadline',
+      );
     }
-    expect(localContainer.read(gameControllerProvider).elapsedMs, 5950);
-    expect(
-      localContainer
-          .read(gameControllerProvider)
-          .movingForces
-          .where((force) => force.faction == Faction.cpu),
-      isEmpty,
-    );
-    localLoop.tick();
-    expect(localContainer.read(gameControllerProvider).elapsedMs, 6000);
-    expect(
-      localContainer
-          .read(gameControllerProvider)
-          .movingForces
-          .where((force) => force.faction == Faction.cpu),
-      hasLength(1),
-    );
   });
 }
