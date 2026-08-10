@@ -54,6 +54,18 @@ final class SequenceRandom implements Random {
   }
 }
 
+final class _ViewportNotifier extends Notifier<IslandMapViewport> {
+  @override
+  IslandMapViewport build() => GameRules.defaultMapViewport;
+
+  void setViewport(IslandMapViewport viewport) => state = viewport;
+}
+
+final _viewportProvider =
+    NotifierProvider<_ViewportNotifier, IslandMapViewport>(
+      _ViewportNotifier.new,
+    );
+
 int cpuMovingForceCount(GameState state) {
   return state.movingForces
       .where((force) => force.faction == Faction.cpu)
@@ -213,6 +225,104 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'production 1P strategy keeps seeded RNG streams across a viewport rebuild',
+    () {
+      final timingRandom = Random(17);
+      final qualityRandom = Random(23);
+      final container = ProviderContainer(
+        overrides: [
+          mapViewportProvider.overrideWith(
+            (ref) => ref.watch(_viewportProvider),
+          ),
+          playerCpuRandomProvider.overrideWithValue(timingRandom),
+          playerCpuQualityRandomProvider.overrideWithValue(qualityRandom),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      const candidates = [
+        CpuDecision(
+          kind: CpuDecisionKind.attack,
+          sourceIslandId: 0,
+          destinationIslandId: 1,
+          strength: 10,
+        ),
+        CpuDecision(
+          kind: CpuDecisionKind.attack,
+          sourceIslandId: 2,
+          destinationIslandId: 3,
+          strength: 10,
+        ),
+      ];
+
+      final first = container.read(playerCpuStrategyProvider);
+      expect(first.controlledFaction, Faction.player);
+      expect(first.timingRandom, same(timingRandom));
+      expect(first.qualityRandom, same(qualityRandom));
+      final firstDelay = first.nextDecisionDelayMs(
+        difficulty: CpuDifficulty.hard,
+      );
+      final firstDecision = first.selectCandidate(
+        candidates,
+        difficulty: CpuDifficulty.normal,
+      );
+
+      container
+          .read(_viewportProvider.notifier)
+          .setViewport(const IslandMapViewport(width: 321, height: 500));
+      final rebuilt = container.read(playerCpuStrategyProvider);
+      expect(rebuilt, isNot(same(first)));
+      expect(rebuilt.timingRandom, same(timingRandom));
+      expect(rebuilt.qualityRandom, same(qualityRandom));
+      final secondDelay = rebuilt.nextDecisionDelayMs(
+        difficulty: CpuDifficulty.hard,
+      );
+      final secondDecision = rebuilt.selectCandidate(
+        candidates,
+        difficulty: CpuDifficulty.normal,
+      );
+
+      final expectedTiming = Random(17);
+      final expectedFirstDelay =
+          CpuDifficultyProfile.hard.minDecisionIntervalMs +
+          expectedTiming.nextInt(
+            CpuDifficultyProfile.hard.maxDecisionIntervalMs -
+                CpuDifficultyProfile.hard.minDecisionIntervalMs +
+                1,
+          );
+      final expectedSecondDelay =
+          CpuDifficultyProfile.hard.minDecisionIntervalMs +
+          expectedTiming.nextInt(
+            CpuDifficultyProfile.hard.maxDecisionIntervalMs -
+                CpuDifficultyProfile.hard.minDecisionIntervalMs +
+                1,
+          );
+      expect(firstDelay, expectedFirstDelay);
+      expect(secondDelay, expectedSecondDelay);
+
+      final expectedQuality = Random(23);
+      final expectedFirstDecision =
+          expectedQuality.nextInt(100) <
+              CpuDifficultyProfile.normal.skipDecisionRatePercent
+          ? null
+          : expectedQuality.nextInt(100) <
+                CpuDifficultyProfile.normal.primaryCandidateRatePercent
+          ? candidates.first
+          : candidates[1 + expectedQuality.nextInt(candidates.length - 1)];
+      final expectedSecondDecision =
+          expectedQuality.nextInt(100) <
+              CpuDifficultyProfile.normal.skipDecisionRatePercent
+          ? null
+          : expectedQuality.nextInt(100) <
+                CpuDifficultyProfile.normal.primaryCandidateRatePercent
+          ? candidates.first
+          : candidates[1 + expectedQuality.nextInt(candidates.length - 1)];
+      expect(firstDecision, expectedFirstDecision);
+      expect(secondDecision, expectedSecondDecision);
+    },
+  );
 
   test('standard mode never schedules the player CPU', () {
     final localLoop = ManualGameLoop();

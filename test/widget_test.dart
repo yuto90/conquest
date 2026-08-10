@@ -550,6 +550,60 @@ void main() {
   });
 
   testWidgets(
+    'standard playing islands expose semantic tap and dispatch through it',
+    (tester) async {
+      final semanticsHandle = tester.ensureSemantics();
+      final loop = ManualWidgetGameLoop();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(),
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      final islandFinder = find.byKey(const ValueKey('island-button-0'));
+      final container = ProviderScope.containerOf(tester.element(islandFinder));
+      final sourceNode = tester.getSemantics(islandFinder);
+      final sourceData = sourceNode.getSemanticsData();
+      expect(sourceData.hasAction(SemanticsAction.tap), isTrue);
+      expect(sourceData.flagsCollection.isButton, isTrue);
+
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        sourceNode.id,
+        SemanticsAction.tap,
+      );
+      await tester.pump();
+      expect(container.read(gameControllerProvider).selectedIslandId, 0);
+
+      final destinationNode = tester.getSemantics(
+        find.byKey(const ValueKey('island-button-1')),
+      );
+      expect(
+        destinationNode.getSemanticsData().hasAction(SemanticsAction.tap),
+        isTrue,
+      );
+      tester.binding.pipelineOwner.semanticsOwner!.performAction(
+        destinationNode.id,
+        SemanticsAction.tap,
+      );
+      await tester.pump();
+      final dispatched = container.read(gameControllerProvider);
+      expect(dispatched.selectedIslandId, isNull);
+      expect(dispatched.movingForces, hasLength(1));
+      expect(dispatched.movingForces.single.faction, Faction.player);
+      semanticsHandle.dispose();
+    },
+  );
+
+  testWidgets(
     'does not advertise island actions while the board is not playable',
     (tester) async {
       final loop = ManualWidgetGameLoop();

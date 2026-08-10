@@ -39,6 +39,7 @@ class Base extends StatelessWidget {
       button: interactive,
       enabled: interactive,
       selected: interactive && selected,
+      onTap: onPressed,
       label: _semanticLabel,
       hint: interactive ? _semanticHint : null,
       child: Material(

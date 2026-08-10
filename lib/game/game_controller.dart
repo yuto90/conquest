@@ -21,6 +21,7 @@ final randomProvider = Provider<Random>((ref) => Random());
 final cpuTimingRandomProvider = Provider<Random>((ref) => Random());
 final cpuQualityRandomProvider = Provider<Random>((ref) => Random());
 final playerCpuRandomProvider = Provider<Random>((ref) => Random());
+final playerCpuQualityRandomProvider = Provider<Random>((ref) => Random());
 
 final gameConfigurationProvider = Provider<GameConfiguration>(
   (ref) => GameConfiguration.initial,
@@ -49,7 +50,8 @@ final cpuStrategyProvider = Provider<CpuStrategy>((ref) {
 final playerCpuStrategyProvider = Provider<CpuStrategy>((ref) {
   return CpuStrategy(
     controlledFaction: Faction.player,
-    random: ref.read(playerCpuRandomProvider),
+    timingRandom: ref.read(playerCpuRandomProvider),
+    qualityRandom: ref.read(playerCpuQualityRandomProvider),
     rules: ref.read(gameRulesProvider),
     viewport: ref.watch(mapViewportProvider),
   );
