@@ -256,6 +256,21 @@ jobs:
           gem install cocoapods --version 1.16.2 --no-document
           fvm flutter pub get
 
+      - name: Declare App Store export compliance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import plistlib
+
+          path = "ios/Runner/Info.plist"
+          with open(path, "rb") as file:
+              info = plistlib.load(file)
+          info["ITSAppUsesNonExemptEncryption"] = False
+          with open(path, "wb") as file:
+              plistlib.dump(info, file, sort_keys=False)
+          PY
+
       - name: Install signing materials
         id: signing
         shell: bash

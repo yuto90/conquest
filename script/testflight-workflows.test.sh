@@ -56,6 +56,9 @@ assert_contains "$build_workflow" 'assert-no-groups'
 assert_contains "$build_workflow" 'app-store-build-provenance-${{ github.run_id }}'
 assert_contains "$build_workflow" 'retention-days: 90'
 assert_contains "$build_workflow" 'if: always()'
+assert_contains "$build_workflow" 'ITSAppUsesNonExemptEncryption'
+assert_contains "$build_workflow" 'info["ITSAppUsesNonExemptEncryption"] = False'
+assert_contains "$build_workflow" 'plistlib'
 assert_contains "$build_workflow" 'APP_BUNDLE_ID'
 assert_contains "$build_workflow" 'APPLE_TEAM_ID'
 assert_contains "$build_workflow" 'TESTFLIGHT_INTERNAL_GROUP'
@@ -99,6 +102,9 @@ ruby -ryaml -e '
   policy_index = names.index("Apply and verify TestFlight distribution policy")
   provenance_index = names.index("Write build provenance")
   raise "provenance must follow distribution verification" unless policy_index && provenance_index && policy_index < provenance_index
+  compliance_index = names.index("Declare App Store export compliance")
+  archive_index = names.index("Build signed IPA")
+  raise "export compliance must be declared before archive" unless compliance_index < archive_index
   cleanup = build.fetch("steps").find { |step| step.fetch("name") == "Clean up signing materials" }
   raise "signing cleanup must always run" unless cleanup.fetch("if") == "always()"
   secrets = %w[
