@@ -59,6 +59,22 @@ void main() {
     expect(find.text('ゲーム開始'), findsOneWidget);
   });
 
+  testWidgets('translates game mode labels while preserving English labels', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
+    expect(find.text('CPU対戦'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    expect(find.text('CPU同士を観戦'), findsOneWidget);
+
+    await tester.pumpWidget(const MyApp(locale: Locale('en', 'US')));
+    expect(find.text('PLAY VS CPU'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    expect(find.text('WATCH CPU VS CPU'), findsOneWidget);
+  });
+
   testWidgets('changes displayed locale without resetting the running match', (
     tester,
   ) async {

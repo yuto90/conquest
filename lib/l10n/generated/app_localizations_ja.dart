@@ -71,10 +71,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get modePlayerVsCpu => 'PLAY VS CPU';
+  String get modePlayerVsCpu => 'CPU対戦';
 
   @override
-  String get modeCpuVsCpu => 'WATCH CPU VS CPU';
+  String get modeCpuVsCpu => 'CPU同士を観戦';
 
   @override
   String startGameSemantics({

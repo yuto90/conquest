@@ -58,6 +58,27 @@ void main() {
           reason: '$key is a stable difficulty name',
         );
       }
+
+      const stableValues = <String>{
+        'brandName',
+        'startWord',
+        'difficultyVeryEasy',
+        'difficultyEasy',
+        'difficultyNormal',
+        'difficultyHard',
+        'factionCpu',
+        'factionPlayerOne',
+        'factionPlayerTwo',
+      };
+      final identicalValues = englishMessages
+          .where((key) => english[key] == japanese[key])
+          .toSet();
+      expect(
+        identicalValues,
+        stableValues,
+        reason:
+            'Only explicitly stable brand, start, CPU, numeric, and difficulty values may remain identical.',
+      );
     },
   );
 }
