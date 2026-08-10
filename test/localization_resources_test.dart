@@ -81,6 +81,45 @@ void main() {
       );
     },
   );
+
+  test('iOS advertises every Flutter-supported locale', () {
+    const supportedLocales = <String>{'en', 'ja'};
+    final infoPlist = File('ios/Runner/Info.plist').readAsStringSync();
+    final plistLocalizations = _matchBlock(
+      infoPlist,
+      RegExp(
+        r'<key>CFBundleLocalizations</key>\s*<array>(.*?)</array>',
+        dotAll: true,
+      ),
+      'CFBundleLocalizations',
+    );
+    final declaredPlistLocales = RegExp(
+      r'<string>([^<]+)</string>',
+    ).allMatches(plistLocalizations).map((match) => match.group(1)!).toSet();
+    expect(declaredPlistLocales, supportedLocales);
+
+    final project = File(
+      'ios/Runner.xcodeproj/project.pbxproj',
+    ).readAsStringSync();
+    final knownRegions = _matchBlock(
+      project,
+      RegExp(r'knownRegions = \((.*?)\);', dotAll: true),
+      'knownRegions',
+    );
+    final declaredProjectLocales = RegExp(
+      r'^\s*([A-Za-z-]+),\s*$',
+      multiLine: true,
+    ).allMatches(knownRegions).map((match) => match.group(1)!).toSet();
+    expect(declaredProjectLocales, containsAll(supportedLocales));
+  });
+}
+
+String _matchBlock(String content, RegExp pattern, String name) {
+  final match = pattern.firstMatch(content);
+  if (match == null) {
+    throw StateError('$name declaration is missing');
+  }
+  return match.group(1)!;
 }
 
 Map<String, dynamic> _readArb(String name) {
