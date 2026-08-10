@@ -117,7 +117,10 @@ class GameController extends _$GameController {
   /// islands, or run CPU decisions during that phase; the first playing tick
   /// after the countdown is the shared start boundary for every subsystem.
   void startGame() {
-    if (_disposed || state.phase == GamePhase.playing) {
+    if (_disposed ||
+        state.phase == GamePhase.playing ||
+        (state.phase == GamePhase.configuration &&
+            state.islands.length != state.configuration.totalIslandCount)) {
       return;
     }
 
@@ -259,9 +262,43 @@ class GameController extends _$GameController {
       return;
     }
 
-    final configuration = state.configuration.copyWith(
-      cpuDifficulty: difficulty,
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(cpuDifficulty: difficulty),
     );
+  }
+
+  /// Selects the standard player-versus-CPU or CPU-versus-CPU mode before a
+  /// match starts. The current generated map remains visible while settings
+  /// change, so mode selection does not consume map-generation randomness.
+  void selectGameMode(GameMode mode) {
+    if (_disposed || state.phase != GamePhase.configuration) {
+      return;
+    }
+    if (state.configuration.gameMode == mode) {
+      return;
+    }
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(gameMode: mode),
+    );
+  }
+
+  /// Selects the 1P CPU difficulty used by spectator matches. The value is
+  /// retained when switching back to the standard mode.
+  void selectPlayerCpuDifficulty(CpuDifficulty difficulty) {
+    if (_disposed || state.phase != GamePhase.configuration) {
+      return;
+    }
+    if (state.configuration.playerCpuDifficulty == difficulty) {
+      return;
+    }
+    _updateConfigurationWithoutRegeneratingMap(
+      state.configuration.copyWith(playerCpuDifficulty: difficulty),
+    );
+  }
+
+  void _updateConfigurationWithoutRegeneratingMap(
+    GameConfiguration configuration,
+  ) {
     final updated = state.copyWith(configuration: configuration);
     state = updated;
 
@@ -325,7 +362,9 @@ class GameController extends _$GameController {
   /// Every successful dispatch is appended to the in-flight force list so an
   /// earlier troop cannot be retargeted or cancelled.
   void tapBase(int baseId) {
-    if (_disposed || state.phase != GamePhase.playing) {
+    if (_disposed ||
+        state.phase != GamePhase.playing ||
+        state.configuration.gameMode != GameMode.playerVsCpu) {
       return;
     }
 
