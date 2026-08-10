@@ -104,6 +104,7 @@ jobs:
             '.id == $run_id and
              .name == "Deploy TestFlight" and
              .path == ".github/workflows/deploy-testflight.yml" and
+             .event == "workflow_dispatch" and
              .head_branch == "main" and
              .conclusion == "success"' \
             <<<"$run" >/dev/null; then
@@ -130,7 +131,6 @@ jobs:
             --arg repository "$GITHUB_REPOSITORY" \
             --arg app_version "$APP_VERSION" \
             --arg build_number "$BUILD_NUMBER" \
-            --arg head_sha "$(jq -r '.head_sha' <<<"$run")" \
             '.run_id == $run_id and
              .repository == $repository and
              .workflow_name == "Deploy TestFlight" and
@@ -139,7 +139,6 @@ jobs:
              .app_version == $app_version and
              .build_number == $build_number and
              (.build_id | type == "string" and length > 0) and
-             .commit_sha == $head_sha and
              .submission_source == "testflight" and
              .internal_distributed == true and
              (.commit_sha | type == "string" and test("^[0-9a-f]{40}$"))' \

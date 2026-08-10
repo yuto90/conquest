@@ -58,6 +58,9 @@ assert_contains "$workflow" 'app_version == $app_version'
 assert_contains "$workflow" 'build_number == $build_number'
 assert_contains "$workflow" '.submission_source == "testflight"'
 assert_contains "$workflow" '.internal_distributed == true'
+assert_contains "$workflow" '.event == "workflow_dispatch"'
+assert_not_contains "$workflow" '.commit_sha == $head_sha'
+assert_not_contains "$workflow" '--arg head_sha'
 assert_contains "$workflow" '--distribution-mode internal'
 assert_contains "$workflow" 'fastlane deliver submit_build'
 assert_contains "$workflow" '--skip_binary_upload true'
@@ -107,6 +110,38 @@ ruby -ryaml -e '
   commands = steps.values.filter_map { |step| step["run"] }.join("\n")
   raise "workflow must not build an IPA" if commands.include?("flutter build ipa")
   raise "workflow must not upload an IPA" if commands.include?("pilot upload")
+' "$workflow"
+
+ruby -rjson -e '
+  workflow_path = ARGV.fetch(0)
+  older_target = "a" * 40
+  newer_dispatch_head = "b" * 40
+  run = {
+    "id" => 123,
+    "name" => "Deploy TestFlight",
+    "path" => ".github/workflows/deploy-testflight.yml",
+    "event" => "workflow_dispatch",
+    "head_branch" => "main",
+    "conclusion" => "success",
+    "head_sha" => newer_dispatch_head,
+  }
+  provenance = {
+    "run_id" => 123,
+    "repository" => "yuto90/conquest",
+    "workflow_name" => "Deploy TestFlight",
+    "workflow_path" => ".github/workflows/deploy-testflight.yml",
+    "build_workflow_path" => ".github/workflows/build-ios-app-store.yml",
+    "app_version" => "1.0.1",
+    "build_number" => "123",
+    "build_id" => "build-123",
+    "commit_sha" => older_target,
+    "submission_source" => "testflight",
+    "internal_distributed" => true,
+  }
+  raise "fixture must represent an older target commit" unless provenance["commit_sha"] != run["head_sha"]
+  source = File.read(workflow_path)
+  raise "workflow must not bind provenance to dispatch head SHA" if source.include?(".commit_sha == $head_sha")
+  raise "provenance fixture lost its target SHA" unless provenance["commit_sha"].match?(/\A[0-9a-f]{40}\z/)
 ' "$workflow"
 
 ruby -ryaml -e '
