@@ -121,6 +121,72 @@ ruby -ryaml -e '
   raise "distribution secrets must not be job-scoped" unless leaked.empty?
 ' "$build_workflow"
 
+build_step_script="$(ruby -ryaml -e '
+  workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
+  step = workflow.fetch("jobs").fetch("build").fetch("steps").find do |candidate|
+    candidate["name"] == "Build signed IPA"
+  end
+  abort "signed IPA build step is missing" unless step
+  print step.fetch("run")
+' "$build_workflow")"
+[[ -n "$build_step_script" ]] || {
+  printf 'signed IPA build step must contain a run script\n' >&2
+  exit 1
+}
+
+fixture_root="$(mktemp -d)"
+trap 'rm -rf "$fixture_root"' EXIT
+mkdir -p "$fixture_root/bin" "$fixture_root/app"
+apply_stub="$fixture_root/bin/command-stub"
+cat > "$apply_stub" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+{
+  printf '%s' "$(basename "$0")"
+  printf '|%s' "$@"
+  printf '\n'
+} >> "$CALL_LOG"
+STUB
+chmod +x "$apply_stub"
+ln -s "$apply_stub" "$fixture_root/bin/fvm"
+ln -s "$apply_stub" "$fixture_root/bin/ruby"
+ln -s "$apply_stub" "$fixture_root/bin/xcodebuild"
+
+build_step_script="${build_step_script//'${{ github.run_id }}'/31456641285}"
+(
+  cd "$fixture_root/app"
+  PATH="$fixture_root/bin:$PATH" \
+  CALL_LOG="$fixture_root/build-calls.log" \
+  GITHUB_OUTPUT="$fixture_root/github-output" \
+  RUNNER_TEMP="$fixture_root/runner-temp" \
+  APP_BUNDLE_ID="com.yuto.conquest" \
+  APPLE_TEAM_ID="TEAM123456" \
+  PROFILE_NAME="Conquest App Store" \
+  APP_VERSION="1.2.3" \
+    bash -c "$build_step_script"
+)
+
+expected_config_call='fvm|flutter|build|ios|--release|--config-only|--no-codesign|--build-name|1.2.3|--build-number|31456641285'
+actual_config_call="$(sed -n '1p' "$fixture_root/build-calls.log")"
+[[ "$actual_config_call" == "$expected_config_call" ]] || {
+  printf 'Flutter config generation must disable signing before release signing is configured\nexpected: %s\nactual:   %s\n' \
+    "$expected_config_call" "$actual_config_call" >&2
+  exit 1
+}
+
+expected_signing_call='ruby|../_release_automation/script/configure-ios-signing.rb'
+actual_signing_call="$(sed -n '2p' "$fixture_root/build-calls.log")"
+[[ "$actual_signing_call" == "$expected_signing_call" ]] || {
+  printf 'release signing must be configured immediately after Flutter config generation\n' >&2
+  exit 1
+}
+
+archive_call="$(sed -n '3p' "$fixture_root/build-calls.log")"
+[[ "$archive_call" == xcodebuild*'|archive' ]] || {
+  printf 'signed archive must run after release signing is configured\n' >&2
+  exit 1
+}
+
 export_options_script="$(ruby -ryaml -e '
   workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
   step = workflow.fetch("jobs").fetch("build").fetch("steps").find do |candidate|
@@ -133,8 +199,6 @@ export_options_script="$(ruby -ryaml -e '
   printf 'export options step must contain a run script\n' >&2
   exit 1
 }
-fixture_root="$(mktemp -d)"
-trap 'rm -rf "$fixture_root"' EXIT
 bundle_id="com.example.conquest"
 profile_name='Profile & <Release> "Beta"'
 RUNNER_TEMP="$fixture_root" \
