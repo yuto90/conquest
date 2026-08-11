@@ -407,6 +407,7 @@ jobs:
           fvm flutter build ios \
             --release \
             --config-only \
+            --no-codesign \
             --build-name "$APP_VERSION" \
             --build-number "${{ github.run_id }}"
           APP_BUNDLE_ID="$APP_BUNDLE_ID" \
