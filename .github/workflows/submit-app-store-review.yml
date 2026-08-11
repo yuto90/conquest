@@ -1,0 +1,296 @@
+name: Submit App Store Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: "TestFlightで確認したApp version（例: 1.0.1）"
+        required: true
+        type: string
+      build_number:
+        description: "Deploy TestFlightのSummaryに表示されたBuild number"
+        required: true
+        type: string
+      whats_new_ja:
+        description: "App Storeに表示する日本語の「このバージョンの新機能」"
+        required: true
+        type: string
+      review_notes:
+        description: "App Review向けの補足（空欄なら既存値を保持）"
+        required: false
+        type: string
+
+concurrency:
+  group: app-store-review-submission
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  submit:
+    name: Submit tested build to App Review
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    environment: testflight
+    timeout-minutes: 20
+    env:
+      APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
+      APP_VERSION: ${{ inputs.app_version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      WHATS_NEW_JA: ${{ inputs.whats_new_ja }}
+      REVIEW_NOTES: ${{ inputs.review_notes }}
+      TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Validate release request
+        id: validate
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::App Store review submission must run from main"
+            exit 1
+          fi
+
+          missing=()
+          for name in \
+            APP_BUNDLE_ID \
+            TESTFLIGHT_INTERNAL_GROUP \
+            APP_STORE_CONNECT_ISSUER_ID \
+            APP_STORE_CONNECT_KEY_ID \
+            APP_STORE_CONNECT_PRIVATE_KEY; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            printf '::error::Missing App Store review setting: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+          if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::app_version must be numeric x.y.z"
+            exit 1
+          fi
+          if [[ ! "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::build_number must contain digits only"
+            exit 1
+          fi
+          if [[ ! "$WHATS_NEW_JA" =~ [^[:space:]] ]]; then
+            echo "::error::whats_new_ja must not be blank"
+            exit 1
+          fi
+
+      - name: Resolve TestFlight provenance
+        id: provenance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_NUMBER")"
+          if ! jq -e \
+            --argjson run_id "$BUILD_NUMBER" \
+            '.id == $run_id and
+             .name == "Deploy TestFlight" and
+             .path == ".github/workflows/deploy-testflight.yml" and
+             .event == "workflow_dispatch" and
+             .head_branch == "main" and
+             .conclusion == "success"' \
+            <<<"$run" >/dev/null; then
+            echo "::error::build_number must identify a successful Deploy TestFlight run on main"
+            exit 1
+          fi
+
+          artifact_name="app-store-build-provenance-$BUILD_NUMBER"
+          artifacts="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_NUMBER/artifacts")"
+          artifact_id="$(jq -er \
+            --arg name "$artifact_name" \
+            '[.artifacts[] | select(.name == $name and .expired == false)] |
+             if length == 1 then .[0].id else error("expected exactly one unexpired provenance artifact") end' \
+            <<<"$artifacts")"
+          gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
+            > "$RUNNER_TEMP/app-store-build-provenance.zip"
+          provenance="$(unzip -p \
+            "$RUNNER_TEMP/app-store-build-provenance.zip" \
+            app-store-build-provenance.json)"
+
+          if ! jq -e \
+            --argjson run_id "$BUILD_NUMBER" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg app_version "$APP_VERSION" \
+            --arg build_number "$BUILD_NUMBER" \
+            '.run_id == $run_id and
+             .repository == $repository and
+             .workflow_name == "Deploy TestFlight" and
+             .workflow_path == ".github/workflows/deploy-testflight.yml" and
+             .build_workflow_path == ".github/workflows/build-ios-app-store.yml" and
+             .app_version == $app_version and
+             .build_number == $build_number and
+             (.build_id | type == "string" and length > 0) and
+             .submission_source == "testflight" and
+             .internal_distributed == true and
+             (.commit_sha | type == "string" and test("^[0-9a-f]{40}$"))' \
+            <<<"$provenance" >/dev/null; then
+            echo "::error::TestFlight provenance does not match the requested version and build"
+            exit 1
+          fi
+          {
+            echo "commit_sha=$(jq -r '.commit_sha' <<<"$provenance")"
+            echo "build_id=$(jq -r '.build_id' <<<"$provenance")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install App Store dependencies
+        run: |
+          gem install jwt --version 2.10.2 --no-document
+          gem install fastlane --version 2.228.0 --no-document
+
+      - name: Create App Store Connect API key
+        shell: bash
+        env:
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          jq -n \
+            --arg key_id "$APP_STORE_CONNECT_KEY_ID" \
+            --arg issuer_id "$APP_STORE_CONNECT_ISSUER_ID" \
+            --rawfile key "$RUNNER_TEMP/AuthKey.p8" \
+            '{key_id: $key_id, issuer_id: $issuer_id, key: $key, in_house: false}' \
+            > "$RUNNER_TEMP/app-store-connect-key.json"
+
+      - name: Preflight App Store review
+        id: preflight
+        shell: bash
+        env:
+          EXPECTED_BUILD_ID: ${{ steps.provenance.outputs.build_id }}
+        run: |
+          set -euo pipefail
+          result="$(ruby script/app_store_release.rb preflight \
+            --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --bundle-id "$APP_BUNDLE_ID" \
+            --app-version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --internal-group "$TESTFLIGHT_INTERNAL_GROUP" \
+            --distribution-mode internal \
+            --whats-new "$WHATS_NEW_JA" \
+            --review-notes "$REVIEW_NOTES")"
+          actual_build_id="$(jq -r '.build_id' <<<"$result")"
+          if [[ "$actual_build_id" != "$EXPECTED_BUILD_ID" ]]; then
+            echo "::error::App Store build ID does not match TestFlight provenance"
+            exit 1
+          fi
+          {
+            echo "status=$(jq -r '.status' <<<"$result")"
+            echo "app_id=$(jq -r '.app_id' <<<"$result")"
+            echo "version_id=$(jq -r '.version_id' <<<"$result")"
+            echo "build_id=$(jq -r '.build_id' <<<"$result")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update App Store metadata and build
+        id: metadata
+        if: ${{ steps.preflight.outputs.status == 'ready' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby script/app_store_release.rb update-metadata \
+            --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
+            --bundle-id "$APP_BUNDLE_ID" \
+            --app-version "$APP_VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --internal-group "$TESTFLIGHT_INTERNAL_GROUP" \
+            --distribution-mode internal \
+            --whats-new "$WHATS_NEW_JA" \
+            --review-notes "$REVIEW_NOTES"
+
+      - name: Submit existing build for review
+        id: submit
+        if: ${{ steps.preflight.outputs.status == 'ready' }}
+        shell: bash
+        run: >-
+          fastlane deliver submit_build
+          --api_key_path "$RUNNER_TEMP/app-store-connect-key.json"
+          --app_identifier "$APP_BUNDLE_ID"
+          --app_version "$APP_VERSION"
+          --build_number "$BUILD_NUMBER"
+          --submit_for_review true
+          --skip_binary_upload true
+          --skip_screenshots true
+          --skip_metadata true
+          --automatic_release false
+          --precheck_default_rule_level error
+          --precheck_include_in_app_purchases false
+          --submission_information '{"export_compliance_uses_encryption": false}'
+          --force true
+
+      - name: Write App Store review summary
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_STATUS: ${{ steps.preflight.outputs.status }}
+          VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          PROVENANCE_OUTCOME: ${{ steps.provenance.outcome }}
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          METADATA_OUTCOME: ${{ steps.metadata.outcome }}
+          SUBMIT_OUTCOME: ${{ steps.submit.outcome }}
+          COMMIT_SHA: ${{ steps.provenance.outputs.commit_sha }}
+        run: |
+          result="failed"
+          detail="Workflow setup or submission did not complete."
+          if [[ "$SUBMIT_OUTCOME" == "success" ]]; then
+            result="submitted"
+            detail="The tested build was submitted to App Review."
+          elif [[ "$PREFLIGHT_OUTCOME" == "success" && "$PREFLIGHT_STATUS" == "already_submitted" ]]; then
+            result="already-submitted"
+            detail="The same build is already waiting for review or under review."
+          else
+            for stage_outcome in \
+              "request validation:$VALIDATE_OUTCOME" \
+              "TestFlight provenance:$PROVENANCE_OUTCOME" \
+              "App Store preflight:$PREFLIGHT_OUTCOME" \
+              "metadata update:$METADATA_OUTCOME" \
+              "review submission:$SUBMIT_OUTCOME"; do
+              stage="${stage_outcome%%:*}"
+              outcome="${stage_outcome#*:}"
+              if [[ "$outcome" == "failure" ]]; then
+                detail="Failed during $stage. Check the corresponding step error."
+                break
+              fi
+            done
+          fi
+          {
+            echo "## App Store review submission"
+            echo
+            echo "- App version: \`$APP_VERSION\`"
+            echo "- Build number: \`$BUILD_NUMBER\`"
+            echo "- Commit SHA: \`${COMMIT_SHA:-unavailable}\`"
+            echo "- Result: \`$result\`"
+            echo "- Detail: $detail"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up App Store Connect key
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "$RUNNER_TEMP/AuthKey.p8" \
+            "$RUNNER_TEMP/app-store-connect-key.json" \
+            "$RUNNER_TEMP/app-store-build-provenance.zip"
