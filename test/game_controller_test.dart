@@ -457,7 +457,10 @@ void main() {
     controller.tapBase(1);
     var state = container.read(gameControllerProvider);
     expect(state.selectedIslandId, isNull);
-    expect(state.interactionFeedback, contains('player island'));
+    expect(
+      state.interactionFeedback,
+      InteractionFeedbackType.unavailableSource,
+    );
 
     controller.tapBase(0);
     state = container.read(gameControllerProvider);
@@ -472,7 +475,10 @@ void main() {
 
     state = container.read(gameControllerProvider);
     expect(state.selectedIslandId, isNull);
-    expect(state.interactionFeedback, contains('more than 1'));
+    expect(
+      state.interactionFeedback,
+      InteractionFeedbackType.invalidatedSource,
+    );
 
     for (var index = 0; index < 30; index++) {
       loop.tick();
@@ -513,7 +519,10 @@ void main() {
 
       final cleared = container.read(gameControllerProvider);
       expect(cleared.selectedIslandId, isNull);
-      expect(cleared.interactionFeedback, contains('more than 1'));
+      expect(
+        cleared.interactionFeedback,
+        InteractionFeedbackType.invalidatedSource,
+      );
     },
   );
 
@@ -581,7 +590,10 @@ void main() {
       expect(source.faction, Faction.player);
       expect(source.currentForces, 2);
       expect(afterTick.selectedIslandId, isNull);
-      expect(afterTick.interactionFeedback, contains('Dispatch unavailable'));
+      expect(
+        afterTick.interactionFeedback,
+        InteractionFeedbackType.invalidatedSource,
+      );
       expect(afterTick.hasInteractionFeedback, isTrue);
 
       for (var index = 0; index < 30; index++) {

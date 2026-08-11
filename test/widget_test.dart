@@ -64,7 +64,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -102,7 +102,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
     const expectedLabels = <CpuDifficulty, String>{
@@ -121,7 +121,7 @@ void main() {
       final chip = find.byKey(ValueKey('cpu-difficulty-${entry.key.name}'));
       final semanticsNode = tester.getSemantics(chip);
       final data = semanticsNode.getSemanticsData();
-      expect(semanticsNode.label, '${entry.value} CPU difficulty');
+      expect(semanticsNode.label, '${entry.value} CPU難易度');
       expect(data.hasAction(SemanticsAction.tap), isTrue);
       expect(
         data.flagsCollection.isSelected,
@@ -147,7 +147,7 @@ void main() {
     final veryEasySemantics = tester.getSemantics(
       find.byKey(const ValueKey('cpu-difficulty-veryEasy')),
     );
-    expect(veryEasySemantics.label, 'Very Easy CPU difficulty');
+    expect(veryEasySemantics.label, 'Very Easy CPU難易度');
     expect(
       veryEasySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
       isTrue,
@@ -159,7 +159,7 @@ void main() {
     expect(find.text('選択中：10島 / Very Easy'), findsOneWidget);
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
-      'Start game with 10 islands on Very Easy CPU difficulty',
+      '10島、Very Easy CPUでゲームを開始',
     );
     semantics.dispose();
   });
@@ -171,7 +171,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -211,17 +211,17 @@ void main() {
             find.byKey(const ValueKey('player-cpu-difficulty-normal')),
           )
           .label,
-      '1P Normal CPU difficulty',
+      '1P Normal CPU難易度',
     );
     expect(
       tester
           .getSemantics(find.byKey(const ValueKey('cpu-difficulty-normal')))
           .label,
-      '2P Normal CPU difficulty',
+      '2P Normal CPU難易度',
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
-      contains('Watch CPU versus CPU'),
+      contains('1P Normal、2P NormalのCPU対戦を観戦'),
     );
     semantics.dispose();
   });
@@ -234,7 +234,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -285,7 +285,7 @@ void main() {
             ),
           ),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
@@ -363,7 +363,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -397,7 +397,9 @@ void main() {
   testWidgets('shows the generated map and configuration controls', (
     tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: MyApp()));
+    await tester.pumpWidget(
+      const ProviderScope(child: MyApp(locale: Locale('ja'))),
+    );
 
     expect(find.byType(Scaffold), findsOneWidget);
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
@@ -412,21 +414,21 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
-      contains('Player headquarters, forces 100 of 200'),
+      contains('プレイヤーの本拠地、兵力100/200'),
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-1'))).label,
-      contains('CPU headquarters, forces 100 of 200'),
+      contains('CPUの本拠地、兵力100/200'),
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-2'))).label,
-      contains('Neutral small island, durability 10'),
+      contains('中立の小島、耐久力10'),
     );
 
     expect(
@@ -460,7 +462,10 @@ void main() {
             GameConfiguration(gameMode: GameMode.cpuVsCpu),
           ),
         ],
-        child: const MyApp(key: ValueKey('spectator-presentation')),
+        child: const MyApp(
+          key: ValueKey('spectator-presentation'),
+          locale: Locale('ja'),
+        ),
       ),
     );
     expect(
@@ -480,12 +485,15 @@ void main() {
             GameConfiguration(gameMode: GameMode.playerVsCpu),
           ),
         ],
-        child: const MyApp(key: ValueKey('standard-presentation')),
+        child: const MyApp(
+          key: ValueKey('standard-presentation'),
+          locale: Locale('ja'),
+        ),
       ),
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
-      contains('Player'),
+      contains('プレイヤー'),
     );
     semantics.dispose();
   });
@@ -535,7 +543,7 @@ void main() {
             GameConfiguration(gameMode: GameMode.cpuVsCpu),
           ),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
     await tester.tap(find.byKey(const ValueKey('start-game')));
@@ -568,7 +576,10 @@ void main() {
             GameConfiguration(gameMode: GameMode.cpuVsCpu),
           ),
         ],
-        child: const MyApp(key: ValueKey('spectator-guidance')),
+        child: const MyApp(
+          key: ValueKey('spectator-guidance'),
+          locale: Locale('ja'),
+        ),
       ),
     );
     await tester.tap(find.byKey(const ValueKey('start-game')));
@@ -616,7 +627,10 @@ void main() {
             GameConfiguration(gameMode: GameMode.playerVsCpu),
           ),
         ],
-        child: const MyApp(key: ValueKey('standard-guidance')),
+        child: const MyApp(
+          key: ValueKey('standard-guidance'),
+          locale: Locale('ja'),
+        ),
       ),
     );
     await tester.tap(find.byKey(const ValueKey('start-game')));
@@ -651,7 +665,7 @@ void main() {
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
       await tester.tap(find.byKey(const ValueKey('start-game')));
@@ -699,7 +713,7 @@ void main() {
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -712,9 +726,9 @@ void main() {
         expect(data.flagsCollection.isEnabled, Tristate.isFalse);
         expect(data.hasAction(SemanticsAction.tap), isFalse);
         expect(node.hint, isNot(contains('Tap')));
-        expect(node.label, isNot(contains('available dispatch source')));
-        expect(node.label, isNot(contains('selected dispatch source')));
-        expect(node.label, isNot(contains('valid dispatch destination')));
+        expect(node.label, isNot(contains('出兵元として選択可能')));
+        expect(node.label, isNot(contains('出兵元を選択中')));
+        expect(node.label, isNot(contains('出兵可能な目標')));
       }
 
       // Configuration state renders player-owned islands before interaction
@@ -736,8 +750,8 @@ void main() {
       final playingData = playingNode.getSemanticsData();
       expect(playingData.flagsCollection.isEnabled, Tristate.isTrue);
       expect(tester.widget<Base>(islandFinder).onPressed, isNotNull);
-      expect(playingNode.label, contains('available dispatch source'));
-      expect(playingNode.hint, contains('Tap to select'));
+      expect(playingNode.label, contains('出兵元として選択可能'));
+      expect(playingNode.hint, contains('タップして'));
 
       final controller = container.read(gameControllerProvider.notifier);
       controller.tapBase(0);
@@ -760,7 +774,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -784,8 +798,8 @@ void main() {
           .selected,
       isTrue,
     );
-    expect(source.label, contains('selected dispatch source'));
-    expect(destination.label, contains('valid dispatch destination'));
+    expect(source.label, contains('出兵元を選択中'));
+    expect(destination.label, contains('出兵可能な目標'));
     semantics.dispose();
   });
 
@@ -799,7 +813,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -812,7 +826,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('interaction-feedback')), findsOneWidget);
-    expect(find.textContaining('player island'), findsOneWidget);
+    expect(find.text('兵力が2以上ある自軍の島を選択してください。'), findsOneWidget);
   });
 
   testWidgets(
@@ -826,7 +840,7 @@ void main() {
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -866,25 +880,17 @@ void main() {
         tester
             .getSemantics(find.byKey(const ValueKey('moving-force-101')))
             .label,
-        allOf(
-          contains('Player'),
-          contains('strength 17'),
-          contains('not tappable'),
-        ),
+        allOf(contains('プレイヤー'), contains('兵力17'), contains('タップ不可')),
       );
       expect(
         tester
             .getSemantics(find.byKey(const ValueKey('moving-force-102')))
             .label,
-        allOf(
-          contains('CPU'),
-          contains('strength 9'),
-          contains('not tappable'),
-        ),
+        allOf(contains('CPU'), contains('兵力9'), contains('タップ不可')),
       );
       expect(
         tester.getSemantics(find.byType(MovingForceWidget).first).label,
-        contains('Player moving troop'),
+        contains('プレイヤーの移動部隊'),
       );
       await tester.tap(
         find.byKey(const ValueKey('moving-force-101')),
@@ -904,7 +910,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -984,7 +990,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1019,7 +1025,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [randomProvider.overrideWithValue(Random(1))],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1079,7 +1085,9 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(180, 180));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(ProviderScope(child: const MyApp()));
+    await tester.pumpWidget(
+      const ProviderScope(child: MyApp(locale: Locale('ja'))),
+    );
 
     expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
     expect(find.byKey(const ValueKey('island-count-10')), findsOneWidget);
@@ -1102,7 +1110,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1145,7 +1153,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [randomProvider.overrideWithValue(Random(1))],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -1187,7 +1195,7 @@ void main() {
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -1254,7 +1262,7 @@ void main() {
               ),
             ),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -1325,7 +1333,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1375,7 +1383,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1427,7 +1435,7 @@ void main() {
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
 
@@ -1446,7 +1454,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('quit-game')));
       await tester.pump();
-      expect(find.text('Quit match?'), findsOneWidget);
+      expect(find.text('対戦を終了しますか？'), findsOneWidget);
       expect(find.byKey(const ValueKey('confirm-quit')), findsOneWidget);
       expect(find.byKey(const ValueKey('cancel-quit')), findsOneWidget);
 
@@ -1473,7 +1481,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1510,7 +1518,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
 
@@ -1543,7 +1551,7 @@ void main() {
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
         ],
-        child: const MyApp(),
+        child: const MyApp(locale: Locale('ja')),
       ),
     );
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
@@ -1561,7 +1569,7 @@ void main() {
       const GameResult.victory(elapsedMs: 1, winner: Faction.player),
     );
     await tester.pump();
-    expect(find.text('1P WIN'), findsOneWidget);
+    expect(find.text('1P 勝利'), findsOneWidget);
 
     controller.returnToConfiguration();
     controller.startGame();
@@ -1572,13 +1580,13 @@ void main() {
       const GameResult.defeat(elapsedMs: 2, winner: Faction.cpu),
     );
     await tester.pump();
-    expect(find.text('2P WIN'), findsOneWidget);
+    expect(find.text('2P 勝利'), findsOneWidget);
   });
 
   testWidgets('uses mode-specific draw labels', (tester) async {
     for (final entry in const [
       (mode: GameMode.playerVsCpu, title: '引き分け'),
-      (mode: GameMode.cpuVsCpu, title: 'DRAW'),
+      (mode: GameMode.cpuVsCpu, title: '引き分け'),
     ]) {
       final loop = ManualWidgetGameLoop();
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1591,7 +1599,7 @@ void main() {
               GameConfiguration(gameMode: entry.mode),
             ),
           ],
-          child: const MyApp(),
+          child: const MyApp(locale: Locale('ja')),
         ),
       );
       final container = ProviderScope.containerOf(

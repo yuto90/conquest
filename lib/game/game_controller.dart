@@ -73,10 +73,6 @@ class GameController extends _$GameController {
   GameState? _cachedInitialState;
 
   static const _interactionFeedbackDurationMs = 1500;
-  static const _unavailableSourceMessage =
-      'Choose a player island with more than 1 force.';
-  static const _invalidatedSourceMessage =
-      'Dispatch unavailable: source needs more than 1 force and player ownership.';
 
   @override
   GameState build() {
@@ -392,7 +388,7 @@ class GameController extends _$GameController {
             selectedSource.faction != Faction.player ||
             selectedSource.currentForces <= 1)) {
       state = state.clearSelection();
-      _showInteractionFeedback(_invalidatedSourceMessage);
+      _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
       return;
     }
 
@@ -404,7 +400,7 @@ class GameController extends _$GameController {
     if (selectedIslandId == null) {
       if (tappedIsland.faction != Faction.player ||
           tappedIsland.currentForces <= 1) {
-        _showInteractionFeedback(_unavailableSourceMessage);
+        _showInteractionFeedback(InteractionFeedbackType.unavailableSource);
         return;
       }
       state = state
@@ -422,7 +418,7 @@ class GameController extends _$GameController {
     final strength = source.currentForces ~/ 2;
     if (strength <= 0) {
       state = state.clearSelection();
-      _showInteractionFeedback(_invalidatedSourceMessage);
+      _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
       return;
     }
 
@@ -475,7 +471,7 @@ class GameController extends _$GameController {
         selectedBeforeTick != null &&
         state.selectedIslandId == null &&
         state.phase == GamePhase.playing) {
-      _showInteractionFeedback(_invalidatedSourceMessage);
+      _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
     }
     if (state.interactionFeedback != null &&
         state.elapsedMs >= state.interactionFeedbackUntilMs) {
@@ -591,7 +587,7 @@ class GameController extends _$GameController {
     return maxId + 1;
   }
 
-  void _showInteractionFeedback(String message) {
+  void _showInteractionFeedback(InteractionFeedbackType message) {
     state = state.copyWith(
       interactionFeedback: message,
       interactionFeedbackUntilMs:

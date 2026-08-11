@@ -9,8 +9,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'game/game_controller.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
+
+AppLocalizations _appLocalizations(BuildContext context) {
+  return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+      AppLocalizationsEn();
+}
 
 class Home extends StatelessWidget {
   const Home({super.key});
@@ -72,6 +79,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     final state = ref.watch(gameControllerProvider);
     final controller = ref.read(gameControllerProvider.notifier);
     final isPlayerInteractionEnabled =
@@ -88,8 +96,9 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
           CustomPaint(painter: _RoutePainter(state: state)),
           Semantics(
             container: true,
-            label:
-                'Island map, ${state.configuration.totalIslandCount} islands',
+            label: l10n.boardMapSemantics(
+              islandCount: state.configuration.totalIslandCount,
+            ),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -141,7 +150,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   : null,
             ),
           if (state.hasInteractionFeedback)
-            _InteractionFeedback(message: state.interactionFeedback!),
+            _InteractionFeedback(type: state.interactionFeedback!),
           if (state.phase == GamePhase.configuration)
             _ConfigurationPanel(
               state: state,
@@ -178,18 +187,18 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         return AlertDialog(
           backgroundColor: TacticalPalette.surface,
           shape: const RoundedRectangleBorder(),
-          title: const Text('Quit match?'),
-          content: const Text('Your current match will not be saved.'),
+          title: Text(_appLocalizations(context).quitTitle),
+          content: Text(_appLocalizations(context).quitDescription),
           actions: [
             TextButton(
               key: const ValueKey('cancel-quit'),
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('CANCEL'),
+              child: Text(_appLocalizations(context).cancel.toUpperCase()),
             ),
             TextButton(
               key: const ValueKey('confirm-quit'),
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('QUIT'),
+              child: Text(_appLocalizations(context).quit.toUpperCase()),
             ),
           ],
         );
@@ -207,6 +216,7 @@ class _BoardChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     final selected = state.selectedIslandId != null;
     final isSpectator = state.configuration.gameMode == GameMode.cpuVsCpu;
     return IgnorePointer(
@@ -222,7 +232,7 @@ class _BoardChrome extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'CONQUEST',
+                    l10n.brandName,
                     style: TacticalTypography.mono(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -233,7 +243,9 @@ class _BoardChrome extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '戦術海図 / ${state.configuration.totalIslandCount}島',
+                    l10n.boardTitle(
+                      islandCount: state.configuration.totalIslandCount,
+                    ),
                     style: TacticalTypography.mono(
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
@@ -263,10 +275,10 @@ class _BoardChrome extends StatelessWidget {
                     child: Text(
                       key: const ValueKey('board-status-label'),
                       isSpectator
-                          ? '観戦中'
+                          ? l10n.spectatorStatus
                           : selected
-                          ? '出兵元を選択中'
-                          : '自軍の島を選択',
+                          ? l10n.boardStatusSelected
+                          : l10n.boardStatusUnselected,
                       style: TacticalTypography.mono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -275,18 +287,20 @@ class _BoardChrome extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    key: const ValueKey('board-status-detail'),
-                    isSpectator
-                        ? 'CPU同士の対戦を表示中'
-                        : selected
-                        ? 'タップで目標を指定\n兵力の半分を派遣'
-                        : '島をタップして選択\n兵力2以上で出兵可能',
-                    textAlign: TextAlign.right,
-                    style: TacticalTypography.body(
-                      fontSize: 10,
-                      color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
-                      height: 1.35,
+                  Flexible(
+                    child: Text(
+                      key: const ValueKey('board-status-detail'),
+                      isSpectator
+                          ? l10n.spectatorDetail
+                          : selected
+                          ? l10n.boardStatusSelectedDetail
+                          : l10n.boardStatusUnselectedDetail,
+                      textAlign: TextAlign.right,
+                      style: TacticalTypography.body(
+                        fontSize: 10,
+                        color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
+                        height: 1.35,
+                      ),
                     ),
                   ),
                 ],
@@ -306,10 +320,11 @@ class _PauseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     return Semantics(
       button: true,
       enabled: onPressed != null,
-      label: 'Pause game',
+      label: l10n.pauseGame,
       child: SizedBox.square(
         dimension: 48,
         child: ElevatedButton(
@@ -349,6 +364,7 @@ class _PauseMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     return ColoredBox(
       color: TacticalPalette.outer.withValues(alpha: 0.23),
       child: Center(
@@ -374,7 +390,7 @@ class _PauseMenu extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '対戦を一時停止',
+                l10n.pauseHeading,
                 style: TacticalTypography.mono(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -385,7 +401,7 @@ class _PauseMenu extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '一時停止',
+                l10n.pauseTitle,
                 style: TacticalTypography.display(
                   fontSize: 30,
                   height: 1,
@@ -394,7 +410,7 @@ class _PauseMenu extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                '現在の盤面を確認できます。',
+                l10n.pauseDescription,
                 style: TacticalTypography.body(
                   fontSize: 12,
                   color: TacticalPalette.muted,
@@ -404,13 +420,13 @@ class _PauseMenu extends StatelessWidget {
               _PrimaryActionButton(
                 key: const ValueKey('resume-game'),
                 onPressed: onResume,
-                label: '再開',
+                label: l10n.resume,
               ),
               const SizedBox(height: 9),
               _SecondaryActionButton(
                 key: const ValueKey('quit-game'),
                 onPressed: onQuit,
-                label: '設定へ戻る',
+                label: l10n.returnSettings,
               ),
             ],
           ),
@@ -435,7 +451,8 @@ class _ResultPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = _resultTitle(configuration, result);
+    final l10n = _appLocalizations(context);
+    final title = _resultTitle(l10n, configuration, result);
     final ruleColor = switch (result.type) {
       GameResultType.victory
           when configuration.gameMode == GameMode.playerVsCpu =>
@@ -478,7 +495,7 @@ class _ResultPanel extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '戦闘終了',
+                l10n.resultHeading,
                 style: TacticalTypography.mono(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
@@ -511,13 +528,13 @@ class _ResultPanel extends StatelessWidget {
               _PrimaryActionButton(
                 key: const ValueKey('replay-game'),
                 onPressed: onReplay,
-                label: '再戦',
+                label: l10n.replay,
               ),
               const SizedBox(height: 9),
               _SecondaryActionButton(
                 key: const ValueKey('return-settings'),
                 onPressed: onSettings,
-                label: '設定へ戻る',
+                label: l10n.returnSettings,
               ),
             ],
           ),
@@ -535,6 +552,7 @@ class _ConfigurationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     return ColoredBox(
       key: const ValueKey('settings-view'),
       color: TacticalPalette.background,
@@ -554,7 +572,7 @@ class _ConfigurationPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        '対戦設定 / 01',
+                        l10n.settingsStep,
                         style: TacticalTypography.mono(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -567,7 +585,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       Semantics(
                         header: true,
                         child: Text(
-                          '対戦設定',
+                          l10n.settingsTitle,
                           style: TacticalTypography.display(
                             fontSize: 40,
                             height: 0.96,
@@ -577,7 +595,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        '海域の規模とCPUの判断速度を選択してください。',
+                        l10n.settingsDescription,
                         style: TacticalTypography.body(
                           fontSize: 12,
                           color: TacticalPalette.muted,
@@ -586,7 +604,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 30),
                       Text(
-                        '島数',
+                        l10n.islandCountLabel,
                         style: TacticalTypography.mono(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -615,7 +633,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'ゲームモード',
+                        l10n.gameModeLabel,
                         style: TacticalTypography.mono(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -637,8 +655,8 @@ class _ConfigurationPanel extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         state.configuration.gameMode == GameMode.cpuVsCpu
-                            ? '1P CPU難易度'
-                            : 'CPU難易度',
+                            ? l10n.playerCpuDifficultyLabel
+                            : l10n.cpuDifficultyLabel,
                         style: TacticalTypography.mono(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -669,7 +687,7 @@ class _ConfigurationPanel extends StatelessWidget {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          '2P CPU難易度',
+                          l10n.opponentCpuDifficultyLabel,
                           style: TacticalTypography.mono(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -716,9 +734,9 @@ class _ConfigurationPanel extends StatelessWidget {
                             ),
                             child: Semantics(
                               excludeSemantics: true,
-                              label: _startLabel(state.configuration),
+                              label: _startLabel(l10n, state.configuration),
                               child: Text(
-                                'ゲーム開始',
+                                l10n.startGame,
                                 style: TacticalTypography.body(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
@@ -732,7 +750,7 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 17),
                       Text(
-                        _selectionSummary(state.configuration),
+                        _selectionSummary(l10n, state.configuration),
                         textAlign: TextAlign.center,
                         style: TacticalTypography.mono(
                           fontSize: 10,
@@ -760,11 +778,13 @@ class _IslandCountChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     final selected = state.configuration.totalIslandCount == count;
+    final semanticLabel = l10n.islandCountChoice(count: count);
     return Semantics(
       button: true,
       selected: selected,
-      label: '$count islands',
+      label: semanticLabel,
       child: SizedBox(
         height: 51,
         width: double.infinity,
@@ -780,7 +800,7 @@ class _IslandCountChoice extends StatelessWidget {
           selected: selected,
           showCheckmark: false,
           onSelected: (_) => _selectCount(context, count),
-          tooltip: '$count islands',
+          tooltip: semanticLabel,
           padding: EdgeInsets.zero,
           labelPadding: const EdgeInsets.symmetric(vertical: 9),
           materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -829,18 +849,22 @@ class _DifficultyChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     final selected =
         (playerCpu
             ? state.configuration.playerCpuDifficulty
             : state.configuration.cpuDifficulty) ==
         difficulty;
-    final label = _difficultyLabel(difficulty);
+    final label = _difficultyLabel(l10n, difficulty);
     final owner = playerCpu
         ? '1P '
         : state.configuration.gameMode == GameMode.cpuVsCpu
         ? '2P '
         : '';
-    final semanticLabel = '$owner$label CPU difficulty';
+    final semanticLabel = l10n.difficultyChoice(
+      owner: owner,
+      difficulty: label,
+    );
     return SizedBox(
       height: 51,
       width: double.infinity,
@@ -851,7 +875,10 @@ class _DifficultyChoice extends StatelessWidget {
           child: Semantics(
             excludeSemantics: true,
             label: semanticLabel,
-            child: Text(label, textAlign: TextAlign.center),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, textAlign: TextAlign.center),
+            ),
           ),
         ),
         selected: selected,
@@ -904,8 +931,9 @@ class _GameModeChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
     final selected = state.configuration.gameMode == mode;
-    final label = _modeLabel(mode);
+    final label = _modeLabel(l10n, mode);
     return SizedBox(
       height: 41,
       width: double.infinity,
@@ -916,7 +944,10 @@ class _GameModeChoice extends StatelessWidget {
           child: Semantics(
             excludeSemantics: true,
             label: label,
-            child: Text(label, textAlign: TextAlign.center),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label, textAlign: TextAlign.center),
+            ),
           ),
         ),
         selected: selected,
@@ -954,51 +985,70 @@ String _modeKey(GameMode mode) => switch (mode) {
   GameMode.cpuVsCpu => 'cpu-vs-cpu',
 };
 
-String _modeLabel(GameMode mode) => switch (mode) {
-  GameMode.playerVsCpu => 'PLAY VS CPU',
-  GameMode.cpuVsCpu => 'WATCH CPU VS CPU',
+String _modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
+  GameMode.playerVsCpu => l10n.modePlayerVsCpu,
+  GameMode.cpuVsCpu => l10n.modeCpuVsCpu,
 };
 
-String _startLabel(GameConfiguration configuration) =>
+String _startLabel(AppLocalizations l10n, GameConfiguration configuration) =>
     switch (configuration.gameMode) {
-      GameMode.playerVsCpu =>
-        'Start game with ${configuration.totalIslandCount} islands on '
-            '${_difficultyLabel(configuration.cpuDifficulty)} CPU difficulty',
-      GameMode.cpuVsCpu =>
-        'Watch CPU versus CPU with ${configuration.totalIslandCount} islands, '
-            '1P ${_difficultyLabel(configuration.playerCpuDifficulty)}, '
-            '2P ${_difficultyLabel(configuration.cpuDifficulty)}',
+      GameMode.playerVsCpu => l10n.startGameSemantics(
+        islandCount: configuration.totalIslandCount,
+        difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      ),
+      GameMode.cpuVsCpu => l10n.startSpectatorSemantics(
+        islandCount: configuration.totalIslandCount,
+        playerDifficulty: _difficultyLabel(
+          l10n,
+          configuration.playerCpuDifficulty,
+        ),
+        cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      ),
     };
 
-String _selectionSummary(GameConfiguration configuration) =>
-    configuration.gameMode == GameMode.cpuVsCpu
-    ? '選択中：${configuration.totalIslandCount}島 / 1P '
-          '${_difficultyLabel(configuration.playerCpuDifficulty)} / 2P '
-          '${_difficultyLabel(configuration.cpuDifficulty)}'
-    : '選択中：${configuration.totalIslandCount}島 / '
-          '${_difficultyLabel(configuration.cpuDifficulty)}';
+String _selectionSummary(
+  AppLocalizations l10n,
+  GameConfiguration configuration,
+) => configuration.gameMode == GameMode.cpuVsCpu
+    ? l10n.selectedSummarySpectator(
+        islandCount: configuration.totalIslandCount,
+        playerDifficulty: _difficultyLabel(
+          l10n,
+          configuration.playerCpuDifficulty,
+        ),
+        cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      )
+    : l10n.selectedSummary(
+        islandCount: configuration.totalIslandCount,
+        difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      );
 
-String _resultTitle(GameConfiguration configuration, GameResult result) {
+String _resultTitle(
+  AppLocalizations l10n,
+  GameConfiguration configuration,
+  GameResult result,
+) {
   if (configuration.gameMode == GameMode.playerVsCpu) {
     return switch (result.type) {
-      GameResultType.victory => '勝利',
-      GameResultType.defeat => '敗北',
-      GameResultType.draw => '引き分け',
+      GameResultType.victory => l10n.victory,
+      GameResultType.defeat => l10n.defeat,
+      GameResultType.draw => l10n.draw,
     };
   }
   return switch (result.winner) {
-    Faction.player => '1P WIN',
-    Faction.cpu => '2P WIN',
-    Faction.neutral || null => 'DRAW',
+    Faction.player => l10n.spectatorPlayerWin,
+    Faction.cpu => l10n.spectatorCpuWin,
+    Faction.neutral || null => l10n.spectatorDraw,
   };
 }
 
-String _difficultyLabel(CpuDifficulty difficulty) => switch (difficulty) {
-  CpuDifficulty.veryEasy => 'Very Easy',
-  CpuDifficulty.easy => 'Easy',
-  CpuDifficulty.normal => 'Normal',
-  CpuDifficulty.hard => 'Hard',
-};
+String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
+    switch (difficulty) {
+      CpuDifficulty.veryEasy => l10n.difficultyVeryEasy,
+      CpuDifficulty.easy => l10n.difficultyEasy,
+      CpuDifficulty.normal => l10n.difficultyNormal,
+      CpuDifficulty.hard => l10n.difficultyHard,
+    };
 
 class _CountdownOverlay extends StatelessWidget {
   const _CountdownOverlay({required this.state});
@@ -1007,7 +1057,8 @@ class _CountdownOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text = _countdownText;
+    final l10n = _appLocalizations(context);
+    final text = _countdownText(l10n);
     if (text == null) return const SizedBox.shrink();
     return IgnorePointer(
       child: ColoredBox(
@@ -1015,7 +1066,7 @@ class _CountdownOverlay extends StatelessWidget {
         child: Center(
           child: Semantics(
             liveRegion: true,
-            label: 'Game start $text',
+            label: l10n.countdownSemantics(countdown: text),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1028,9 +1079,9 @@ class _CountdownOverlay extends StatelessWidget {
                       child: Text(
                         text,
                         style: TacticalTypography.display(
-                          fontSize: text == 'START' ? 42 : 82,
+                          fontSize: text == l10n.startWord ? 42 : 82,
                           height: 0.9,
-                          letterSpacing: text == 'START' ? 1 : -4.9,
+                          letterSpacing: text == l10n.startWord ? 1 : -4.9,
                         ),
                       ),
                     ),
@@ -1038,7 +1089,7 @@ class _CountdownOverlay extends StatelessWidget {
                 ),
                 const SizedBox(height: 23),
                 Text(
-                  '出撃準備',
+                  l10n.prepareToDeploy,
                   style: TacticalTypography.mono(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -1053,7 +1104,7 @@ class _CountdownOverlay extends StatelessWidget {
     );
   }
 
-  String? get _countdownText {
+  String? _countdownText(AppLocalizations l10n) {
     if (state.phase == GamePhase.startCountdown ||
         state.phase == GamePhase.resumeCountdown) {
       if (state.countdownRemainingMs > 2000) return '3';
@@ -1062,7 +1113,7 @@ class _CountdownOverlay extends StatelessWidget {
       return null;
     }
     if (state.phase == GamePhase.playing && state.elapsedMs == 0)
-      return 'START';
+      return l10n.startWord;
     return null;
   }
 }
@@ -1220,12 +1271,19 @@ class _SecondaryActionButton extends StatelessWidget {
 }
 
 class _InteractionFeedback extends StatelessWidget {
-  const _InteractionFeedback({required this.message});
+  const _InteractionFeedback({required this.type});
 
-  final String message;
+  final InteractionFeedbackType type;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    final message = switch (type) {
+      InteractionFeedbackType.unavailableSource =>
+        l10n.feedbackUnavailableSource,
+      InteractionFeedbackType.invalidatedSource =>
+        l10n.feedbackInvalidatedSource,
+    };
     return IgnorePointer(
       child: Align(
         alignment: Alignment.bottomCenter,

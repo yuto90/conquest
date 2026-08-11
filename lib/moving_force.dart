@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'faction_presentation.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
+import 'l10n/generated/app_localizations.dart';
+import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_theme.dart';
 
 /// Renders an in-flight group as a flat, top-view tactical aircraft.
@@ -24,6 +26,9 @@ class MovingForceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        Localizations.of<AppLocalizations>(context, AppLocalizations) ??
+        AppLocalizationsEn();
     final angle = force.deltaX == 0 && force.deltaY == 0
         ? 0.0
         : math.atan2(force.deltaY, force.deltaX);
@@ -32,7 +37,7 @@ class MovingForceWidget extends StatelessWidget {
       container: true,
       excludeSemantics: true,
       enabled: false,
-      label: _semanticLabel,
+      label: _semanticLabel(l10n),
       child: IgnorePointer(
         child: SizedBox.square(
           dimension: size,
@@ -128,12 +133,28 @@ class MovingForceWidget extends StatelessWidget {
       presentation ??
       FactionPresentation.forMode(GameMode.playerVsCpu, force.faction);
 
-  String get _semanticLabel {
-    return '${_effectivePresentation.semanticName} moving troop, '
-        'strength ${force.currentValue}, '
-        'current value ${force.currentValue}, '
-        'from island ${force.sourceIslandId} to island '
-        '${force.destinationIslandId}, action unavailable, not tappable';
+  String _factionName(AppLocalizations l10n) {
+    if (_effectivePresentation.semanticName == '1P') {
+      return l10n.factionPlayerOne;
+    }
+    if (_effectivePresentation.semanticName == '2P') {
+      return l10n.factionPlayerTwo;
+    }
+    return switch (force.faction) {
+      Faction.player => l10n.factionPlayer,
+      Faction.cpu => l10n.factionCpu,
+      Faction.neutral => l10n.factionNeutral,
+    };
+  }
+
+  String _semanticLabel(AppLocalizations l10n) {
+    return l10n.movingForceSemantics(
+      faction: _factionName(l10n),
+      strength: force.currentValue,
+      value: force.currentValue,
+      source: force.sourceIslandId,
+      destination: force.destinationIslandId,
+    );
   }
 }
 

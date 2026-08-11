@@ -255,3 +255,56 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 Issue #15時点では難易度選択を対象外としていたが、Issue #31で実装・自動QAした。試合途中の
 難易度変更、難易度設定の永続化、同一端末2人対戦、オンライン対戦、初期版に不要な演出、
 試合の保存・復元は引き続き対象外であり、実装・QAしていない。
+
+## Issue #44 英語・日本語ローカライズQA
+
+Issue #44 の実装コード検証は `685cc0f460b8efddcd3806dbb52ea638560470d5`（日本語モード
+ラベル追補と iOS bundle locale 宣言を含む完全SHA）で実施した。元の実装親は
+`c583cdc77d72794d695c4e05a1d884880431a46e`、前回監査コミットは `93f0226` である。
+Flutter 3.44.8 / Dart
+3.12.2、macOS arm64、FVM 4.1.2 の専用worktreeを使用している。FVMのlegacy config警告と
+`build_runner`の削除済みオプション警告は出力されたが、いずれも終了状態へ影響しない。
+
+### 自動検証（実測）
+
+| 検証 | コマンド | 終了状態・重要な出力 |
+| --- | --- | --- |
+| 依存取得 | `fvm flutter pub get` | exit 0; `Got dependencies!`（互換制約外の新しいパッケージ一覧のみ） |
+| gen-l10n | `fvm flutter gen-l10n` | exit 0; `l10n.yaml`設定を使用。生成物の追加差分なし |
+| build_runner | `fvm dart run build_runner build --delete-conflicting-outputs` | exit 0; `Built with build_runner/aot ... wrote 0 outputs.`。生成差分なし |
+| format | `fvm dart format lib test integration_test` | exit 0; `Formatted 28 files (0 changed)` |
+| analyze | `fvm flutter analyze` | exit 0; `No issues found!` |
+| Issue #44 focused | `fvm flutter test test/localization_resources_test.dart test/localization_test.dart test/game_controller_test.dart test/widget_test.dart test/tactical_ui_test.dart` | exit 0; `+73: All tests passed!` |
+| 全Flutterテスト | `fvm flutter test` | exit 0; `+178: All tests passed!` |
+| Web | `fvm flutter build web` | exit 0; `✓ Built build/web`（Wasm dry-run / tree-shaking informational warningsのみ） |
+| Android debug | `fvm flutter build apk --debug` | exit 0; `✓ Built build/app/outputs/flutter-apk/app-debug.apk` |
+| iOS Simulator | `fvm flutter build ios --simulator --no-codesign` | exit 0; `Xcode build done. 9.1s`、`✓ Built build/ios/iphonesimulator/Runner.app` |
+| iOS bundle locales | `fvm flutter test test/localization_resources_test.dart`; `plutil -p build/ios/iphonesimulator/Runner.app/Info.plist` | exit 0; `knownRegions` と `CFBundleLocalizations` が `en` / `ja` を宣言。生成Runner.appにも `en`, `ja` を収録 |
+| setup script | `bash .agent-shared/scripts/codex-worktree-setup.sh` | exit 0; 依存取得、gen-l10n、build_runner完了。生成差分なし |
+| setup script syntax | `bash -n .agent-shared/scripts/codex-worktree-setup.sh` | exit 0; 出力なし |
+| diff check | `git diff --check` | exit 0; 出力なし |
+
+英語の `en_US` / `en_GB`、日本語の `ja_JP`、非対応 `fr_FR` の英語フォールバック、設定画面の
+英日表示、操作中のlocale変更による状態保持、英語280×500のoverflow回帰、feedback・tooltip・
+島/移動部隊Semanticsは `test/localization_test.dart`、`test/tactical_ui_test.dart`、
+`test/widget_test.dart` でPASSした。`CONQUEST`、`START`、4段階難易度名、`CPU`、数値の表記は
+両ARBで安定値として保持している。
+
+### Simulator手動QA（実測）
+
+2026-08-11 JSTに、iPhone 17 Simulator（iOS 26.5、UDID
+`2EBD3334-E7B5-42DC-BFBE-EEF75C95AEF7`）へ`build/ios/iphonesimulator/Runner.app`を
+インストールし、Simulatorのアクセシビリティツリーを読み取りながら確認した。`simctl`で
+`AppleLanguages` / `AppleLocale`を切り替え、アプリを終了・再起動して各localeを反映した。
+
+| locale | 設定→開始→playing | pause / resume / 終了確認 | spectator countdown / result | 主要Semantics・問題 |
+| --- | --- | --- | --- | --- |
+| 日本語 (`ja_JP`) | `対戦設定 / 01`、`島数`、`CPU難易度`、`CPU対戦` / `CPU同士を観戦`、`ゲーム開始`、`戦術海図 / 10島`を確認 | `対戦を一時停止`→`再開`、`対戦を終了しますか？`→`終了`を確認 | `観戦中`、`ゲーム開始 1` / `出撃準備`、`戦闘終了`、`1P 勝利`、`再戦`、`設定へ戻る`を確認 | `プレイヤー/CPU/中立`の島Semantics、移動部隊の操作不可ラベルを確認。問題なし |
+| English (`en_US`) | `Match Setup / 01`、`Island Count`、`CPU Difficulty`、`Start game`、`Tactical Chart / 10 islands`を確認 | `Pause game`→`Resume`、`Quit match?`→`QUIT`を確認 | `Watching CPU match`、`Game start START` / `Prepare to Deploy`、`Battle Complete`、`2P WIN`、`Play Again`、`Return to Settings`を確認 | `Player/CPU/Neutral`島、moving troopの`action unavailable, not tappable`を確認。問題なし |
+
+上記の英日手動フローは設定画面から結果画面まで完了し、例外・表示崩れ・locale混在は観測
+されなかった。VoiceOver/TalkBackの実際の読み上げ、OSホーム遷移によるバックグラウンド復帰の
+手動確認、280×500の実端末確認、`integration_test/issue_15_device_qa_test.dart`の別個の
+実端末runner実行は未実行である。これらは利用可能なアクセシビリティツリーと自動Widget/
+狭幅テストでは代替せず、残存リスクとして記録する。`build`成果物は検証後のgitignored生成物で、
+commit対象外である。

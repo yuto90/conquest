@@ -504,6 +504,10 @@ enum GameResultType {
 
 typedef GameOutcome = GameResultType;
 
+/// A language-independent interaction message selected by the game rules.
+/// The UI resolves this value through the active [AppLocalizations] instance.
+enum InteractionFeedbackType { unavailableSource, invalidatedSource }
+
 final class GameResult {
   const GameResult({required this.type, required this.elapsedMs, this.winner});
 
@@ -550,7 +554,7 @@ final class GameState {
     int? selectedBaseId,
     List<MovingForce>? movingForces,
     MovingForce? movement,
-    String? interactionFeedback,
+    InteractionFeedbackType? interactionFeedback,
     int interactionFeedbackUntilMs = 0,
     GameResult? result,
     int? countdownRemainingMs,
@@ -580,7 +584,7 @@ final class GameState {
   final List<IslandState> islands;
   final int? selectedIslandId;
   final List<MovingForce> movingForces;
-  final String? interactionFeedback;
+  final InteractionFeedbackType? interactionFeedback;
   final int interactionFeedbackUntilMs;
   final GameResult? result;
   final int countdownRemainingMs;
@@ -594,7 +598,7 @@ final class GameState {
       interactionFeedback != null && elapsedMs < interactionFeedbackUntilMs;
 
   /// Compatibility alias for callers that use the shorter feedback name.
-  String? get feedback => interactionFeedback;
+  InteractionFeedbackType? get feedback => interactionFeedback;
 
   bool get isCountdown =>
       phase == GamePhase.startCountdown || phase == GamePhase.resumeCountdown;
@@ -608,7 +612,7 @@ final class GameState {
     int? selectedIslandId,
     int? selectedBaseId,
     List<MovingForce>? movingForces,
-    String? interactionFeedback,
+    InteractionFeedbackType? interactionFeedback,
     int? interactionFeedbackUntilMs,
     GameResult? result,
     int? countdownRemainingMs,
