@@ -301,6 +301,10 @@ module AppStoreRelease
     raise ValidationError, "App version must be numeric x.y.z"
   end
 
+  def self.same_version?(left, right)
+    compare_versions(left, right).zero?
+  end
+
   class Service
     def initialize(client:, bundle_id:)
       @client = client
@@ -312,12 +316,15 @@ module AppStoreRelease
       app = @client.find_app(bundle_id: @bundle_id)
       app_id = app.fetch("id")
       versions = @client.app_store_versions(app_id: app_id)
-      exact = versions.find { |version| version_string(version) == target_version }
+      exact = versions.find do |version|
+        AppStoreRelease.same_version?(version_string(version), target_version)
+      end
       live = versions
              .select { |version| LIVE_STATES.include?(version_state(version)) }
              .max_by { |version| Gem::Version.new(version_string(version)) }
       submitted_conflicting = versions.find do |version|
-        version_string(version) != target_version && SUBMITTED_STATES.include?(version_state(version))
+        !AppStoreRelease.same_version?(version_string(version), target_version) &&
+          SUBMITTED_STATES.include?(version_state(version))
       end
       if submitted_conflicting
         raise ConflictError,
@@ -337,7 +344,8 @@ module AppStoreRelease
       end
 
       editable_conflicting = versions.find do |version|
-        version_string(version) != target_version && EDITABLE_STATES.include?(version_state(version))
+        !AppStoreRelease.same_version?(version_string(version), target_version) &&
+          EDITABLE_STATES.include?(version_state(version))
       end
       if editable_conflicting
         raise ConflictError,
@@ -401,7 +409,9 @@ module AppStoreRelease
       app = @client.find_app(bundle_id: @bundle_id)
       app_id = app.fetch("id")
       versions = @client.app_store_versions(app_id: app_id)
-      version = versions.find { |candidate| version_string(candidate) == app_version }
+      version = versions.find do |candidate|
+        AppStoreRelease.same_version?(version_string(candidate), app_version)
+      end
       raise ValidationError, "App Store version #{app_version} was not found" unless version
 
       state = version_state(version)
@@ -412,7 +422,8 @@ module AppStoreRelease
       raise ValidationError, "App Store version must use manual release" unless release_type == "MANUAL"
 
       conflicting = versions.find do |candidate|
-        version_string(candidate) != app_version && SUBMITTED_STATES.include?(version_state(candidate))
+        !AppStoreRelease.same_version?(version_string(candidate), app_version) &&
+          SUBMITTED_STATES.include?(version_state(candidate))
       end
       if conflicting
         raise ConflictError,

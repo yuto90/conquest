@@ -131,6 +131,22 @@ class AppStoreReleaseTest < Minitest::Test
     assert_empty client.created_requests
   end
 
+  def test_prepare_reuses_semantically_equal_editable_version
+    client = FakeClient.new(
+      versions: [version("1.0", "PREPARE_FOR_SUBMISSION", id: "version-101")],
+      created_requests: [],
+      attached: nil,
+    )
+
+    result = successful_result("expected the existing 1.0 version to be reused") do
+      service(client).prepare_version(target_version: "1.0.0")
+    end
+
+    assert_equal :reused, result.action
+    assert_equal "version-101", result.version_id
+    assert_empty client.created_requests
+  end
+
   def test_prepare_reuses_existing_submitted_version_without_mutating_it
     client = FakeClient.new(
       versions: [
@@ -362,6 +378,33 @@ class AppStoreReleaseTest < Minitest::Test
     assert_equal "localization-ja", result.localization_id
   end
 
+  def test_preflight_treats_semantically_equal_submitted_version_as_target
+    client = release_client
+    client.versions.first["attributes"]["versionString"] = "0.9.0"
+    target = client.versions.last
+    target["attributes"]["versionString"] = "1.0"
+    target["attributes"]["appStoreState"] = "WAITING_FOR_REVIEW"
+    client.pre_release_version["attributes"]["version"] = "1.0.0"
+    client.attached = client.build
+    client.define_singleton_method(:find_pre_release_version) do |app_id:, version:|
+      raise "unexpected pre-release lookup" unless app_id == "app-1" && version == "1.0.0"
+
+      pre_release_version
+    end
+
+    result = successful_result("expected the existing 1.0 version to be reviewable") do
+      service(client).preflight(
+        app_version: "1.0.0",
+        build_number: "123",
+        internal_group: "Internal",
+        whats_new: "改善しました",
+      )
+    end
+
+    assert_equal :already_submitted, result.status
+    assert_equal "version-101", result.version_id
+  end
+
   def test_preflight_rejects_expired_build
     client = release_client
     client.build["attributes"]["expired"] = true
@@ -563,6 +606,12 @@ class AppStoreReleaseTest < Minitest::Test
 
   def service(client)
     AppStoreRelease::Service.new(client: client, bundle_id: "com.conquest.conquest")
+  end
+
+  def successful_result(message)
+    yield
+  rescue AppStoreRelease::Error => error
+    flunk "#{message}, got #{error.class}: #{error.message}"
   end
 
   def version(number, state, id: "version-#{number}")
