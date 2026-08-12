@@ -160,4 +160,95 @@ ruby -ryaml -e '
   raise "prepare must wait for build" unless prepare.fetch("needs") == "build"
 ' "$deploy_workflow"
 
+prepare_step_script="$(ruby -ryaml -e '
+  workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
+  step = workflow.fetch("jobs").fetch("prepare-app-store-version").fetch("steps").find do |candidate|
+    candidate["name"] == "Prepare App Store version"
+  end
+  abort "Prepare App Store version step is missing" unless step
+  print step.fetch("run")
+' "$deploy_workflow")"
+[[ -n "$prepare_step_script" ]] || {
+  printf 'Prepare App Store version step must contain a run script\n' >&2
+  exit 1
+}
+
+fixture_root="$(mktemp -d)"
+trap 'rm -rf "$fixture_root"' EXIT
+stub_bin="$fixture_root/bin"
+mkdir -p "$stub_bin"
+cat > "$stub_bin/ruby" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+case "${PREPARE_FIXTURE:?}" in
+  present)
+    printf '%s' '{"action":"reused","version_id":"version-1","message":"App Store version already exists"}'
+    ;;
+  null)
+    printf '%s' '{"action":"created","version_id":null,"message":"App Store version created"}'
+    ;;
+  missing)
+    printf '%s' '{"action":"skipped","message":"App Store version skipped"}'
+    ;;
+  malformed)
+    printf '%s' '{malformed-json'
+    ;;
+  *)
+    printf 'unknown fixture: %s\n' "$PREPARE_FIXTURE" >&2
+    exit 2
+    ;;
+esac
+STUB
+chmod +x "$stub_bin/ruby"
+
+run_prepare_step() {
+  local fixture="$1"
+  local expected_status="$2"
+  local expected_output="$3"
+  local run_dir="$fixture_root/$fixture"
+  local status
+  local actual_output
+  mkdir -p "$run_dir"
+  : > "$run_dir/output"
+  if PREPARE_FIXTURE="$fixture" \
+    RUNNER_TEMP="$run_dir" \
+    APP_BUNDLE_ID="com.example.conquest" \
+    APP_VERSION="1.0.1" \
+    GITHUB_OUTPUT="$run_dir/output" \
+    PATH="$stub_bin:$PATH" \
+    bash -c "$prepare_step_script" > "$run_dir/stdout" 2> "$run_dir/stderr"; then
+    status=0
+  else
+    status=$?
+  fi
+  if [[ "$expected_status" == "nonzero" ]]; then
+    if [[ "$status" -eq 0 ]]; then
+      printf '%s fixture unexpectedly succeeded\n' "$fixture" >&2
+      cat "$run_dir/stderr" >&2
+      return 1
+    fi
+    if [[ -s "$run_dir/output" ]]; then
+      printf '%s fixture must not write GITHUB_OUTPUT on failure\n' "$fixture" >&2
+      cat "$run_dir/output" >&2
+      return 1
+    fi
+    return 0
+  fi
+  if [[ "$status" -ne "$expected_status" ]]; then
+    printf '%s fixture returned status %s, expected %s\n' "$fixture" "$status" "$expected_status" >&2
+    cat "$run_dir/stderr" >&2
+    return 1
+  fi
+  actual_output="$(<"$run_dir/output")"
+  if [[ "$actual_output" != "$expected_output" ]]; then
+    printf '%s fixture output was %q, expected %q\n' "$fixture" "$actual_output" "$expected_output" >&2
+    return 1
+  fi
+}
+
+run_prepare_step present 0 $'action=reused\nversion_id=version-1\nmessage=App Store version already exists'
+run_prepare_step null 0 $'action=created\nversion_id=\nmessage=App Store version created'
+run_prepare_step missing 0 $'action=skipped\nversion_id=\nmessage=App Store version skipped'
+run_prepare_step malformed nonzero ''
+
 printf 'App Store review workflow tests passed\n'
