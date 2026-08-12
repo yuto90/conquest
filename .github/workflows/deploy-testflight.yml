@@ -104,10 +104,13 @@ jobs:
             --api-key-path "$RUNNER_TEMP/app-store-connect-key.json" \
             --bundle-id "$APP_BUNDLE_ID" \
             --app-version "$APP_VERSION")"
+          action="$(jq -r '.action' <<<"$result")"
+          version_id="$(jq -r '.version_id // ""' <<<"$result")"
+          message="$(jq -r '.message' <<<"$result")"
           {
-            echo "action=$(jq -r '.action' <<<"$result")"
-            echo "version_id=$(jq -r '.version_id // \"\"' <<<"$result")"
-            echo "message=$(jq -r '.message' <<<"$result")"
+            echo "action=$action"
+            echo "version_id=$version_id"
+            echo "message=$message"
           } >> "$GITHUB_OUTPUT"
 
       - name: Write App Store version preparation summary
