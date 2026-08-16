@@ -1,0 +1,86 @@
+name: Deploy Web
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Flutter web and deploy to Vercel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Read Flutter version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter_version="$(jq -er '.flutterSdkVersion | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .fvm/fvm_config.json)"
+          [[ "$flutter_version" == "3.44.8" ]] || {
+            echo "::error::.fvm/fvm_config.json must select Flutter 3.44.8 for Web builds"
+            exit 1
+          }
+          echo "flutter_version=$flutter_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          fvm flutter pub get
+
+      - name: Analyze
+        run: fvm flutter analyze
+
+      - name: Test
+        run: fvm flutter test
+
+      - name: Build web
+        run: fvm flutter build web --release --base-href /
+
+      - name: Copy Vercel headers into web output
+        run: cp vercel.json build/web/vercel.json
+
+      - name: Skip Vercel deploy
+        if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
+        run: echo "::notice::Vercel secrets are not configured; built build/web without deploying."
+
+      - name: Deploy to Vercel
+        if: env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install -g vercel
+          extra=()
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            extra+=(--prod)
+          fi
+          url="$(vercel deploy build/web --yes --token="$VERCEL_TOKEN" "${extra[@]}")"
+          echo "Deployed $url"
+          echo "url=$url" >> "$GITHUB_STEP_SUMMARY"
