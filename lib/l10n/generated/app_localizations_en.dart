@@ -37,6 +37,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String get settingsDescriptionLocal =>
+      'Choose the battlefield size for a shared-screen match.';
+
+  @override
   String get islandCountLabel => 'Island Count';
 
   @override
@@ -72,7 +76,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String selectedSummaryLocal({required int islandCount}) {
+    return 'Selected: $islandCount islands / 2P LOCAL';
+  }
+
+  @override
   String get modePlayerVsCpu => 'PLAY VS CPU';
+
+  @override
+  String get modePlayerVsPlayer => '2P LOCAL';
 
   @override
   String get modeCpuVsCpu => 'WATCH CPU VS CPU';
@@ -92,6 +104,11 @@ class AppLocalizationsEn extends AppLocalizations {
     required String cpuDifficulty,
   }) {
     return 'Watch CPU versus CPU with $islandCount islands, 1P $playerDifficulty, 2P $cpuDifficulty';
+  }
+
+  @override
+  String startLocalSemantics({required int islandCount}) {
+    return 'Start local two-player game with $islandCount islands';
   }
 
   @override

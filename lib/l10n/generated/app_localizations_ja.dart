@@ -36,6 +36,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String get settingsDescriptionLocal => '1画面で対戦する海域の規模を選択してください。';
+
+  @override
   String get islandCountLabel => '島数';
 
   @override
@@ -71,7 +74,15 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String selectedSummaryLocal({required int islandCount}) {
+    return '選択中：$islandCount島 / 2人対戦';
+  }
+
+  @override
   String get modePlayerVsCpu => 'CPU対戦';
+
+  @override
+  String get modePlayerVsPlayer => '2人対戦';
 
   @override
   String get modeCpuVsCpu => 'CPU同士を観戦';
@@ -91,6 +102,11 @@ class AppLocalizationsJa extends AppLocalizations {
     required String cpuDifficulty,
   }) {
     return '$islandCount島、1P $playerDifficulty、2P $cpuDifficultyのCPU対戦を観戦';
+  }
+
+  @override
+  String startLocalSemantics({required int islandCount}) {
+    return '$islandCount島の2人対戦を開始';
   }
 
   @override

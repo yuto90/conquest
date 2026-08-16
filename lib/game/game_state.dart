@@ -26,7 +26,25 @@ enum GamePhase {
 /// The selectable CPU decision interval profile for a match.
 enum CpuDifficulty { veryEasy, easy, normal, hard }
 
-enum GameMode { playerVsCpu, cpuVsCpu }
+enum GameMode {
+  playerVsCpu,
+  playerVsPlayer,
+  cpuVsCpu;
+
+  List<Faction> get humanFactions => switch (this) {
+    playerVsCpu => const [Faction.player],
+    playerVsPlayer => const [Faction.player, Faction.cpu],
+    cpuVsCpu => const [],
+  };
+
+  List<Faction> get cpuFactions => switch (this) {
+    playerVsCpu => const [Faction.cpu],
+    playerVsPlayer => const [],
+    cpuVsCpu => const [Faction.player, Faction.cpu],
+  };
+
+  bool get usesVersusPresentation => this != playerVsCpu;
+}
 
 enum Faction {
   player,

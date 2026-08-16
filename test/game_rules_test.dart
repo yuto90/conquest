@@ -79,6 +79,37 @@ void main() {
     },
   );
 
+  test('game modes expose human and CPU factions', () {
+    expect(GameMode.playerVsCpu.humanFactions, [Faction.player]);
+    expect(GameMode.playerVsCpu.cpuFactions, [Faction.cpu]);
+    expect(GameMode.playerVsPlayer.humanFactions, [
+      Faction.player,
+      Faction.cpu,
+    ]);
+    expect(GameMode.playerVsPlayer.cpuFactions, isEmpty);
+    expect(GameMode.cpuVsCpu.humanFactions, isEmpty);
+    expect(GameMode.cpuVsCpu.cpuFactions, [Faction.player, Faction.cpu]);
+    expect(GameMode.playerVsPlayer.usesVersusPresentation, isTrue);
+    expect(GameMode.playerVsCpu.usesVersusPresentation, isFalse);
+  });
+
+  test(
+    'configuration copy retains hidden CPU difficulties in local two-player',
+    () {
+      final local = GameConfiguration(
+        totalIslandCount: 8,
+        gameMode: GameMode.playerVsPlayer,
+        playerCpuDifficulty: CpuDifficulty.hard,
+        cpuDifficulty: CpuDifficulty.easy,
+      );
+      final restored = local.copyWith(gameMode: GameMode.playerVsCpu);
+
+      expect(local.gameMode, GameMode.playerVsPlayer);
+      expect(restored.playerCpuDifficulty, CpuDifficulty.hard);
+      expect(restored.cpuDifficulty, CpuDifficulty.easy);
+    },
+  );
+
   test('configuration copy retains Very Easy CPU difficulty', () {
     final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
     final updated = veryEasy.copyWith(totalIslandCount: 12);

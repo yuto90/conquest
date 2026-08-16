@@ -8,21 +8,21 @@ final class FactionPresentation {
 
   factory FactionPresentation.forMode(GameMode mode, Faction faction) {
     return switch ((mode, faction)) {
-      (GameMode.cpuVsCpu, Faction.player) => const FactionPresentation(
-        marker: '1P',
-        semanticName: '1P',
-      ),
-      (GameMode.cpuVsCpu, Faction.cpu) => const FactionPresentation(
-        marker: '2P',
-        semanticName: '2P',
-      ),
-      (_, Faction.player) => const FactionPresentation(
+      (GameMode.playerVsCpu, Faction.player) => const FactionPresentation(
         marker: 'P',
         semanticName: 'Player',
       ),
-      (_, Faction.cpu) => const FactionPresentation(
+      (GameMode.playerVsCpu, Faction.cpu) => const FactionPresentation(
         marker: 'C',
         semanticName: 'CPU',
+      ),
+      (_, Faction.player) => const FactionPresentation(
+        marker: '1P',
+        semanticName: '1P',
+      ),
+      (_, Faction.cpu) => const FactionPresentation(
+        marker: '2P',
+        semanticName: '2P',
       ),
       (_, Faction.neutral) => const FactionPresentation(
         marker: 'N',

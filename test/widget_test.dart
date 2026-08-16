@@ -226,6 +226,73 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('switches to local two-player settings without CPU difficulty', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('game-mode-player-vs-cpu')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('game-mode-player-vs-player')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+      findsNothing,
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
+      contains('2人対戦'),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('start-game'))),
+    );
+    expect(
+      container.read(gameControllerProvider).configuration.gameMode,
+      GameMode.playerVsPlayer,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'keeps local two-player controls operable on a 280 by 500 screen',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(280, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [randomProvider.overrideWithValue(Random(1))],
+          child: const MyApp(locale: Locale('ja')),
+        ),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('game-mode-player-vs-player')),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('keeps spectator controls operable on a 280 by 500 screen', (
     tester,
   ) async {

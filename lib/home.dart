@@ -595,7 +595,9 @@ class _ConfigurationPanel extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        l10n.settingsDescription,
+                        state.configuration.gameMode == GameMode.playerVsPlayer
+                            ? l10n.settingsDescriptionLocal
+                            : l10n.settingsDescription,
                         style: TacticalTypography.body(
                           fontSize: 12,
                           color: TacticalPalette.muted,
@@ -641,31 +643,78 @@ class _ConfigurationPanel extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 9),
-                      Row(
+                      Column(
                         children: [
-                          for (final mode in GameMode.values) ...[
-                            if (mode != GameMode.values.first)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _GameModeChoice(
+                                  state: state,
+                                  mode: GameMode.playerVsCpu,
+                                ),
+                              ),
                               const SizedBox(width: 7),
-                            Expanded(
-                              child: _GameModeChoice(state: state, mode: mode),
-                            ),
-                          ],
+                              Expanded(
+                                child: _GameModeChoice(
+                                  state: state,
+                                  mode: GameMode.playerVsPlayer,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          _GameModeChoice(
+                            state: state,
+                            mode: GameMode.cpuVsCpu,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        state.configuration.gameMode == GameMode.cpuVsCpu
-                            ? l10n.playerCpuDifficultyLabel
-                            : l10n.cpuDifficultyLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
+                      if (state.configuration.gameMode !=
+                          GameMode.playerVsPlayer) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          state.configuration.gameMode == GameMode.cpuVsCpu
+                              ? l10n.playerCpuDifficultyLabel
+                              : l10n.cpuDifficultyLabel,
+                          style: TacticalTypography.mono(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.9,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (state.configuration.gameMode ==
-                          GameMode.cpuVsCpu) ...[
+                        const SizedBox(height: 4),
+                        if (state.configuration.gameMode ==
+                            GameMode.cpuVsCpu) ...[
+                          Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < CpuDifficulty.values.length;
+                                index++
+                              ) ...[
+                                if (index > 0) const SizedBox(width: 7),
+                                Expanded(
+                                  child: _DifficultyChoice(
+                                    state: state,
+                                    difficulty: CpuDifficulty.values[index],
+                                    playerCpu: true,
+                                    keyPrefix: 'player-cpu-difficulty',
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Text(
+                            l10n.opponentCpuDifficultyLabel,
+                            style: TacticalTypography.mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
                         Row(
                           children: [
                             for (
@@ -678,41 +727,12 @@ class _ConfigurationPanel extends StatelessWidget {
                                 child: _DifficultyChoice(
                                   state: state,
                                   difficulty: CpuDifficulty.values[index],
-                                  playerCpu: true,
-                                  keyPrefix: 'player-cpu-difficulty',
                                 ),
                               ),
                             ],
                           ],
                         ),
-                        const SizedBox(height: 18),
-                        Text(
-                          l10n.opponentCpuDifficultyLabel,
-                          style: TacticalTypography.mono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                       ],
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < CpuDifficulty.values.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            Expanded(
-                              child: _DifficultyChoice(
-                                state: state,
-                                difficulty: CpuDifficulty.values[index],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
                       const SizedBox(height: 29),
                       Semantics(
                         button: onStart != null,
@@ -982,11 +1002,13 @@ class _GameModeChoice extends StatelessWidget {
 
 String _modeKey(GameMode mode) => switch (mode) {
   GameMode.playerVsCpu => 'player-vs-cpu',
+  GameMode.playerVsPlayer => 'player-vs-player',
   GameMode.cpuVsCpu => 'cpu-vs-cpu',
 };
 
 String _modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
   GameMode.playerVsCpu => l10n.modePlayerVsCpu,
+  GameMode.playerVsPlayer => l10n.modePlayerVsPlayer,
   GameMode.cpuVsCpu => l10n.modeCpuVsCpu,
 };
 
@@ -995,6 +1017,9 @@ String _startLabel(AppLocalizations l10n, GameConfiguration configuration) =>
       GameMode.playerVsCpu => l10n.startGameSemantics(
         islandCount: configuration.totalIslandCount,
         difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      ),
+      GameMode.playerVsPlayer => l10n.startLocalSemantics(
+        islandCount: configuration.totalIslandCount,
       ),
       GameMode.cpuVsCpu => l10n.startSpectatorSemantics(
         islandCount: configuration.totalIslandCount,
@@ -1009,19 +1034,20 @@ String _startLabel(AppLocalizations l10n, GameConfiguration configuration) =>
 String _selectionSummary(
   AppLocalizations l10n,
   GameConfiguration configuration,
-) => configuration.gameMode == GameMode.cpuVsCpu
-    ? l10n.selectedSummarySpectator(
-        islandCount: configuration.totalIslandCount,
-        playerDifficulty: _difficultyLabel(
-          l10n,
-          configuration.playerCpuDifficulty,
-        ),
-        cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
-      )
-    : l10n.selectedSummary(
-        islandCount: configuration.totalIslandCount,
-        difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
-      );
+) => switch (configuration.gameMode) {
+  GameMode.cpuVsCpu => l10n.selectedSummarySpectator(
+    islandCount: configuration.totalIslandCount,
+    playerDifficulty: _difficultyLabel(l10n, configuration.playerCpuDifficulty),
+    cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+  ),
+  GameMode.playerVsPlayer => l10n.selectedSummaryLocal(
+    islandCount: configuration.totalIslandCount,
+  ),
+  GameMode.playerVsCpu => l10n.selectedSummary(
+    islandCount: configuration.totalIslandCount,
+    difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+  ),
+};
 
 String _resultTitle(
   AppLocalizations l10n,
