@@ -182,6 +182,20 @@ void main() {
     expect(next.opponentSelectedIslandId, isNull);
   });
 
+  test('viewport island rect contains its center and not a far point', () {
+    const viewport = IslandMapViewport(width: 390, height: 844);
+    final hq = rules.initialState(viewport: viewport).islands.first;
+    final rect = viewport.rectFor(hq);
+    expect(
+      rect.containsPoint(
+        (rect.left + rect.right) / 2,
+        (rect.top + rect.bottom) / 2,
+      ),
+      isTrue,
+    );
+    expect(rect.containsPoint(0, 0), isFalse);
+  });
+
   test('configuration copy retains Very Easy CPU difficulty', () {
     final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
     final updated = veryEasy.copyWith(totalIslandCount: 12);

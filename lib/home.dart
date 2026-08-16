@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
 import 'package:conquest/faction_presentation.dart';
+import 'package:conquest/local_multiplayer_input.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,9 @@ class _GameSurface extends ConsumerStatefulWidget {
 
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
+  final Map<int, LocalDispatchSession> _sessions = {};
+  final Map<int, Offset> _pointerPositions = {};
+
   @override
   void initState() {
     super.initState();
@@ -73,8 +77,111 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.detached) {
+      _clearLocalSessions();
       ref.read(gameControllerProvider.notifier).pauseGame();
     }
+  }
+
+  void _clearLocalSessions() {
+    if (_sessions.isEmpty && _pointerPositions.isEmpty) {
+      return;
+    }
+    _sessions.clear();
+    _pointerPositions.clear();
+  }
+
+  void _onLocalPointerDown(PointerDownEvent event) {
+    final state = ref.read(gameControllerProvider);
+    if (state.phase != GamePhase.playing ||
+        state.configuration.gameMode != GameMode.playerVsPlayer) {
+      return;
+    }
+    if (_sessions.length >= 2 && !_sessions.containsKey(event.pointer)) {
+      return;
+    }
+    final island = hitTestIsland(
+      state: state,
+      viewport: ref.read(mapViewportProvider),
+      local: event.localPosition,
+    );
+    if (island == null) {
+      return;
+    }
+    final actor = island.faction;
+    if (!state.configuration.gameMode.humanFactions.contains(actor) ||
+        !island.canDispatchAs(actor)) {
+      return;
+    }
+    final startedOnSelectedSource =
+        state.selectedIslandIdFor(actor) == island.id;
+    if (!startedOnSelectedSource) {
+      ref
+          .read(gameControllerProvider.notifier)
+          .tapBase(island.id, actor: actor);
+    }
+    setState(() {
+      _sessions[event.pointer] = LocalDispatchSession(
+        pointerId: event.pointer,
+        actor: actor,
+        sourceIslandId: island.id,
+        startedOnSelectedSource: startedOnSelectedSource,
+      );
+      _pointerPositions[event.pointer] = event.localPosition;
+    });
+  }
+
+  void _onLocalPointerMove(PointerMoveEvent event) {
+    if (!_sessions.containsKey(event.pointer)) {
+      return;
+    }
+    setState(() {
+      _pointerPositions[event.pointer] = event.localPosition;
+    });
+  }
+
+  void _onLocalPointerUp(PointerUpEvent event) {
+    final session = _sessions.remove(event.pointer);
+    _pointerPositions.remove(event.pointer);
+    if (session != null && mounted) {
+      setState(() {});
+    }
+    if (session == null) {
+      return;
+    }
+    final state = ref.read(gameControllerProvider);
+    if (state.phase != GamePhase.playing) {
+      return;
+    }
+    final island = hitTestIsland(
+      state: state,
+      viewport: ref.read(mapViewportProvider),
+      local: event.localPosition,
+    );
+    if (island == null) {
+      return;
+    }
+    if (island.id == session.sourceIslandId) {
+      if (session.startedOnSelectedSource) {
+        ref
+            .read(gameControllerProvider.notifier)
+            .tapBase(island.id, actor: session.actor);
+      }
+      return;
+    }
+    ref
+        .read(gameControllerProvider.notifier)
+        .tapBase(island.id, actor: session.actor);
+  }
+
+  void _onLocalPointerCancel(PointerCancelEvent event) {
+    if (!_sessions.containsKey(event.pointer) &&
+        !_pointerPositions.containsKey(event.pointer)) {
+      return;
+    }
+    setState(() {
+      _sessions.remove(event.pointer);
+      _pointerPositions.remove(event.pointer);
+    });
   }
 
   @override
@@ -87,10 +194,71 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         state.configuration.gameMode == GameMode.playerVsCpu;
     final isLocalTwoPlayer =
         state.configuration.gameMode == GameMode.playerVsPlayer;
+    final isLocalPlaying = state.phase == GamePhase.playing && isLocalTwoPlayer;
     final showHumanSelectionChrome =
         state.phase == GamePhase.playing &&
         (isPlayerInteractionEnabled || isLocalTwoPlayer);
     final showBoardChrome = state.phase != GamePhase.configuration;
+    if (!isLocalPlaying) {
+      _clearLocalSessions();
+    }
+
+    Widget board = Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final island in state.islands)
+          Align(
+            key: ValueKey('island-${island.id}'),
+            alignment: Alignment(island.x, island.y),
+            child: SizedBox.square(
+              dimension: GameRules.islandWidgetSize(island.size),
+              child: Base(
+                key: ValueKey('island-button-${island.id}'),
+                base: island,
+                presentation: FactionPresentation.forMode(
+                  state.configuration.gameMode,
+                  island.faction,
+                ),
+                selected:
+                    state.selectedIslandId == island.id ||
+                    state.opponentSelectedIslandId == island.id,
+                destinationCandidate:
+                    showHumanSelectionChrome &&
+                    (state.selectedIslandId != null ||
+                        state.opponentSelectedIslandId != null) &&
+                    state.selectedIslandId != island.id &&
+                    state.opponentSelectedIslandId != island.id,
+                onPressed: isPlayerInteractionEnabled
+                    ? () => controller.tapBase(island.id)
+                    : null,
+              ),
+            ),
+          ),
+        for (final force in state.movingForces)
+          Align(
+            key: ValueKey('moving-force-position-${force.id}'),
+            alignment: Alignment(force.x, force.y),
+            child: MovingForceWidget(
+              force: force,
+              presentation: FactionPresentation.forMode(
+                state.configuration.gameMode,
+                force.faction,
+              ),
+              semanticsKey: ValueKey('moving-force-${force.id}'),
+            ),
+          ),
+      ],
+    );
+    if (isLocalPlaying) {
+      board = Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: _onLocalPointerDown,
+        onPointerMove: _onLocalPointerMove,
+        onPointerUp: _onLocalPointerUp,
+        onPointerCancel: _onLocalPointerCancel,
+        child: board,
+      );
+    }
 
     return ColoredBox(
       color: TacticalPalette.background,
@@ -104,53 +272,18 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             label: l10n.boardMapSemantics(
               islandCount: state.configuration.totalIslandCount,
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                for (final island in state.islands)
-                  Align(
-                    key: ValueKey('island-${island.id}'),
-                    alignment: Alignment(island.x, island.y),
-                    child: SizedBox.square(
-                      dimension: GameRules.islandWidgetSize(island.size),
-                      child: Base(
-                        key: ValueKey('island-button-${island.id}'),
-                        base: island,
-                        presentation: FactionPresentation.forMode(
-                          state.configuration.gameMode,
-                          island.faction,
-                        ),
-                        selected:
-                            state.selectedIslandId == island.id ||
-                            state.opponentSelectedIslandId == island.id,
-                        destinationCandidate:
-                            showHumanSelectionChrome &&
-                            (state.selectedIslandId != null ||
-                                state.opponentSelectedIslandId != null) &&
-                            state.selectedIslandId != island.id &&
-                            state.opponentSelectedIslandId != island.id,
-                        onPressed: isPlayerInteractionEnabled
-                            ? () => controller.tapBase(island.id)
-                            : null,
-                      ),
-                    ),
-                  ),
-                for (final force in state.movingForces)
-                  Align(
-                    key: ValueKey('moving-force-position-${force.id}'),
-                    alignment: Alignment(force.x, force.y),
-                    child: MovingForceWidget(
-                      force: force,
-                      presentation: FactionPresentation.forMode(
-                        state.configuration.gameMode,
-                        force.faction,
-                      ),
-                      semanticsKey: ValueKey('moving-force-${force.id}'),
-                    ),
-                  ),
-              ],
-            ),
+            child: board,
           ),
+          if (_sessions.isNotEmpty)
+            IgnorePointer(
+              child: CustomPaint(
+                painter: _LocalDragPreviewPainter(
+                  state: state,
+                  sessions: List<LocalDispatchSession>.from(_sessions.values),
+                  positions: Map<int, Offset>.from(_pointerPositions),
+                ),
+              ),
+            ),
           if (showBoardChrome)
             _BoardChrome(
               state: state,
@@ -1476,5 +1609,63 @@ class _RoutePainter extends CustomPainter {
         state.opponentSelectedIslandId !=
             oldDelegate.state.opponentSelectedIslandId ||
         state.islands != oldDelegate.state.islands;
+  }
+}
+
+class _LocalDragPreviewPainter extends CustomPainter {
+  const _LocalDragPreviewPainter({
+    required this.state,
+    required this.sessions,
+    required this.positions,
+  });
+
+  final GameState state;
+  final List<LocalDispatchSession> sessions;
+  final Map<int, Offset> positions;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final session in sessions) {
+      final pointer = positions[session.pointerId];
+      if (pointer == null) {
+        continue;
+      }
+      IslandState? source;
+      for (final island in state.islands) {
+        if (island.id == session.sourceIslandId) {
+          source = island;
+          break;
+        }
+      }
+      if (source == null) {
+        continue;
+      }
+      final islandSize = GameRules.islandWidgetSize(source.size);
+      final start = Offset(
+        (size.width - islandSize) * (source.x + 1) / 2 + islandSize / 2,
+        (size.height - islandSize) * (source.y + 1) / 2 + islandSize / 2,
+      );
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..color =
+            (session.actor == Faction.cpu
+                    ? TacticalPalette.cpuDeep
+                    : TacticalPalette.playerDeep)
+                .withValues(alpha: 0.72);
+      canvas.drawLine(start, pointer, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LocalDragPreviewPainter oldDelegate) {
+    return state != oldDelegate.state ||
+        sessions != oldDelegate.sessions ||
+        positions.length != oldDelegate.positions.length ||
+        !positions.keys.every(
+          (pointerId) =>
+              positions[pointerId] == oldDelegate.positions[pointerId],
+        );
   }
 }
