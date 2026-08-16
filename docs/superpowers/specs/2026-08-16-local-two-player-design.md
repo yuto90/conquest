@@ -7,8 +7,9 @@
 - 依存: Issue #32 のCPU対CPU観戦モード（実装済み）
 - 調査基準: `origin/main` の `2d0460f65a4a3b935be6690e77199d7bcae88ddc`
 - 状態: 2026-08-16設計（実装前の決定事項）
+- 実装プラン: [同一端末2人対戦モード Implementation Plan](../plans/2026-08-16-local-two-player.md)
 
-本書は同一端末2人対戦の実装境界を定義する。実装時はIssue #4、本書、`docs/game-rules.md`を仕様の正本とし、矛盾がある場合はIssue #4の明示要件を優先する。
+本書は同一端末2人対戦の実装境界を定義する。実装時はIssue #4、本書、`docs/game-rules.md`を仕様の正本とし、矛盾がある場合はIssue #4の明示要件を優先する。タスク分割とred-green手順は実装プランに従う。
 
 ## 目的
 
