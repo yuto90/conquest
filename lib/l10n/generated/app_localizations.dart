@@ -322,6 +322,36 @@ abstract class AppLocalizations {
   /// **'CPU versus CPU match in progress'**
   String get spectatorDetail;
 
+  /// The 1P board status in local two-player.
+  ///
+  /// In en, this message translates to:
+  /// **'1P: {status}'**
+  String boardStatusLocalPlayer({required String status});
+
+  /// The 2P board status in local two-player.
+  ///
+  /// In en, this message translates to:
+  /// **'2P: {status}'**
+  String boardStatusLocalOpponent({required String status});
+
+  /// The local two-player status before selecting a source.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag from your island'**
+  String get boardStatusLocalUnselected;
+
+  /// The local two-player status after selecting a source.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch source selected'**
+  String get boardStatusLocalSelected;
+
+  /// The local two-player dispatch hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Release on a target island to dispatch'**
+  String get boardStatusLocalDetail;
+
   /// The pause button accessibility label.
   ///
   /// In en, this message translates to:

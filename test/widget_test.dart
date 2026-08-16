@@ -1650,10 +1650,87 @@ void main() {
     expect(find.text('2P 勝利'), findsOneWidget);
   });
 
+  testWidgets('shows both local selections and 1P 2P markers', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    expect(find.text('1P'), findsWidgets);
+    expect(find.text('2P'), findsWidgets);
+    expect(find.text('P'), findsNothing);
+    expect(find.text('C'), findsNothing);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.tapBase(0, actor: Faction.player);
+    controller.tapBase(1, actor: Faction.cpu);
+    await tester.pump();
+
+    expect(find.text('出兵元'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('board-status-label')), findsOneWidget);
+  });
+
+  testWidgets('labels local two-player winners as 1P and 2P', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+
+    controller.finish(
+      const GameResult.victory(elapsedMs: 1, winner: Faction.player),
+    );
+    await tester.pump();
+    expect(find.text('1P 勝利'), findsOneWidget);
+
+    controller.returnToConfiguration();
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    controller.finish(
+      const GameResult.defeat(elapsedMs: 2, winner: Faction.cpu),
+    );
+    await tester.pump();
+    expect(find.text('2P 勝利'), findsOneWidget);
+  });
+
   testWidgets('uses mode-specific draw labels', (tester) async {
     for (final entry in const [
       (mode: GameMode.playerVsCpu, title: '引き分け'),
       (mode: GameMode.cpuVsCpu, title: '引き分け'),
+      (mode: GameMode.playerVsPlayer, title: '引き分け'),
     ]) {
       final loop = ManualWidgetGameLoop();
       await tester.pumpWidget(const SizedBox.shrink());

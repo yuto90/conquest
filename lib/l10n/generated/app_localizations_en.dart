@@ -152,6 +152,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spectatorDetail => 'CPU versus CPU match in progress';
 
   @override
+  String boardStatusLocalPlayer({required String status}) {
+    return '1P: $status';
+  }
+
+  @override
+  String boardStatusLocalOpponent({required String status}) {
+    return '2P: $status';
+  }
+
+  @override
+  String get boardStatusLocalUnselected => 'Drag from your island';
+
+  @override
+  String get boardStatusLocalSelected => 'Dispatch source selected';
+
+  @override
+  String get boardStatusLocalDetail => 'Release on a target island to dispatch';
+
+  @override
   String get pauseGame => 'Pause game';
 
   @override

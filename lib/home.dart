@@ -85,6 +85,11 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     final isPlayerInteractionEnabled =
         state.phase == GamePhase.playing &&
         state.configuration.gameMode == GameMode.playerVsCpu;
+    final isLocalTwoPlayer =
+        state.configuration.gameMode == GameMode.playerVsPlayer;
+    final showHumanSelectionChrome =
+        state.phase == GamePhase.playing &&
+        (isPlayerInteractionEnabled || isLocalTwoPlayer);
     final showBoardChrome = state.phase != GamePhase.configuration;
 
     return ColoredBox(
@@ -115,11 +120,15 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                           state.configuration.gameMode,
                           island.faction,
                         ),
-                        selected: state.selectedIslandId == island.id,
+                        selected:
+                            state.selectedIslandId == island.id ||
+                            state.opponentSelectedIslandId == island.id,
                         destinationCandidate:
-                            isPlayerInteractionEnabled &&
-                            state.selectedIslandId != null &&
-                            state.selectedIslandId != island.id,
+                            showHumanSelectionChrome &&
+                            (state.selectedIslandId != null ||
+                                state.opponentSelectedIslandId != null) &&
+                            state.selectedIslandId != island.id &&
+                            state.opponentSelectedIslandId != island.id,
                         onPressed: isPlayerInteractionEnabled
                             ? () => controller.tapBase(island.id)
                             : null,
@@ -219,6 +228,16 @@ class _BoardChrome extends StatelessWidget {
     final l10n = _appLocalizations(context);
     final selected = state.selectedIslandId != null;
     final isSpectator = state.configuration.gameMode == GameMode.cpuVsCpu;
+    final isLocalTwoPlayer =
+        state.configuration.gameMode == GameMode.playerVsPlayer;
+    final playerSelected = state.selectedIslandId != null;
+    final opponentSelected = state.opponentSelectedIslandId != null;
+    final localPlayerStatus = playerSelected
+        ? l10n.boardStatusLocalSelected
+        : l10n.boardStatusLocalUnselected;
+    final localOpponentStatus = opponentSelected
+        ? l10n.boardStatusLocalSelected
+        : l10n.boardStatusLocalUnselected;
     return IgnorePointer(
       ignoring: false,
       child: Stack(
@@ -272,25 +291,38 @@ class _BoardChrome extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Text(
-                      key: const ValueKey('board-status-label'),
-                      isSpectator
-                          ? l10n.spectatorStatus
-                          : selected
-                          ? l10n.boardStatusSelected
-                          : l10n.boardStatusUnselected,
-                      style: TacticalTypography.mono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: TacticalPalette.foreground,
-                        height: 1.3,
+                    child: Semantics(
+                      hint: isLocalTwoPlayer
+                          ? l10n.boardStatusLocalDetail
+                          : null,
+                      child: Text(
+                        key: const ValueKey('board-status-label'),
+                        isLocalTwoPlayer
+                            ? l10n.boardStatusLocalPlayer(
+                                status: localPlayerStatus,
+                              )
+                            : isSpectator
+                            ? l10n.spectatorStatus
+                            : selected
+                            ? l10n.boardStatusSelected
+                            : l10n.boardStatusUnselected,
+                        style: TacticalTypography.mono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: TacticalPalette.foreground,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ),
                   Flexible(
                     child: Text(
                       key: const ValueKey('board-status-detail'),
-                      isSpectator
+                      isLocalTwoPlayer
+                          ? l10n.boardStatusLocalOpponent(
+                              status: localOpponentStatus,
+                            )
+                          : isSpectator
                           ? l10n.spectatorDetail
                           : selected
                           ? l10n.boardStatusSelectedDetail
@@ -1374,6 +1406,18 @@ class _RoutePainter extends CustomPainter {
         }
       }
     }
+    final opponentSelectedId = state.opponentSelectedIslandId;
+    if (opponentSelectedId != null) {
+      final source = _island(opponentSelectedId);
+      if (source != null) {
+        for (final destination
+            in state.islands
+                .where((island) => island.id != opponentSelectedId)
+                .take(4)) {
+          routes.add((source, destination, source.faction));
+        }
+      }
+    }
 
     for (final route in routes) {
       final paint = Paint()
@@ -1429,6 +1473,8 @@ class _RoutePainter extends CustomPainter {
   bool shouldRepaint(covariant _RoutePainter oldDelegate) {
     return state.movingForces != oldDelegate.state.movingForces ||
         state.selectedIslandId != oldDelegate.state.selectedIslandId ||
+        state.opponentSelectedIslandId !=
+            oldDelegate.state.opponentSelectedIslandId ||
         state.islands != oldDelegate.state.islands;
   }
 }

@@ -148,6 +148,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get spectatorDetail => 'CPU同士の対戦を表示中';
 
   @override
+  String boardStatusLocalPlayer({required String status}) {
+    return '1P: $status';
+  }
+
+  @override
+  String boardStatusLocalOpponent({required String status}) {
+    return '2P: $status';
+  }
+
+  @override
+  String get boardStatusLocalUnselected => '自軍島からドラッグ';
+
+  @override
+  String get boardStatusLocalSelected => '出兵元を選択中';
+
+  @override
+  String get boardStatusLocalDetail => '目標の島で指を離して出兵';
+
+  @override
   String get pauseGame => '対戦を一時停止';
 
   @override
