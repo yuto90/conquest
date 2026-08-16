@@ -10,9 +10,10 @@
 
 ## Global Constraints
 
-- 対象Issueは [GitHub Issue #4](https://github.com/yuto90/conquest/issues/4)。
-- 設計の正本は`docs/superpowers/specs/2026-08-16-local-two-player-design.md`と`docs/game-rules.md`とする。矛盾がある場合はIssue #4の明示要件を優先する。
-- ベースブランチは最新`main`とする。本プランは設計PRと同じ作業ブランチへ追加してよい。実装コードは本プラン承認後に別タスクで進める。
+- 対象Issueは [GitHub Issue #55](https://github.com/yuto90/conquest/issues/55)。親は [#4](https://github.com/yuto90/conquest/issues/4)。
+- 設計の正本は`docs/superpowers/specs/2026-08-16-local-two-player-design.md`と`docs/game-rules.md`とする。矛盾がある場合はIssue #55の明示要件を優先する。
+- Issue #55 の「実装前に確認すること」4件が未回答の間は、アプリコードの実装に入らない。
+- ベースブランチは最新`main`とする。本プランは設計PRと同じ作業ブランチへ追加してよい。実装コードは確認と本プラン承認後に進める。
 - 初期モードは`playerVsCpu`のままとする。
 - 2人対戦へ切り替えても非表示のCPU難易度を破棄しない。
 - 通常CPU戦の2タップ出兵、P / Player、C / CPU、Victory / Defeat / Drawを維持する。

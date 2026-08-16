@@ -191,7 +191,7 @@
 
 ## 初期版の対象外
 
-- 同一端末での2人対戦：[GitHub Issue #4](https://github.com/yuto90/conquest/issues/4)。実装前設計は [同一端末2人対戦モード設計](superpowers/specs/2026-08-16-local-two-player-design.md)
+- 同一端末での2人対戦：[GitHub Issue #4](https://github.com/yuto90/conquest/issues/4)、実装単位は [Issue #55](https://github.com/yuto90/conquest/issues/55)。実装前設計は [同一端末2人対戦モード設計](superpowers/specs/2026-08-16-local-two-player-design.md)
 - オンライン2人対戦：[GitHub Issue #5](https://github.com/yuto90/conquest/issues/5)
 - 試合途中のCPU難易度変更
 - CPU難易度設定の永続化
