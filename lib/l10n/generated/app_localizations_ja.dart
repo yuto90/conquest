@@ -149,12 +149,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String boardStatusLocalPlayer({required String status}) {
-    return '1P: $status';
+    return '1P：$status';
   }
 
   @override
   String boardStatusLocalOpponent({required String status}) {
-    return '2P: $status';
+    return '2P：$status';
   }
 
   @override

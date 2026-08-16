@@ -727,159 +727,123 @@ class _ConfigurationPanel extends StatelessWidget {
           const CustomPaint(painter: _SettingsDecorationPainter()),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
-              child: Transform.translate(
-                offset: const Offset(0, 4),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 330),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.settingsStep,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: TacticalPalette.muted,
-                          height: 1.2,
-                          letterSpacing: 1.6,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 330),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.settingsStep,
+                      style: TacticalTypography.mono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: TacticalPalette.muted,
+                        height: 1.2,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        l10n.settingsTitle,
+                        style: TacticalTypography.display(
+                          fontSize: 40,
+                          height: 0.96,
+                          letterSpacing: -1.2,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          l10n.settingsTitle,
-                          style: TacticalTypography.display(
-                            fontSize: 40,
-                            height: 0.96,
-                            letterSpacing: -1.2,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.configuration.gameMode == GameMode.playerVsPlayer
+                          ? l10n.settingsDescriptionLocal
+                          : l10n.settingsDescription,
+                      style: TacticalTypography.body(
+                        fontSize: 12,
+                        color: TacticalPalette.muted,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      l10n.islandCountLabel,
+                      style: TacticalTypography.mono(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < GameConfiguration.allowedIslandCounts.length;
+                          index++
+                        ) ...[
+                          if (index > 0) const SizedBox(width: 7),
+                          Expanded(
+                            child: _IslandCountChoice(
+                              state: state,
+                              count:
+                                  GameConfiguration.allowedIslandCounts[index],
+                            ),
                           ),
-                        ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.gameModeLabel,
+                      style: TacticalTypography.mono(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        state.configuration.gameMode == GameMode.playerVsPlayer
-                            ? l10n.settingsDescriptionLocal
-                            : l10n.settingsDescription,
-                        style: TacticalTypography.body(
-                          fontSize: 12,
-                          color: TacticalPalette.muted,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Text(
-                        l10n.islandCountLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index <
-                                GameConfiguration.allowedIslandCounts.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
+                    ),
+                    const SizedBox(height: 9),
+                    Column(
+                      children: [
+                        Row(
+                          children: [
                             Expanded(
-                              child: _IslandCountChoice(
+                              child: _GameModeChoice(
                                 state: state,
-                                count: GameConfiguration
-                                    .allowedIslandCounts[index],
+                                mode: GameMode.playerVsCpu,
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: _GameModeChoice(
+                                state: state,
+                                mode: GameMode.playerVsPlayer,
                               ),
                             ),
                           ],
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 7),
+                        _GameModeChoice(state: state, mode: GameMode.cpuVsCpu),
+                      ],
+                    ),
+                    if (state.configuration.gameMode !=
+                        GameMode.playerVsPlayer) ...[
                       const SizedBox(height: 16),
                       Text(
-                        l10n.gameModeLabel,
+                        state.configuration.gameMode == GameMode.cpuVsCpu
+                            ? l10n.playerCpuDifficultyLabel
+                            : l10n.cpuDifficultyLabel,
                         style: TacticalTypography.mono(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.9,
                         ),
                       ),
-                      const SizedBox(height: 9),
-                      Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _GameModeChoice(
-                                  state: state,
-                                  mode: GameMode.playerVsCpu,
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Expanded(
-                                child: _GameModeChoice(
-                                  state: state,
-                                  mode: GameMode.playerVsPlayer,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 9),
-                          _GameModeChoice(
-                            state: state,
-                            mode: GameMode.cpuVsCpu,
-                          ),
-                        ],
-                      ),
-                      if (state.configuration.gameMode !=
-                          GameMode.playerVsPlayer) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          state.configuration.gameMode == GameMode.cpuVsCpu
-                              ? l10n.playerCpuDifficultyLabel
-                              : l10n.cpuDifficultyLabel,
-                          style: TacticalTypography.mono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        if (state.configuration.gameMode ==
-                            GameMode.cpuVsCpu) ...[
-                          Row(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < CpuDifficulty.values.length;
-                                index++
-                              ) ...[
-                                if (index > 0) const SizedBox(width: 7),
-                                Expanded(
-                                  child: _DifficultyChoice(
-                                    state: state,
-                                    difficulty: CpuDifficulty.values[index],
-                                    playerCpu: true,
-                                    keyPrefix: 'player-cpu-difficulty',
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          Text(
-                            l10n.opponentCpuDifficultyLabel,
-                            style: TacticalTypography.mono(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.9,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                        ],
+                      const SizedBox(height: 4),
+                      if (state.configuration.gameMode ==
+                          GameMode.cpuVsCpu) ...[
                         Row(
                           children: [
                             for (
@@ -892,59 +856,88 @@ class _ConfigurationPanel extends StatelessWidget {
                                 child: _DifficultyChoice(
                                   state: state,
                                   difficulty: CpuDifficulty.values[index],
+                                  playerCpu: true,
+                                  keyPrefix: 'player-cpu-difficulty',
                                 ),
                               ),
                             ],
                           ],
                         ),
+                        const SizedBox(height: 18),
+                        Text(
+                          l10n.opponentCpuDifficultyLabel,
+                          style: TacticalTypography.mono(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.9,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                       ],
-                      const SizedBox(height: 29),
-                      Semantics(
-                        button: onStart != null,
-                        enabled: onStart != null,
-                        child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton(
-                            key: const ValueKey('start-game'),
-                            onPressed: onStart,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              backgroundColor: TacticalPalette.foreground,
-                              foregroundColor: TacticalPalette.paper,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(2),
-                                ),
+                      Row(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < CpuDifficulty.values.length;
+                            index++
+                          ) ...[
+                            if (index > 0) const SizedBox(width: 7),
+                            Expanded(
+                              child: _DifficultyChoice(
+                                state: state,
+                                difficulty: CpuDifficulty.values[index],
                               ),
                             ),
-                            child: Semantics(
-                              excludeSemantics: true,
-                              label: _startLabel(l10n, state.configuration),
-                              child: Text(
-                                l10n.startGame,
-                                style: TacticalTypography.body(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: TacticalPalette.paper,
-                                  letterSpacing: 0.5,
-                                ),
+                          ],
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 18),
+                    Semantics(
+                      button: onStart != null,
+                      enabled: onStart != null,
+                      child: SizedBox(
+                        height: 46,
+                        child: ElevatedButton(
+                          key: const ValueKey('start-game'),
+                          onPressed: onStart,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: TacticalPalette.foreground,
+                            foregroundColor: TacticalPalette.paper,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(2),
+                              ),
+                            ),
+                          ),
+                          child: Semantics(
+                            excludeSemantics: true,
+                            label: _startLabel(l10n, state.configuration),
+                            child: Text(
+                              l10n.startGame,
+                              style: TacticalTypography.body(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: TacticalPalette.paper,
+                                letterSpacing: 0.5,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 17),
-                      Text(
-                        _selectionSummary(l10n, state.configuration),
-                        textAlign: TextAlign.center,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          color: TacticalPalette.muted,
-                          height: 1.5,
-                        ),
+                    ),
+                    const SizedBox(height: 17),
+                    Text(
+                      _selectionSummary(l10n, state.configuration),
+                      textAlign: TextAlign.center,
+                      style: TacticalTypography.mono(
+                        fontSize: 10,
+                        color: TacticalPalette.muted,
+                        height: 1.5,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
