@@ -202,6 +202,80 @@ void main() {
     expect(container.read(gameControllerProvider), same(before));
   });
 
+  test('local two-player dispatches from each human faction independently', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.playerVsPlayer);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    controller.tapBase(0, actor: Faction.player);
+    controller.tapBase(2, actor: Faction.player);
+    controller.tapBase(1, actor: Faction.cpu);
+    controller.tapBase(2, actor: Faction.cpu);
+
+    final state = container.read(gameControllerProvider);
+    expect(state.movingForces, hasLength(2));
+    expect(state.movingForces[0].faction, Faction.player);
+    expect(state.movingForces[0].sourceIslandId, 0);
+    expect(state.movingForces[1].faction, Faction.cpu);
+    expect(state.movingForces[1].sourceIslandId, 1);
+    expect(state.movingForces[0].id, isNot(state.movingForces[1].id));
+    expect(state.selectedIslandId, isNull);
+    expect(state.opponentSelectedIslandId, isNull);
+  });
+
+  test('local two-player rejects the other faction as a source', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.playerVsPlayer);
+    controller.startGame();
+    completeStartCountdown(loop);
+
+    controller.tapBase(1, actor: Faction.player);
+    expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+    expect(
+      container.read(gameControllerProvider).interactionFeedback,
+      InteractionFeedbackType.unavailableSource,
+    );
+
+    controller.tapBase(0, actor: Faction.cpu);
+    expect(
+      container.read(gameControllerProvider).opponentSelectedIslandId,
+      isNull,
+    );
+  });
+
+  test('does not schedule CPU decisions in local two-player', () {
+    final counting = _CountingMaximumRandom();
+    final cpuContainer = ProviderContainer(
+      overrides: [
+        gameLoopProvider.overrideWithValue(loop),
+        randomProvider.overrideWithValue(Random(1)),
+        cpuTimingRandomProvider.overrideWithValue(counting),
+        cpuQualityRandomProvider.overrideWithValue(counting),
+        playerCpuRandomProvider.overrideWithValue(counting),
+        playerCpuQualityRandomProvider.overrideWithValue(counting),
+      ],
+    );
+    addTearDown(cpuContainer.dispose);
+    final controller = cpuContainer.read(gameControllerProvider.notifier);
+    controller.selectGameMode(GameMode.playerVsPlayer);
+    controller.startGame();
+    completeStartCountdown(loop);
+    final before = counting.callCount;
+    loop.tickMany(40);
+    expect(cpuContainer.read(gameControllerProvider).movingForces, isEmpty);
+    expect(counting.callCount, before);
+  });
+
+  test('standard mode still ignores opponent actor taps', () {
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    completeStartCountdown(loop);
+    final before = container.read(gameControllerProvider);
+    controller.tapBase(1, actor: Faction.cpu);
+    expect(container.read(gameControllerProvider), same(before));
+  });
+
   test('does not start spectator CPUs when map generation failed', () {
     final failedLoop = ManualGameLoop();
     final failedContainer = ProviderContainer(
