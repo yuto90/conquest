@@ -110,6 +110,78 @@ void main() {
     },
   );
 
+  test('island canDispatchAs is faction-specific', () {
+    const player = IslandState(
+      id: 0,
+      faction: Faction.player,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    expect(player.canDispatch, isTrue);
+    expect(player.canDispatchAs(Faction.player), isTrue);
+    expect(player.canDispatchAs(Faction.cpu), isFalse);
+    expect(cpu.canDispatch, isFalse);
+    expect(cpu.canDispatchAs(Faction.cpu), isTrue);
+    expect(cpu.canDispatchAs(Faction.neutral), isFalse);
+  });
+
+  test('game state stores independent player and opponent selections', () {
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      selectedIslandId: 0,
+      opponentSelectedIslandId: 1,
+      islands: const [
+        IslandState(id: 0, faction: Faction.player, currentForces: 10),
+        IslandState(id: 1, faction: Faction.cpu, currentForces: 10),
+      ],
+    );
+    expect(state.selectedIslandIdFor(Faction.player), 0);
+    expect(state.selectedIslandIdFor(Faction.cpu), 1);
+    expect(state.clearSelection().opponentSelectedIslandId, 1);
+    expect(state.clearOpponentSelection().selectedIslandId, 0);
+    expect(state.clearAllSelections().selectedIslandId, isNull);
+    expect(state.clearAllSelections().opponentSelectedIslandId, isNull);
+  });
+
+  test('invalidates only the opponent selection when 2P source is lost', () {
+    const player = IslandState(
+      id: 0,
+      faction: Faction.player,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    final captured = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 100,
+      selectedIslandId: 0,
+      opponentSelectedIslandId: 1,
+      islands: [
+        player,
+        cpu.copyWith(faction: Faction.player),
+      ],
+    );
+    final next = const GameRules().tick(captured, deltaMs: 0);
+    expect(next.selectedIslandId, 0);
+    expect(next.opponentSelectedIslandId, isNull);
+  });
+
   test('configuration copy retains Very Easy CPU difficulty', () {
     final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
     final updated = veryEasy.copyWith(totalIslandCount: 12);
