@@ -121,7 +121,7 @@ class Base extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: TacticalPalette.surface,
-                      border: Border.all(color: TacticalPalette.playerDeep),
+                      border: Border.all(color: _selectionDeepColor),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -133,7 +133,7 @@ class Base extends StatelessWidget {
                         style: TacticalTypography.mono(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
-                          color: TacticalPalette.playerDeep,
+                          color: _selectionDeepColor,
                           height: 1,
                           letterSpacing: 0.6,
                         ),
@@ -151,6 +151,10 @@ class Base extends StatelessWidget {
   FactionPresentation get _effectivePresentation =>
       presentation ??
       FactionPresentation.forMode(GameMode.playerVsCpu, base.faction);
+
+  Color get _selectionDeepColor => base.faction == Faction.cpu
+      ? TacticalPalette.cpuDeep
+      : TacticalPalette.playerDeep;
 
   String _sizeName(AppLocalizations l10n) => switch (base.size) {
     IslandSize.small => l10n.islandSizeSmall,
@@ -237,7 +241,9 @@ class _IslandPainter extends CustomPainter {
       final ringPaint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5
-        ..color = TacticalPalette.playerDeep;
+        ..color = faction == Faction.cpu
+            ? TacticalPalette.cpuDeep
+            : TacticalPalette.playerDeep;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           const Rect.fromLTWH(4, 4, 92, 92),
@@ -250,7 +256,10 @@ class _IslandPainter extends CustomPainter {
           const Rect.fromLTWH(10, 10, 80, 80),
           const Radius.circular(17),
         ),
-        ringPaint..color = TacticalPalette.player,
+        ringPaint
+          ..color = faction == Faction.cpu
+              ? TacticalPalette.cpu
+              : TacticalPalette.player,
       );
     }
 

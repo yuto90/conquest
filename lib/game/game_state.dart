@@ -26,7 +26,25 @@ enum GamePhase {
 /// The selectable CPU decision interval profile for a match.
 enum CpuDifficulty { veryEasy, easy, normal, hard }
 
-enum GameMode { playerVsCpu, cpuVsCpu }
+enum GameMode {
+  playerVsCpu,
+  playerVsPlayer,
+  cpuVsCpu;
+
+  List<Faction> get humanFactions => switch (this) {
+    playerVsCpu => const [Faction.player],
+    playerVsPlayer => const [Faction.player, Faction.cpu],
+    cpuVsCpu => const [],
+  };
+
+  List<Faction> get cpuFactions => switch (this) {
+    playerVsCpu => const [Faction.cpu],
+    playerVsPlayer => const [],
+    cpuVsCpu => const [Faction.player, Faction.cpu],
+  };
+
+  bool get usesVersusPresentation => this != playerVsCpu;
+}
 
 enum Faction {
   player,
@@ -239,6 +257,12 @@ class IslandState {
 
   /// Whether this island can be selected as a player dispatch source.
   bool get canDispatch => faction == Faction.player && currentForces > 1;
+
+  /// Whether this island can be selected as a dispatch source for [faction].
+  bool canDispatchAs(Faction faction) =>
+      faction != Faction.neutral &&
+      this.faction == faction &&
+      currentForces > 1;
 
   /// A descriptive alias used by accessibility-facing board code.
   bool get actionAvailable => canDispatch;
@@ -552,6 +576,7 @@ final class GameState {
     List<BaseState>? bases,
     int? selectedIslandId,
     int? selectedBaseId,
+    int? opponentSelectedIslandId,
     List<MovingForce>? movingForces,
     MovingForce? movement,
     InteractionFeedbackType? interactionFeedback,
@@ -561,6 +586,7 @@ final class GameState {
   }) : configuration = configuration ?? GameConfiguration.initial,
        islands = List.unmodifiable(islands ?? bases ?? const <IslandState>[]),
        selectedIslandId = selectedIslandId ?? selectedBaseId,
+       opponentSelectedIslandId = opponentSelectedIslandId,
        movingForces = List.unmodifiable(
          movingForces ??
              (movement == null
@@ -583,6 +609,7 @@ final class GameState {
   final int elapsedMs;
   final List<IslandState> islands;
   final int? selectedIslandId;
+  final int? opponentSelectedIslandId;
   final List<MovingForce> movingForces;
   final InteractionFeedbackType? interactionFeedback;
   final int interactionFeedbackUntilMs;
@@ -603,6 +630,26 @@ final class GameState {
   bool get isCountdown =>
       phase == GamePhase.startCountdown || phase == GamePhase.resumeCountdown;
 
+  int? selectedIslandIdFor(Faction faction) => switch (faction) {
+    Faction.player => selectedIslandId,
+    Faction.cpu => opponentSelectedIslandId,
+    Faction.neutral => null,
+  };
+
+  GameState selectIslandFor(Faction faction, int islandId) {
+    return switch (faction) {
+      Faction.player => copyWith(selectedIslandId: islandId),
+      Faction.cpu => copyWith(opponentSelectedIslandId: islandId),
+      Faction.neutral => this,
+    };
+  }
+
+  GameState clearSelectionFor(Faction faction) => switch (faction) {
+    Faction.player => clearSelection(),
+    Faction.cpu => clearOpponentSelection(),
+    Faction.neutral => this,
+  };
+
   GameState copyWith({
     GameConfiguration? configuration,
     GamePhase? phase,
@@ -611,6 +658,7 @@ final class GameState {
     List<BaseState>? bases,
     int? selectedIslandId,
     int? selectedBaseId,
+    int? opponentSelectedIslandId,
     List<MovingForce>? movingForces,
     InteractionFeedbackType? interactionFeedback,
     int? interactionFeedbackUntilMs,
@@ -624,6 +672,8 @@ final class GameState {
       islands: islands ?? bases ?? this.islands,
       selectedIslandId:
           selectedIslandId ?? selectedBaseId ?? this.selectedIslandId,
+      opponentSelectedIslandId:
+          opponentSelectedIslandId ?? this.opponentSelectedIslandId,
       movingForces: movingForces ?? this.movingForces,
       interactionFeedback: interactionFeedback ?? this.interactionFeedback,
       interactionFeedbackUntilMs:
@@ -642,6 +692,7 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: opponentSelectedIslandId,
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
@@ -669,6 +720,7 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: opponentSelectedIslandId,
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
@@ -677,8 +729,8 @@ final class GameState {
     );
   }
 
-  /// Clears the nullable selection through a typed API rather than a dynamic
-  /// sentinel in [copyWith].
+  /// Clears the nullable 1P selection through a typed API rather than a
+  /// dynamic sentinel in [copyWith].
   GameState clearSelection() {
     return GameState(
       configuration: configuration,
@@ -686,6 +738,41 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: null,
+      opponentSelectedIslandId: opponentSelectedIslandId,
+      movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
+  /// Clears the nullable 2P selection through a typed API.
+  GameState clearOpponentSelection() {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: null,
+      movingForces: movingForces,
+      interactionFeedback: interactionFeedback,
+      interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      result: result,
+      countdownRemainingMs: countdownRemainingMs,
+    );
+  }
+
+  /// Clears both human selections without changing the rest of the match.
+  GameState clearAllSelections() {
+    return GameState(
+      configuration: configuration,
+      phase: phase,
+      elapsedMs: elapsedMs,
+      islands: islands,
+      selectedIslandId: null,
+      opponentSelectedIslandId: null,
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
@@ -702,6 +789,7 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: opponentSelectedIslandId,
       movingForces: const <MovingForce>[],
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
@@ -722,6 +810,7 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: opponentSelectedIslandId,
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
@@ -746,6 +835,7 @@ final class GameState {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: opponentSelectedIslandId,
       movingForces: movingForces,
       interactionFeedback: null,
       interactionFeedbackUntilMs: 0,
@@ -762,6 +852,7 @@ final class GameState {
         other.elapsedMs == elapsedMs &&
         _listEquals(other.islands, islands) &&
         other.selectedIslandId == selectedIslandId &&
+        other.opponentSelectedIslandId == opponentSelectedIslandId &&
         _listEquals(other.movingForces, movingForces) &&
         other.interactionFeedback == interactionFeedback &&
         other.interactionFeedbackUntilMs == interactionFeedbackUntilMs &&
@@ -776,6 +867,7 @@ final class GameState {
     elapsedMs,
     Object.hashAll(islands),
     selectedIslandId,
+    opponentSelectedIslandId,
     Object.hashAll(movingForces),
     interactionFeedback,
     interactionFeedbackUntilMs,

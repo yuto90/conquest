@@ -79,6 +79,123 @@ void main() {
     },
   );
 
+  test('game modes expose human and CPU factions', () {
+    expect(GameMode.playerVsCpu.humanFactions, [Faction.player]);
+    expect(GameMode.playerVsCpu.cpuFactions, [Faction.cpu]);
+    expect(GameMode.playerVsPlayer.humanFactions, [
+      Faction.player,
+      Faction.cpu,
+    ]);
+    expect(GameMode.playerVsPlayer.cpuFactions, isEmpty);
+    expect(GameMode.cpuVsCpu.humanFactions, isEmpty);
+    expect(GameMode.cpuVsCpu.cpuFactions, [Faction.player, Faction.cpu]);
+    expect(GameMode.playerVsPlayer.usesVersusPresentation, isTrue);
+    expect(GameMode.playerVsCpu.usesVersusPresentation, isFalse);
+  });
+
+  test(
+    'configuration copy retains hidden CPU difficulties in local two-player',
+    () {
+      final local = GameConfiguration(
+        totalIslandCount: 8,
+        gameMode: GameMode.playerVsPlayer,
+        playerCpuDifficulty: CpuDifficulty.hard,
+        cpuDifficulty: CpuDifficulty.easy,
+      );
+      final restored = local.copyWith(gameMode: GameMode.playerVsCpu);
+
+      expect(local.gameMode, GameMode.playerVsPlayer);
+      expect(restored.playerCpuDifficulty, CpuDifficulty.hard);
+      expect(restored.cpuDifficulty, CpuDifficulty.easy);
+    },
+  );
+
+  test('island canDispatchAs is faction-specific', () {
+    const player = IslandState(
+      id: 0,
+      faction: Faction.player,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    expect(player.canDispatch, isTrue);
+    expect(player.canDispatchAs(Faction.player), isTrue);
+    expect(player.canDispatchAs(Faction.cpu), isFalse);
+    expect(cpu.canDispatch, isFalse);
+    expect(cpu.canDispatchAs(Faction.cpu), isTrue);
+    expect(cpu.canDispatchAs(Faction.neutral), isFalse);
+  });
+
+  test('game state stores independent player and opponent selections', () {
+    final state = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      selectedIslandId: 0,
+      opponentSelectedIslandId: 1,
+      islands: const [
+        IslandState(id: 0, faction: Faction.player, currentForces: 10),
+        IslandState(id: 1, faction: Faction.cpu, currentForces: 10),
+      ],
+    );
+    expect(state.selectedIslandIdFor(Faction.player), 0);
+    expect(state.selectedIslandIdFor(Faction.cpu), 1);
+    expect(state.clearSelection().opponentSelectedIslandId, 1);
+    expect(state.clearOpponentSelection().selectedIslandId, 0);
+    expect(state.clearAllSelections().selectedIslandId, isNull);
+    expect(state.clearAllSelections().opponentSelectedIslandId, isNull);
+  });
+
+  test('invalidates only the opponent selection when 2P source is lost', () {
+    const player = IslandState(
+      id: 0,
+      faction: Faction.player,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    const cpu = IslandState(
+      id: 1,
+      faction: Faction.cpu,
+      currentForces: 10,
+      size: IslandSize.headquarters,
+      capacity: 200,
+    );
+    final captured = GameState(
+      phase: GamePhase.playing,
+      elapsedMs: 100,
+      selectedIslandId: 0,
+      opponentSelectedIslandId: 1,
+      islands: [
+        player,
+        cpu.copyWith(faction: Faction.player),
+      ],
+    );
+    final next = const GameRules().tick(captured, deltaMs: 0);
+    expect(next.selectedIslandId, 0);
+    expect(next.opponentSelectedIslandId, isNull);
+  });
+
+  test('viewport island rect contains its center and not a far point', () {
+    const viewport = IslandMapViewport(width: 390, height: 844);
+    final hq = rules.initialState(viewport: viewport).islands.first;
+    final rect = viewport.rectFor(hq);
+    expect(
+      rect.containsPoint(
+        (rect.left + rect.right) / 2,
+        (rect.top + rect.bottom) / 2,
+      ),
+      isTrue,
+    );
+    expect(rect.containsPoint(0, 0), isFalse);
+  });
+
   test('configuration copy retains Very Easy CPU difficulty', () {
     final veryEasy = GameConfiguration(cpuDifficulty: CpuDifficulty.veryEasy);
     final updated = veryEasy.copyWith(totalIslandCount: 12);

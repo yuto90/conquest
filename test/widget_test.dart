@@ -226,6 +226,73 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('switches to local two-player settings without CPU difficulty', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('game-mode-player-vs-cpu')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('game-mode-player-vs-player')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('cpu-difficulty-normal')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+      findsNothing,
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
+      contains('2人対戦'),
+    );
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('start-game'))),
+    );
+    expect(
+      container.read(gameControllerProvider).configuration.gameMode,
+      GameMode.playerVsPlayer,
+    );
+    semantics.dispose();
+  });
+
+  testWidgets(
+    'keeps local two-player controls operable on a 280 by 500 screen',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(280, 500));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [randomProvider.overrideWithValue(Random(1))],
+          child: const MyApp(locale: Locale('ja')),
+        ),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('game-mode-player-vs-player')),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('keeps spectator controls operable on a 280 by 500 screen', (
     tester,
   ) async {
@@ -1583,10 +1650,87 @@ void main() {
     expect(find.text('2P 勝利'), findsOneWidget);
   });
 
+  testWidgets('shows both local selections and 1P 2P markers', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    expect(find.text('1P'), findsWidgets);
+    expect(find.text('2P'), findsWidgets);
+    expect(find.text('P'), findsNothing);
+    expect(find.text('C'), findsNothing);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.tapBase(0, actor: Faction.player);
+    controller.tapBase(1, actor: Faction.cpu);
+    await tester.pump();
+
+    expect(find.text('出兵元'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('board-status-label')), findsOneWidget);
+  });
+
+  testWidgets('labels local two-player winners as 1P and 2P', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+
+    controller.finish(
+      const GameResult.victory(elapsedMs: 1, winner: Faction.player),
+    );
+    await tester.pump();
+    expect(find.text('1P 勝利'), findsOneWidget);
+
+    controller.returnToConfiguration();
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    controller.finish(
+      const GameResult.defeat(elapsedMs: 2, winner: Faction.cpu),
+    );
+    await tester.pump();
+    expect(find.text('2P 勝利'), findsOneWidget);
+  });
+
   testWidgets('uses mode-specific draw labels', (tester) async {
     for (final entry in const [
       (mode: GameMode.playerVsCpu, title: '引き分け'),
       (mode: GameMode.cpuVsCpu, title: '引き分け'),
+      (mode: GameMode.playerVsPlayer, title: '引き分け'),
     ]) {
       final loop = ManualWidgetGameLoop();
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1615,5 +1759,112 @@ void main() {
 
       expect(find.text(entry.title), findsOneWidget);
     }
+  });
+
+  testWidgets('local two-player drags dispatch and taps on enemy do not', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    expect(container.read(gameControllerProvider).phase, GamePhase.playing);
+
+    await tester.tap(find.byKey(const ValueKey('island-button-1')));
+    await tester.pump();
+    expect(container.read(gameControllerProvider).movingForces, isEmpty);
+    expect(container.read(gameControllerProvider).selectedIslandId, isNull);
+
+    final playerHq = tester.getCenter(
+      find.byKey(const ValueKey('island-button-0')),
+    );
+    final target = tester.getCenter(
+      find.byKey(const ValueKey('island-button-2')),
+    );
+    final gesture = await tester.startGesture(playerHq);
+    await tester.pump();
+    await gesture.moveTo(target);
+    await gesture.up();
+    await tester.pump();
+
+    final dispatched = container.read(gameControllerProvider);
+    expect(dispatched.movingForces, hasLength(1));
+    expect(dispatched.movingForces.single.faction, Faction.player);
+    expect(dispatched.movingForces.single.sourceIslandId, 0);
+  });
+
+  testWidgets('two pointers can dispatch in the same frame order', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('game-mode-player-vs-player')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final playerHq = tester.getCenter(
+      find.byKey(const ValueKey('island-button-0')),
+    );
+    final cpuHq = tester.getCenter(
+      find.byKey(const ValueKey('island-button-1')),
+    );
+    final targetA = tester.getCenter(
+      find.byKey(const ValueKey('island-button-2')),
+    );
+    final targetB = tester.getCenter(
+      find.byKey(const ValueKey('island-button-3')),
+    );
+
+    final playerGesture = await tester.startGesture(playerHq, pointer: 1);
+    final cpuGesture = await tester.startGesture(cpuHq, pointer: 2);
+    await tester.pump();
+    await playerGesture.moveTo(targetA);
+    await cpuGesture.moveTo(targetB);
+    await playerGesture.up();
+    await cpuGesture.up();
+    await tester.pump();
+
+    final dispatched = container.read(gameControllerProvider);
+    expect(dispatched.movingForces, hasLength(2));
+    expect(
+      dispatched.movingForces.map((force) => force.faction),
+      containsAll(<Faction>[Faction.player, Faction.cpu]),
+    );
   });
 }

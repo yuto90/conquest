@@ -26,6 +26,27 @@ ControllerからGameRules・CpuStrategy・描画状態までを接続して確�
 実端末のCPU対CPU観戦、1P / 2Pの視認性、VoiceOver読み上げ、背景復帰はこの自動QA表のPASSに
 含めず、実施するまで未実行として記録する。
 
+## Issue #55 同一端末2人対戦QA
+
+同一端末2人対戦の自動QAは、固定乱数とManualGameLoop、およびWidgetテストの
+`TestGesture`を使い、実時間待機なしで設定・Controller・Rules・盤面入力までを接続して
+確認する。実端末での2人同時ドラッグや視認性確認は別途実施するまで未実行として扱い、
+自動テストのPASSから推定しない。
+
+| 確認項目 | 自動テスト | 結果 |
+| --- | --- | --- |
+| 3モード設定、難易度非表示、280 x 500到達 | `switches to local two-player settings without CPU difficulty`、`keeps local two-player controls operable on a 280 by 500 screen` | PASS |
+| 1P / 2P表示、両選択バッジ、結果ラベル | `shows both local selections and 1P 2P markers`、`labels local two-player winners as 1P and 2P`、`uses mode-specific draw labels` | PASS |
+| 陣営付き出兵、誤ソース拒否、CPU停止 | `local two-player dispatches from each human faction independently`、`local two-player rejects the other faction as a source`、`does not schedule CPU decisions in local two-player` | PASS |
+| ドラッグ出兵、敵島単独タップでは出兵しない | `local two-player drags dispatch and taps on enemy do not` | PASS |
+| 2本のポインターが両部隊を生成する | `two pointers can dispatch in the same frame order` | PASS |
+| 6・8・10・12島で2人対戦を開始し手動出兵できる | `starts local two-player on every supported island count` | PASS |
+| 結果後に停止し、再戦後もモードを保持する | `local two-player stops after a result and keeps mode on replay` | PASS |
+| 通常CPU戦の2タップ出兵が残る | `shows the selected source and valid destination candidates`、`standard playing islands expose semantic tap and dispatch through it` | PASS |
+
+実端末の2人同時ドラッグ、VoiceOverでの2人同時プレイ、280×500の実機確認はこの自動QA表の
+PASSに含めず、実施するまで未実行として記録する。
+
 ## Issue #40 CPU難易度グラデーションQA（Task 5A/5B）
 
 この節はVery Easy・Easy・Normal・Hardの4段階CPU難易度と、承認済みVery Easy再調整の
@@ -253,7 +274,7 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 ### 対象外
 
 Issue #15時点では難易度選択を対象外としていたが、Issue #31で実装・自動QAした。試合途中の
-難易度変更、難易度設定の永続化、同一端末2人対戦、オンライン対戦、初期版に不要な演出、
+難易度変更、難易度設定の永続化、オンライン対戦、初期版に不要な演出、
 試合の保存・復元は引き続き対象外であり、実装・QAしていない。
 
 ## Issue #44 英語・日本語ローカライズQA

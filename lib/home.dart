@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
 import 'package:conquest/faction_presentation.dart';
+import 'package:conquest/local_multiplayer_input.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,6 +56,9 @@ class _GameSurface extends ConsumerStatefulWidget {
 
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
+  final Map<int, LocalDispatchSession> _sessions = {};
+  final Map<int, Offset> _pointerPositions = {};
+
   @override
   void initState() {
     super.initState();
@@ -73,8 +77,111 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.detached) {
+      _clearLocalSessions();
       ref.read(gameControllerProvider.notifier).pauseGame();
     }
+  }
+
+  void _clearLocalSessions() {
+    if (_sessions.isEmpty && _pointerPositions.isEmpty) {
+      return;
+    }
+    _sessions.clear();
+    _pointerPositions.clear();
+  }
+
+  void _onLocalPointerDown(PointerDownEvent event) {
+    final state = ref.read(gameControllerProvider);
+    if (state.phase != GamePhase.playing ||
+        state.configuration.gameMode != GameMode.playerVsPlayer) {
+      return;
+    }
+    if (_sessions.length >= 2 && !_sessions.containsKey(event.pointer)) {
+      return;
+    }
+    final island = hitTestIsland(
+      state: state,
+      viewport: ref.read(mapViewportProvider),
+      local: event.localPosition,
+    );
+    if (island == null) {
+      return;
+    }
+    final actor = island.faction;
+    if (!state.configuration.gameMode.humanFactions.contains(actor) ||
+        !island.canDispatchAs(actor)) {
+      return;
+    }
+    final startedOnSelectedSource =
+        state.selectedIslandIdFor(actor) == island.id;
+    if (!startedOnSelectedSource) {
+      ref
+          .read(gameControllerProvider.notifier)
+          .tapBase(island.id, actor: actor);
+    }
+    setState(() {
+      _sessions[event.pointer] = LocalDispatchSession(
+        pointerId: event.pointer,
+        actor: actor,
+        sourceIslandId: island.id,
+        startedOnSelectedSource: startedOnSelectedSource,
+      );
+      _pointerPositions[event.pointer] = event.localPosition;
+    });
+  }
+
+  void _onLocalPointerMove(PointerMoveEvent event) {
+    if (!_sessions.containsKey(event.pointer)) {
+      return;
+    }
+    setState(() {
+      _pointerPositions[event.pointer] = event.localPosition;
+    });
+  }
+
+  void _onLocalPointerUp(PointerUpEvent event) {
+    final session = _sessions.remove(event.pointer);
+    _pointerPositions.remove(event.pointer);
+    if (session != null && mounted) {
+      setState(() {});
+    }
+    if (session == null) {
+      return;
+    }
+    final state = ref.read(gameControllerProvider);
+    if (state.phase != GamePhase.playing) {
+      return;
+    }
+    final island = hitTestIsland(
+      state: state,
+      viewport: ref.read(mapViewportProvider),
+      local: event.localPosition,
+    );
+    if (island == null) {
+      return;
+    }
+    if (island.id == session.sourceIslandId) {
+      if (session.startedOnSelectedSource) {
+        ref
+            .read(gameControllerProvider.notifier)
+            .tapBase(island.id, actor: session.actor);
+      }
+      return;
+    }
+    ref
+        .read(gameControllerProvider.notifier)
+        .tapBase(island.id, actor: session.actor);
+  }
+
+  void _onLocalPointerCancel(PointerCancelEvent event) {
+    if (!_sessions.containsKey(event.pointer) &&
+        !_pointerPositions.containsKey(event.pointer)) {
+      return;
+    }
+    setState(() {
+      _sessions.remove(event.pointer);
+      _pointerPositions.remove(event.pointer);
+    });
   }
 
   @override
@@ -85,7 +192,73 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     final isPlayerInteractionEnabled =
         state.phase == GamePhase.playing &&
         state.configuration.gameMode == GameMode.playerVsCpu;
+    final isLocalTwoPlayer =
+        state.configuration.gameMode == GameMode.playerVsPlayer;
+    final isLocalPlaying = state.phase == GamePhase.playing && isLocalTwoPlayer;
+    final showHumanSelectionChrome =
+        state.phase == GamePhase.playing &&
+        (isPlayerInteractionEnabled || isLocalTwoPlayer);
     final showBoardChrome = state.phase != GamePhase.configuration;
+    if (!isLocalPlaying) {
+      _clearLocalSessions();
+    }
+
+    Widget board = Stack(
+      fit: StackFit.expand,
+      children: [
+        for (final island in state.islands)
+          Align(
+            key: ValueKey('island-${island.id}'),
+            alignment: Alignment(island.x, island.y),
+            child: SizedBox.square(
+              dimension: GameRules.islandWidgetSize(island.size),
+              child: Base(
+                key: ValueKey('island-button-${island.id}'),
+                base: island,
+                presentation: FactionPresentation.forMode(
+                  state.configuration.gameMode,
+                  island.faction,
+                ),
+                selected:
+                    state.selectedIslandId == island.id ||
+                    state.opponentSelectedIslandId == island.id,
+                destinationCandidate:
+                    showHumanSelectionChrome &&
+                    (state.selectedIslandId != null ||
+                        state.opponentSelectedIslandId != null) &&
+                    state.selectedIslandId != island.id &&
+                    state.opponentSelectedIslandId != island.id,
+                onPressed: isPlayerInteractionEnabled
+                    ? () => controller.tapBase(island.id)
+                    : null,
+              ),
+            ),
+          ),
+        for (final force in state.movingForces)
+          Align(
+            key: ValueKey('moving-force-position-${force.id}'),
+            alignment: Alignment(force.x, force.y),
+            child: MovingForceWidget(
+              force: force,
+              presentation: FactionPresentation.forMode(
+                state.configuration.gameMode,
+                force.faction,
+              ),
+              semanticsKey: ValueKey('moving-force-${force.id}'),
+            ),
+          ),
+      ],
+    );
+    if (isLocalPlaying) {
+      board = Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: _onLocalPointerDown,
+        onPointerMove: _onLocalPointerMove,
+        onPointerUp: _onLocalPointerUp,
+        onPointerCancel: _onLocalPointerCancel,
+        child: board,
+      );
+    }
 
     return ColoredBox(
       color: TacticalPalette.background,
@@ -99,49 +272,18 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             label: l10n.boardMapSemantics(
               islandCount: state.configuration.totalIslandCount,
             ),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                for (final island in state.islands)
-                  Align(
-                    key: ValueKey('island-${island.id}'),
-                    alignment: Alignment(island.x, island.y),
-                    child: SizedBox.square(
-                      dimension: GameRules.islandWidgetSize(island.size),
-                      child: Base(
-                        key: ValueKey('island-button-${island.id}'),
-                        base: island,
-                        presentation: FactionPresentation.forMode(
-                          state.configuration.gameMode,
-                          island.faction,
-                        ),
-                        selected: state.selectedIslandId == island.id,
-                        destinationCandidate:
-                            isPlayerInteractionEnabled &&
-                            state.selectedIslandId != null &&
-                            state.selectedIslandId != island.id,
-                        onPressed: isPlayerInteractionEnabled
-                            ? () => controller.tapBase(island.id)
-                            : null,
-                      ),
-                    ),
-                  ),
-                for (final force in state.movingForces)
-                  Align(
-                    key: ValueKey('moving-force-position-${force.id}'),
-                    alignment: Alignment(force.x, force.y),
-                    child: MovingForceWidget(
-                      force: force,
-                      presentation: FactionPresentation.forMode(
-                        state.configuration.gameMode,
-                        force.faction,
-                      ),
-                      semanticsKey: ValueKey('moving-force-${force.id}'),
-                    ),
-                  ),
-              ],
-            ),
+            child: board,
           ),
+          if (_sessions.isNotEmpty)
+            IgnorePointer(
+              child: CustomPaint(
+                painter: _LocalDragPreviewPainter(
+                  state: state,
+                  sessions: List<LocalDispatchSession>.from(_sessions.values),
+                  positions: Map<int, Offset>.from(_pointerPositions),
+                ),
+              ),
+            ),
           if (showBoardChrome)
             _BoardChrome(
               state: state,
@@ -219,6 +361,16 @@ class _BoardChrome extends StatelessWidget {
     final l10n = _appLocalizations(context);
     final selected = state.selectedIslandId != null;
     final isSpectator = state.configuration.gameMode == GameMode.cpuVsCpu;
+    final isLocalTwoPlayer =
+        state.configuration.gameMode == GameMode.playerVsPlayer;
+    final playerSelected = state.selectedIslandId != null;
+    final opponentSelected = state.opponentSelectedIslandId != null;
+    final localPlayerStatus = playerSelected
+        ? l10n.boardStatusLocalSelected
+        : l10n.boardStatusLocalUnselected;
+    final localOpponentStatus = opponentSelected
+        ? l10n.boardStatusLocalSelected
+        : l10n.boardStatusLocalUnselected;
     return IgnorePointer(
       ignoring: false,
       child: Stack(
@@ -272,25 +424,38 @@ class _BoardChrome extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
-                    child: Text(
-                      key: const ValueKey('board-status-label'),
-                      isSpectator
-                          ? l10n.spectatorStatus
-                          : selected
-                          ? l10n.boardStatusSelected
-                          : l10n.boardStatusUnselected,
-                      style: TacticalTypography.mono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: TacticalPalette.foreground,
-                        height: 1.3,
+                    child: Semantics(
+                      hint: isLocalTwoPlayer
+                          ? l10n.boardStatusLocalDetail
+                          : null,
+                      child: Text(
+                        key: const ValueKey('board-status-label'),
+                        isLocalTwoPlayer
+                            ? l10n.boardStatusLocalPlayer(
+                                status: localPlayerStatus,
+                              )
+                            : isSpectator
+                            ? l10n.spectatorStatus
+                            : selected
+                            ? l10n.boardStatusSelected
+                            : l10n.boardStatusUnselected,
+                        style: TacticalTypography.mono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: TacticalPalette.foreground,
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ),
                   Flexible(
                     child: Text(
                       key: const ValueKey('board-status-detail'),
-                      isSpectator
+                      isLocalTwoPlayer
+                          ? l10n.boardStatusLocalOpponent(
+                              status: localOpponentStatus,
+                            )
+                          : isSpectator
                           ? l10n.spectatorDetail
                           : selected
                           ? l10n.boardStatusSelectedDetail
@@ -562,96 +727,109 @@ class _ConfigurationPanel extends StatelessWidget {
           const CustomPaint(painter: _SettingsDecorationPainter()),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
-              child: Transform.translate(
-                offset: const Offset(0, 4),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 330),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.settingsStep,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: TacticalPalette.muted,
-                          height: 1.2,
-                          letterSpacing: 1.6,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 330),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.settingsStep,
+                      style: TacticalTypography.mono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: TacticalPalette.muted,
+                        height: 1.2,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        l10n.settingsTitle,
+                        style: TacticalTypography.display(
+                          fontSize: 40,
+                          height: 0.96,
+                          letterSpacing: -1.2,
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          l10n.settingsTitle,
-                          style: TacticalTypography.display(
-                            fontSize: 40,
-                            height: 0.96,
-                            letterSpacing: -1.2,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      state.configuration.gameMode == GameMode.playerVsPlayer
+                          ? l10n.settingsDescriptionLocal
+                          : l10n.settingsDescription,
+                      style: TacticalTypography.body(
+                        fontSize: 12,
+                        color: TacticalPalette.muted,
+                        height: 1.55,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      l10n.islandCountLabel,
+                      style: TacticalTypography.mono(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < GameConfiguration.allowedIslandCounts.length;
+                          index++
+                        ) ...[
+                          if (index > 0) const SizedBox(width: 7),
+                          Expanded(
+                            child: _IslandCountChoice(
+                              state: state,
+                              count:
+                                  GameConfiguration.allowedIslandCounts[index],
+                            ),
                           ),
-                        ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      l10n.gameModeLabel,
+                      style: TacticalTypography.mono(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.settingsDescription,
-                        style: TacticalTypography.body(
-                          fontSize: 12,
-                          color: TacticalPalette.muted,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      Text(
-                        l10n.islandCountLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index <
-                                GameConfiguration.allowedIslandCounts.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
+                    ),
+                    const SizedBox(height: 9),
+                    Column(
+                      children: [
+                        Row(
+                          children: [
                             Expanded(
-                              child: _IslandCountChoice(
+                              child: _GameModeChoice(
                                 state: state,
-                                count: GameConfiguration
-                                    .allowedIslandCounts[index],
+                                mode: GameMode.playerVsCpu,
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: _GameModeChoice(
+                                state: state,
+                                mode: GameMode.playerVsPlayer,
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        l10n.gameModeLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
                         ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (final mode in GameMode.values) ...[
-                            if (mode != GameMode.values.first)
-                              const SizedBox(width: 7),
-                            Expanded(
-                              child: _GameModeChoice(state: state, mode: mode),
-                            ),
-                          ],
-                        ],
-                      ),
+                        const SizedBox(height: 7),
+                        _GameModeChoice(state: state, mode: GameMode.cpuVsCpu),
+                      ],
+                    ),
+                    if (state.configuration.gameMode !=
+                        GameMode.playerVsPlayer) ...[
                       const SizedBox(height: 16),
                       Text(
                         state.configuration.gameMode == GameMode.cpuVsCpu
@@ -713,53 +891,53 @@ class _ConfigurationPanel extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 29),
-                      Semantics(
-                        button: onStart != null,
-                        enabled: onStart != null,
-                        child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton(
-                            key: const ValueKey('start-game'),
-                            onPressed: onStart,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              backgroundColor: TacticalPalette.foreground,
-                              foregroundColor: TacticalPalette.paper,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(2),
-                                ),
+                    ],
+                    const SizedBox(height: 18),
+                    Semantics(
+                      button: onStart != null,
+                      enabled: onStart != null,
+                      child: SizedBox(
+                        height: 46,
+                        child: ElevatedButton(
+                          key: const ValueKey('start-game'),
+                          onPressed: onStart,
+                          style: ElevatedButton.styleFrom(
+                            elevation: 0,
+                            backgroundColor: TacticalPalette.foreground,
+                            foregroundColor: TacticalPalette.paper,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(2),
                               ),
                             ),
-                            child: Semantics(
-                              excludeSemantics: true,
-                              label: _startLabel(l10n, state.configuration),
-                              child: Text(
-                                l10n.startGame,
-                                style: TacticalTypography.body(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: TacticalPalette.paper,
-                                  letterSpacing: 0.5,
-                                ),
+                          ),
+                          child: Semantics(
+                            excludeSemantics: true,
+                            label: _startLabel(l10n, state.configuration),
+                            child: Text(
+                              l10n.startGame,
+                              style: TacticalTypography.body(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: TacticalPalette.paper,
+                                letterSpacing: 0.5,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 17),
-                      Text(
-                        _selectionSummary(l10n, state.configuration),
-                        textAlign: TextAlign.center,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          color: TacticalPalette.muted,
-                          height: 1.5,
-                        ),
+                    ),
+                    const SizedBox(height: 17),
+                    Text(
+                      _selectionSummary(l10n, state.configuration),
+                      textAlign: TextAlign.center,
+                      style: TacticalTypography.mono(
+                        fontSize: 10,
+                        color: TacticalPalette.muted,
+                        height: 1.5,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -982,11 +1160,13 @@ class _GameModeChoice extends StatelessWidget {
 
 String _modeKey(GameMode mode) => switch (mode) {
   GameMode.playerVsCpu => 'player-vs-cpu',
+  GameMode.playerVsPlayer => 'player-vs-player',
   GameMode.cpuVsCpu => 'cpu-vs-cpu',
 };
 
 String _modeLabel(AppLocalizations l10n, GameMode mode) => switch (mode) {
   GameMode.playerVsCpu => l10n.modePlayerVsCpu,
+  GameMode.playerVsPlayer => l10n.modePlayerVsPlayer,
   GameMode.cpuVsCpu => l10n.modeCpuVsCpu,
 };
 
@@ -995,6 +1175,9 @@ String _startLabel(AppLocalizations l10n, GameConfiguration configuration) =>
       GameMode.playerVsCpu => l10n.startGameSemantics(
         islandCount: configuration.totalIslandCount,
         difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+      ),
+      GameMode.playerVsPlayer => l10n.startLocalSemantics(
+        islandCount: configuration.totalIslandCount,
       ),
       GameMode.cpuVsCpu => l10n.startSpectatorSemantics(
         islandCount: configuration.totalIslandCount,
@@ -1009,19 +1192,20 @@ String _startLabel(AppLocalizations l10n, GameConfiguration configuration) =>
 String _selectionSummary(
   AppLocalizations l10n,
   GameConfiguration configuration,
-) => configuration.gameMode == GameMode.cpuVsCpu
-    ? l10n.selectedSummarySpectator(
-        islandCount: configuration.totalIslandCount,
-        playerDifficulty: _difficultyLabel(
-          l10n,
-          configuration.playerCpuDifficulty,
-        ),
-        cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
-      )
-    : l10n.selectedSummary(
-        islandCount: configuration.totalIslandCount,
-        difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
-      );
+) => switch (configuration.gameMode) {
+  GameMode.cpuVsCpu => l10n.selectedSummarySpectator(
+    islandCount: configuration.totalIslandCount,
+    playerDifficulty: _difficultyLabel(l10n, configuration.playerCpuDifficulty),
+    cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+  ),
+  GameMode.playerVsPlayer => l10n.selectedSummaryLocal(
+    islandCount: configuration.totalIslandCount,
+  ),
+  GameMode.playerVsCpu => l10n.selectedSummary(
+    islandCount: configuration.totalIslandCount,
+    difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+  ),
+};
 
 String _resultTitle(
   AppLocalizations l10n,
@@ -1348,6 +1532,18 @@ class _RoutePainter extends CustomPainter {
         }
       }
     }
+    final opponentSelectedId = state.opponentSelectedIslandId;
+    if (opponentSelectedId != null) {
+      final source = _island(opponentSelectedId);
+      if (source != null) {
+        for (final destination
+            in state.islands
+                .where((island) => island.id != opponentSelectedId)
+                .take(4)) {
+          routes.add((source, destination, source.faction));
+        }
+      }
+    }
 
     for (final route in routes) {
       final paint = Paint()
@@ -1403,6 +1599,66 @@ class _RoutePainter extends CustomPainter {
   bool shouldRepaint(covariant _RoutePainter oldDelegate) {
     return state.movingForces != oldDelegate.state.movingForces ||
         state.selectedIslandId != oldDelegate.state.selectedIslandId ||
+        state.opponentSelectedIslandId !=
+            oldDelegate.state.opponentSelectedIslandId ||
         state.islands != oldDelegate.state.islands;
+  }
+}
+
+class _LocalDragPreviewPainter extends CustomPainter {
+  const _LocalDragPreviewPainter({
+    required this.state,
+    required this.sessions,
+    required this.positions,
+  });
+
+  final GameState state;
+  final List<LocalDispatchSession> sessions;
+  final Map<int, Offset> positions;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final session in sessions) {
+      final pointer = positions[session.pointerId];
+      if (pointer == null) {
+        continue;
+      }
+      IslandState? source;
+      for (final island in state.islands) {
+        if (island.id == session.sourceIslandId) {
+          source = island;
+          break;
+        }
+      }
+      if (source == null) {
+        continue;
+      }
+      final islandSize = GameRules.islandWidgetSize(source.size);
+      final start = Offset(
+        (size.width - islandSize) * (source.x + 1) / 2 + islandSize / 2,
+        (size.height - islandSize) * (source.y + 1) / 2 + islandSize / 2,
+      );
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..color =
+            (session.actor == Faction.cpu
+                    ? TacticalPalette.cpuDeep
+                    : TacticalPalette.playerDeep)
+                .withValues(alpha: 0.72);
+      canvas.drawLine(start, pointer, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LocalDragPreviewPainter oldDelegate) {
+    return state != oldDelegate.state ||
+        sessions != oldDelegate.sessions ||
+        positions.length != oldDelegate.positions.length ||
+        !positions.keys.every(
+          (pointerId) =>
+              positions[pointerId] == oldDelegate.positions[pointerId],
+        );
   }
 }

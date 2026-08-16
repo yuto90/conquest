@@ -36,6 +36,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String get settingsDescriptionLocal => '1画面で対戦する海域の規模を選択してください。';
+
+  @override
   String get islandCountLabel => '島数';
 
   @override
@@ -71,7 +74,15 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String selectedSummaryLocal({required int islandCount}) {
+    return '選択中：$islandCount島 / 2人対戦';
+  }
+
+  @override
   String get modePlayerVsCpu => 'CPU対戦';
+
+  @override
+  String get modePlayerVsPlayer => '2人対戦';
 
   @override
   String get modeCpuVsCpu => 'CPU同士を観戦';
@@ -91,6 +102,11 @@ class AppLocalizationsJa extends AppLocalizations {
     required String cpuDifficulty,
   }) {
     return '$islandCount島、1P $playerDifficulty、2P $cpuDifficultyのCPU対戦を観戦';
+  }
+
+  @override
+  String startLocalSemantics({required int islandCount}) {
+    return '$islandCount島の2人対戦を開始';
   }
 
   @override
@@ -130,6 +146,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get spectatorDetail => 'CPU同士の対戦を表示中';
+
+  @override
+  String boardStatusLocalPlayer({required String status}) {
+    return '1P：$status';
+  }
+
+  @override
+  String boardStatusLocalOpponent({required String status}) {
+    return '2P：$status';
+  }
+
+  @override
+  String get boardStatusLocalUnselected => '自軍島からドラッグ';
+
+  @override
+  String get boardStatusLocalSelected => '出兵元を選択中';
+
+  @override
+  String get boardStatusLocalDetail => '目標の島で指を離して出兵';
 
   @override
   String get pauseGame => '対戦を一時停止';

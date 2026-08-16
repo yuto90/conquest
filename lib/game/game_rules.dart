@@ -119,6 +119,10 @@ final class IslandMapRect {
         other.top < bottom;
   }
 
+  bool containsPoint(double x, double y) {
+    return x >= left && x <= right && y >= top && y <= bottom;
+  }
+
   bool isWithin(IslandMapViewport viewport) {
     return left >= 0 &&
         top >= 0 &&
@@ -483,24 +487,19 @@ final class GameRules {
     var islands = [...state.islands];
     final remainingForces = [...state.movingForces];
 
-    // Validate an existing selection before applying resource ticks.  A
+    // Validate existing selections before applying resource ticks.  A
     // source that was already exhausted or lost before this tick must not be
     // revived by the same tick's regeneration.
-    final selectedIslandId = state.selectedIslandId;
-    IslandState? selectedAtStart;
-    if (selectedIslandId != null) {
-      for (final island in islands) {
-        if (island.id == selectedIslandId) {
-          selectedAtStart = island;
-          break;
-        }
-      }
-    }
-    final selectionInvalidAtStart =
-        selectedIslandId != null &&
-        (selectedAtStart == null ||
-            selectedAtStart.faction != Faction.player ||
-            selectedAtStart.currentForces <= 1);
+    final playerSelectionInvalidAtStart = _isSelectionInvalid(
+      selectedId: state.selectedIslandId,
+      islands: islands,
+      faction: Faction.player,
+    );
+    final opponentSelectionInvalidAtStart = _isSelectionInvalid(
+      selectedId: state.opponentSelectedIslandId,
+      islands: islands,
+      faction: Faction.cpu,
+    );
 
     final arrivalsByTime = <int, List<MovingForce>>{};
     for (final force in remainingForces) {
@@ -531,7 +530,8 @@ final class GameRules {
           islands,
           currentMs,
         ),
-        selectionInvalidAtStart: selectionInvalidAtStart,
+        playerSelectionInvalidAtStart: playerSelectionInvalidAtStart,
+        opponentSelectionInvalidAtStart: opponentSelectionInvalidAtStart,
       );
       stateAtCurrentTime = eventState;
       final result = _resultFor(
@@ -554,7 +554,8 @@ final class GameRules {
         islands,
         endMs,
       ),
-      selectionInvalidAtStart: selectionInvalidAtStart,
+      playerSelectionInvalidAtStart: playerSelectionInvalidAtStart,
+      opponentSelectionInvalidAtStart: opponentSelectionInvalidAtStart,
     );
 
     final result = _resultFor(
@@ -729,34 +730,60 @@ final class GameRules {
     required int elapsedMs,
     required List<IslandState> islands,
     required List<MovingForce> movingForces,
-    required bool selectionInvalidAtStart,
+    required bool playerSelectionInvalidAtStart,
+    required bool opponentSelectionInvalidAtStart,
   }) {
-    final nextState = state.copyWith(
+    var nextState = state.copyWith(
       elapsedMs: elapsedMs,
       islands: islands,
       movingForces: movingForces,
     );
 
-    // A selected source remains active while the player is choosing a
+    // A selected source remains active while a human is choosing a
     // destination.  Clear it only when the source can no longer dispatch
     // under the current rules; an unrelated troop arrival must not affect it.
-    final nextSelectedIslandId = nextState.selectedIslandId;
-    if (nextSelectedIslandId == null) {
-      return nextState;
+    final playerSelectionInvalid =
+        playerSelectionInvalidAtStart ||
+        _isSelectionInvalid(
+          selectedId: nextState.selectedIslandId,
+          islands: nextState.islands,
+          faction: Faction.player,
+        );
+    if (playerSelectionInvalid && nextState.selectedIslandId != null) {
+      nextState = nextState.clearSelection();
+    }
+    final opponentSelectionInvalid =
+        opponentSelectionInvalidAtStart ||
+        _isSelectionInvalid(
+          selectedId: nextState.opponentSelectedIslandId,
+          islands: nextState.islands,
+          faction: Faction.cpu,
+        );
+    if (opponentSelectionInvalid &&
+        nextState.opponentSelectedIslandId != null) {
+      nextState = nextState.clearOpponentSelection();
+    }
+    return nextState;
+  }
+
+  static bool _isSelectionInvalid({
+    required int? selectedId,
+    required List<IslandState> islands,
+    required Faction faction,
+  }) {
+    if (selectedId == null) {
+      return false;
     }
     IslandState? selectedIsland;
-    for (final island in nextState.islands) {
-      if (island.id == nextSelectedIslandId) {
+    for (final island in islands) {
+      if (island.id == selectedId) {
         selectedIsland = island;
         break;
       }
     }
-    final selectionInvalid =
-        selectionInvalidAtStart ||
-        selectedIsland == null ||
-        selectedIsland.faction != Faction.player ||
+    return selectedIsland == null ||
+        selectedIsland.faction != faction ||
         selectedIsland.currentForces <= 1;
-    return selectionInvalid ? nextState.clearSelection() : nextState;
   }
 
   GameResult? _resultFor({
@@ -965,6 +992,7 @@ final class GameRules {
       elapsedMs: elapsedMs,
       islands: islands,
       selectedIslandId: selectedIslandId,
+      opponentSelectedIslandId: null,
       movingForces: movingForces,
       result: result,
       countdownRemainingMs: countdownRemainingMs,

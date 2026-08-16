@@ -152,6 +152,12 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
+  /// The local two-player configuration screen explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the battlefield size for a shared-screen match.'**
+  String get settingsDescriptionLocal;
+
   /// The island count setting label.
   ///
   /// In en, this message translates to:
@@ -207,11 +213,23 @@ abstract class AppLocalizations {
     required String cpuDifficulty,
   });
 
+  /// The selected local two-player match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected: {islandCount} islands / 2P LOCAL'**
+  String selectedSummaryLocal({required int islandCount});
+
   /// The player versus CPU mode label.
   ///
   /// In en, this message translates to:
   /// **'PLAY VS CPU'**
   String get modePlayerVsCpu;
+
+  /// The local two-player mode label.
+  ///
+  /// In en, this message translates to:
+  /// **'2P LOCAL'**
+  String get modePlayerVsPlayer;
 
   /// The CPU versus CPU mode label.
   ///
@@ -237,6 +255,12 @@ abstract class AppLocalizations {
     required String playerDifficulty,
     required String cpuDifficulty,
   });
+
+  /// The local two-player start button accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Start local two-player game with {islandCount} islands'**
+  String startLocalSemantics({required int islandCount});
 
   /// The island count option accessibility label and tooltip.
   ///
@@ -297,6 +321,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'CPU versus CPU match in progress'**
   String get spectatorDetail;
+
+  /// The 1P board status in local two-player.
+  ///
+  /// In en, this message translates to:
+  /// **'1P: {status}'**
+  String boardStatusLocalPlayer({required String status});
+
+  /// The 2P board status in local two-player.
+  ///
+  /// In en, this message translates to:
+  /// **'2P: {status}'**
+  String boardStatusLocalOpponent({required String status});
+
+  /// The local two-player status before selecting a source.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag from your island'**
+  String get boardStatusLocalUnselected;
+
+  /// The local two-player status after selecting a source.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatch source selected'**
+  String get boardStatusLocalSelected;
+
+  /// The local two-player dispatch hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Release on a target island to dispatch'**
+  String get boardStatusLocalDetail;
 
   /// The pause button accessibility label.
   ///

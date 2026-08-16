@@ -370,6 +370,71 @@ void main() {
     }
   });
 
+  test('starts local two-player on every supported island count', () {
+    for (final count in GameConfiguration.allowedIslandCounts) {
+      final loop = _QaManualLoop();
+      final container = _createContainer(
+        loop: loop,
+        islandCount: count,
+        seed: 1,
+      );
+      try {
+        final controller = container.read(gameControllerProvider.notifier);
+        controller.selectGameMode(GameMode.playerVsPlayer);
+        _startMatch(container, loop);
+        final playing = container.read(gameControllerProvider);
+        expect(playing.phase, GamePhase.playing);
+        expect(playing.configuration.gameMode, GameMode.playerVsPlayer);
+        expect(playing.islands, hasLength(count));
+
+        controller.tapBase(0, actor: Faction.player);
+        controller.tapBase(2, actor: Faction.player);
+        controller.tapBase(1, actor: Faction.cpu);
+        controller.tapBase(2, actor: Faction.cpu);
+        expect(
+          container.read(gameControllerProvider).movingForces,
+          hasLength(2),
+        );
+        loop.tickMany(200);
+        expect(
+          container.read(gameControllerProvider).configuration.gameMode,
+          GameMode.playerVsPlayer,
+        );
+      } finally {
+        container.dispose();
+      }
+    }
+  });
+
+  test('local two-player stops after a result and keeps mode on replay', () {
+    final loop = _QaManualLoop();
+    final container = _createContainer(loop: loop, islandCount: 8, seed: 123);
+    try {
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectGameMode(GameMode.playerVsPlayer);
+      _startMatch(container, loop);
+      controller.finish(
+        const GameResult.victory(elapsedMs: 500, winner: Faction.player),
+      );
+      final result = container.read(gameControllerProvider);
+      expect(result.phase, GamePhase.result);
+      expect(result.configuration.gameMode, GameMode.playerVsPlayer);
+      expect(loop.isRunning, isFalse);
+
+      controller.replayGame();
+      final replay = container.read(gameControllerProvider);
+      expect(replay.phase, GamePhase.startCountdown);
+      expect(replay.configuration.gameMode, GameMode.playerVsPlayer);
+      expect(replay.movingForces, isEmpty);
+      loop.tickMany(60);
+      expect(container.read(gameControllerProvider).phase, GamePhase.playing);
+      loop.tickMany(40);
+      expect(container.read(gameControllerProvider).movingForces, isEmpty);
+    } finally {
+      container.dispose();
+    }
+  });
+
   test('replays the same spectator result with fixed CPU seeds', () {
     final first = _runSpectatorMatch(
       islandCount: 6,

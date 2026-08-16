@@ -369,25 +369,26 @@ class GameController extends _$GameController {
     return nextState;
   }
 
-  /// Selects a player island or dispatches a new force to the tapped island.
-  /// Every successful dispatch is appended to the in-flight force list so an
-  /// earlier troop cannot be retargeted or cancelled.
-  void tapBase(int baseId) {
-    if (_disposed ||
-        state.phase != GamePhase.playing ||
-        state.configuration.gameMode != GameMode.playerVsCpu) {
+  /// Selects an island or dispatches a new force to the tapped island for
+  /// [actor].  Every successful dispatch is appended to the in-flight force
+  /// list so an earlier troop cannot be retargeted or cancelled.
+  void tapBase(int baseId, {Faction actor = Faction.player}) {
+    if (_disposed || state.phase != GamePhase.playing) {
+      return;
+    }
+    if (!state.configuration.gameMode.humanFactions.contains(actor)) {
       return;
     }
 
-    final selectedIslandId = state.selectedIslandId;
+    final selectedIslandId = state.selectedIslandIdFor(actor);
     final selectedSource = selectedIslandId == null
         ? null
         : _findIsland(selectedIslandId);
     if (selectedIslandId != null &&
         (selectedSource == null ||
-            selectedSource.faction != Faction.player ||
+            selectedSource.faction != actor ||
             selectedSource.currentForces <= 1)) {
-      state = state.clearSelection();
+      state = state.clearSelectionFor(actor);
       _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
       return;
     }
@@ -398,26 +399,23 @@ class GameController extends _$GameController {
     }
 
     if (selectedIslandId == null) {
-      if (tappedIsland.faction != Faction.player ||
-          tappedIsland.currentForces <= 1) {
+      if (tappedIsland.faction != actor || tappedIsland.currentForces <= 1) {
         _showInteractionFeedback(InteractionFeedbackType.unavailableSource);
         return;
       }
-      state = state
-          .copyWith(selectedIslandId: baseId)
-          .clearInteractionFeedback();
+      state = state.selectIslandFor(actor, baseId).clearInteractionFeedback();
       return;
     }
 
     if (selectedIslandId == baseId) {
-      state = state.clearSelection().clearInteractionFeedback();
+      state = state.clearSelectionFor(actor).clearInteractionFeedback();
       return;
     }
 
     final source = selectedSource!;
     final strength = source.currentForces ~/ 2;
     if (strength <= 0) {
-      state = state.clearSelection();
+      state = state.clearSelectionFor(actor);
       _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
       return;
     }
@@ -431,7 +429,7 @@ class GameController extends _$GameController {
     final movingForces = [...state.movingForces];
     final nextForce = _rules.createMovingForce(
       id: _nextMovingForceId,
-      faction: Faction.player,
+      faction: actor,
       source: source,
       destination: tappedIsland,
       strength: strength,
@@ -442,7 +440,7 @@ class GameController extends _$GameController {
 
     state = state
         .copyWith(islands: islands, movingForces: movingForces)
-        .clearSelection()
+        .clearSelectionFor(actor)
         .clearInteractionFeedback();
   }
 
@@ -465,12 +463,14 @@ class GameController extends _$GameController {
     final deltaMs = measuredDelta > 0 ? measuredDelta : 50;
     final phaseBeforeTick = state.phase;
     final selectedBeforeTick = state.selectedIslandId;
+    final opponentSelectedBeforeTick = state.opponentSelectedIslandId;
     final nextState = _rules.tick(state, deltaMs: deltaMs);
     state = nextState;
     if (phaseBeforeTick == GamePhase.playing &&
-        selectedBeforeTick != null &&
-        state.selectedIslandId == null &&
-        state.phase == GamePhase.playing) {
+        state.phase == GamePhase.playing &&
+        ((selectedBeforeTick != null && state.selectedIslandId == null) ||
+            (opponentSelectedBeforeTick != null &&
+                state.opponentSelectedIslandId == null))) {
       _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
     }
     if (state.interactionFeedback != null &&
@@ -496,9 +496,7 @@ class GameController extends _$GameController {
   }
 
   Iterable<Faction> get _activeCpuFactions =>
-      state.configuration.gameMode == GameMode.cpuVsCpu
-      ? const [Faction.player, Faction.cpu]
-      : const [Faction.cpu];
+      state.configuration.gameMode.cpuFactions;
 
   CpuDifficulty _difficultyFor(Faction faction) => switch (faction) {
     Faction.player => state.configuration.playerCpuDifficulty,
