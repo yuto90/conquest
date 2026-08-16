@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 通常CPU戦とCPU対CPU観戦を維持しながら、同一端末の1画面で1Pと2Pが独立に選択・出兵できるローカル2人対戦を追加する。
+**Goal:** 通常CPU戦とCPU対CPU観戦を維持しながら、同一端末の1画面で1Pと2Pが独立に選択・出兵できるローカル2人対戦を追加する。Issue #55。
 
 **Architecture:** `GameMode.playerVsPlayer`を追加し、`Faction.player`を1P、`Faction.cpu`を2Pの内部IDとして維持する。人間入力は陣営付き`tapBase`へ一般化し、2人対戦のポインター帰属は盤面`Listener`が解決する。選択は`selectedIslandId`（1P）と`opponentSelectedIslandId`（2P）に分離する。戦闘・増加・移動・勝敗アルゴリズムは変更しない。
 
@@ -12,8 +12,8 @@
 
 - 対象Issueは [GitHub Issue #55](https://github.com/yuto90/conquest/issues/55)。親は [#4](https://github.com/yuto90/conquest/issues/4)。
 - 設計の正本は`docs/superpowers/specs/2026-08-16-local-two-player-design.md`と`docs/game-rules.md`とする。矛盾がある場合はIssue #55の明示要件を優先する。
-- Issue #55 の「実装前に確認すること」4件が未回答の間は、アプリコードの実装に入らない。
-- ベースブランチは最新`main`とする。本プランは設計PRと同じ作業ブランチへ追加してよい。実装コードは確認と本プラン承認後に進める。
+- 2026-08-16に次を承認済みとする。ドラッグ出兵、同じ向きの1画面、モード名`2P LOCAL` / `2人対戦`、既存の右上一時停止ボタンの共有。
+- ベースブランチは最新`main`とする。実装コードは本プランのタスク順で進める。
 - 初期モードは`playerVsCpu`のままとする。
 - 2人対戦へ切り替えても非表示のCPU難易度を破棄しない。
 - 通常CPU戦の2タップ出兵、P / Player、C / CPU、Victory / Defeat / Drawを維持する。
