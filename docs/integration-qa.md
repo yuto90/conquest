@@ -13,9 +13,17 @@ PASS から推定しない。
 
 | 確認項目 | 自動テスト | 結果 |
 | --- | --- | --- |
-| 390×844 はそのまま、1920×1080 と縦長は 390:844 に収める | `test/playable_stage_test.dart` | 実施時に記入 |
-| ワイド画面で中央の縦ステージと縦長 viewport | `letterboxes a landscape window onto a centered portrait stage` | 実施時に記入 |
-| ネイティブ相当の SafeArea 本陣配置を維持 | `keeps headquarters inside the SafeArea insets` | 実施時に記入 |
+| 390×844 はそのまま、1920×1080 と縦長は 390:844 に収める | `test/playable_stage_test.dart` | PASS |
+| ワイド画面で中央の縦ステージと縦長 viewport | `letterboxes a landscape window onto a centered portrait stage` | PASS |
+| ネイティブ相当の SafeArea 本陣配置を維持 | `keeps headquarters inside the SafeArea insets` | PASS |
+
+| 検証 | コマンド | 結果 |
+| --- | --- | --- |
+| 静的解析 | `flutter analyze` | exit 0; `No issues found!` |
+| 全Flutterテスト | `flutter test` | exit 0; `+183: All tests passed!` |
+| Web release build | `flutter build web --release --base-href /` | exit 0; `✓ Built build/web` |
+
+Vercel Preview での起動・出兵・一時停止・観戦は Secrets 設定後まで未実行とする。
 
 ## Issue #32 CPU対CPU観戦モード
 

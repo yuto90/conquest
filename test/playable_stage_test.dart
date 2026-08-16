@@ -1,3 +1,5 @@
+import 'dart:ui' show Size;
+
 import 'package:conquest/playable_stage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
