@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:conquest/base.dart';
 import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/moving_force.dart';
+import 'package:conquest/playable_stage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,24 +22,44 @@ AppLocalizations _appLocalizations(BuildContext context) {
 }
 
 class Home extends StatelessWidget {
-  const Home({super.key});
+  const Home({super.key, this.letterboxToPortrait = kIsWeb});
+
+  /// When true, the board is the largest 390:844 rectangle that fits the
+  /// window and is centered on the remaining sea-colored chrome.
+  ///
+  /// Defaults to [kIsWeb] so native layouts keep the full SafeArea. Tests
+  /// inject the flag because [kIsWeb] cannot be overridden on the VM.
+  final bool letterboxToPortrait;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: TacticalPalette.background,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final window = Size(constraints.maxWidth, constraints.maxHeight);
+            final stage = letterboxToPortrait
+                ? fitPortraitStage(window)
+                : window;
             final viewport = IslandMapViewport(
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
+              width: stage.width,
+              height: stage.height,
             );
-            return ProviderScope(
-              overrides: [
-                mapViewportProvider.overrideWithValue(viewport),
-                gameControllerProvider.overrideWith(GameController.new),
-              ],
-              child: const _GameSurface(),
+            return Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                key: const ValueKey('playable-stage'),
+                width: stage.width,
+                height: stage.height,
+                child: ProviderScope(
+                  overrides: [
+                    mapViewportProvider.overrideWithValue(viewport),
+                    gameControllerProvider.overrideWith(GameController.new),
+                  ],
+                  child: const _GameSurface(),
+                ),
+              ),
             );
           },
         ),

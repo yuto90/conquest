@@ -11,6 +11,7 @@ import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/moving_force.dart';
+import 'package:conquest/playable_stage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -980,6 +981,43 @@ void main() {
     expect(cpuTop, greaterThanOrEqualTo(24));
     expect(playerBottom, lessThanOrEqualTo(484));
     expect(cpuTop - 24, closeTo(484 - playerBottom, 1e-6));
+  });
+
+  testWidgets('letterboxes a landscape window onto a centered portrait stage', (
+    tester,
+  ) async {
+    const window = Size(1920, 1080);
+    final stage = fitPortraitStage(window);
+    await tester.binding.setSurfaceSize(window);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [randomProvider.overrideWithValue(Random(1))],
+        child: const MaterialApp(home: Home(letterboxToPortrait: true)),
+      ),
+    );
+
+    final stageBox = tester.getRect(
+      find.byKey(const ValueKey('playable-stage')),
+    );
+    expect(stageBox.width, closeTo(stage.width, 0.001));
+    expect(stageBox.height, closeTo(stage.height, 0.001));
+    expect(stageBox.center.dx, closeTo(window.width / 2, 0.5));
+    expect(stageBox.width, lessThan(stageBox.height));
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final viewport = container.read(mapViewportProvider);
+    expect(viewport.width, closeTo(stage.width, 0.001));
+    expect(viewport.height, closeTo(stage.height, 0.001));
+    expect(viewport.width, lessThan(viewport.height));
+
+    final island = tester.getRect(
+      find.byKey(const ValueKey('island-button-0')),
+    );
+    expect(stageBox.inflate(0.5).overlaps(island), isTrue);
+    expect(stageBox.contains(island.center), isTrue);
   });
 
   testWidgets('generates using the actual sub-320 layout constraints', (
