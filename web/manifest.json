@@ -1,11 +1,11 @@
 {
-    "name": "conquest",
-    "short_name": "conquest",
+    "name": "CONQUEST",
+    "short_name": "CONQUEST",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#84C9C6",
+    "theme_color": "#84C9C6",
+    "description": "島を占領するリアルタイム戦術ゲーム",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

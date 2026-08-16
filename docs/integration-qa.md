@@ -5,6 +5,18 @@
 選択は対象外だったが、Issue #31でEasy・Normal・Hardの選択と試合設定保持を追加し、
 対応する自動テストを追記した。Issue #15の実施時点では新しいゲームルールは追加していない。
 
+## Issue #56 Flutter Web 版
+
+Web 版の自動QAは、390:844 ステージ計算とワイド画面の letterbox を widget テストで確認する。
+Vercel Preview での起動・出兵・一時停止・観戦は Secrets 設定後の手動確認とし、自動テストの
+PASS から推定しない。
+
+| 確認項目 | 自動テスト | 結果 |
+| --- | --- | --- |
+| 390×844 はそのまま、1920×1080 と縦長は 390:844 に収める | `test/playable_stage_test.dart` | 実施時に記入 |
+| ワイド画面で中央の縦ステージと縦長 viewport | `letterboxes a landscape window onto a centered portrait stage` | 実施時に記入 |
+| ネイティブ相当の SafeArea 本陣配置を維持 | `keeps headquarters inside the SafeArea insets` | 実施時に記入 |
+
 ## Issue #32 CPU対CPU観戦モード
 
 CPU対CPU観戦モードの自動QAは、固定乱数とManualGameLoopを使い、実時間待機なしで
