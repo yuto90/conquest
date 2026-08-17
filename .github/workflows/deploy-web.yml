@@ -77,9 +77,9 @@ jobs:
         run: |
           set -euo pipefail
           npm install -g vercel
-          extra=()
+          extra=(--target=preview)
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            extra+=(--prod)
+            extra=(--prod)
           fi
           url="$(vercel deploy build/web --yes --token="$VERCEL_TOKEN" "${extra[@]}")"
           echo "Deployed $url"
