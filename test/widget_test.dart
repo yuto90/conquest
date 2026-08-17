@@ -12,6 +12,7 @@ import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:conquest/playable_stage.dart';
+import 'package:conquest/web_visibility.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,6 +31,31 @@ class ManualWidgetGameLoop implements GameLoop {
   void stop() => _onTick = null;
 
   void tick() => _onTick?.call();
+}
+
+final class ManualWebVisibilitySource implements WebVisibilitySource {
+  ManualWebVisibilitySource({bool hidden = false}) : _isHidden = hidden;
+
+  bool _isHidden;
+  final Set<VoidCallback> _listeners = <VoidCallback>{};
+
+  @override
+  bool get isHidden => _isHidden;
+
+  @override
+  void addListener(VoidCallback listener) => _listeners.add(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => _listeners.remove(listener);
+
+  int get listenerCount => _listeners.length;
+
+  void emit({required bool hidden}) {
+    _isHidden = hidden;
+    for (final listener in List<VoidCallback>.of(_listeners)) {
+      listener();
+    }
+  }
 }
 
 final class _WidgetZeroRandom implements Random {
@@ -59,6 +85,31 @@ void _performSemanticsTap(SemanticsNode node) {
 }
 
 void main() {
+  test('web visibility bridge handles initial hidden state and disposal', () {
+    final visibility = ManualWebVisibilitySource(hidden: true);
+    var hiddenCount = 0;
+    final bridge = WebVisibilityBridge(
+      source: visibility,
+      onHidden: () => hiddenCount++,
+    );
+
+    bridge.start();
+    bridge.start();
+    expect(visibility.listenerCount, 1);
+    expect(hiddenCount, 1);
+
+    visibility.emit(hidden: false);
+    expect(hiddenCount, 1);
+    visibility.emit(hidden: true);
+    expect(hiddenCount, 2);
+
+    bridge.dispose();
+    bridge.dispose();
+    expect(visibility.listenerCount, 0);
+    visibility.emit(hidden: true);
+    expect(hiddenCount, 2);
+  });
+
   testWidgets('offers every island-count preset with ten selected initially', (
     tester,
   ) async {
@@ -1544,6 +1595,87 @@ void main() {
       tester.element(find.byKey(const ValueKey('island-0'))),
     ).read(gameControllerProvider);
     expect(after, before.copyWith(phase: GamePhase.paused));
+  });
+
+  testWidgets('all pausing app lifecycle states pause a playing board', (
+    tester,
+  ) async {
+    const pausingStates = <AppLifecycleState>[
+      AppLifecycleState.inactive,
+      AppLifecycleState.hidden,
+      AppLifecycleState.detached,
+    ];
+
+    for (final lifecycleState in pausingStates) {
+      final loop = ManualWidgetGameLoop();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(locale: Locale('ja')),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      loop.tick();
+      await tester.pump();
+      expect(loop.isRunning, isTrue);
+
+      tester.binding.handleAppLifecycleStateChanged(lifecycleState);
+      await tester.pump();
+      expect(find.text('一時停止'), findsOneWidget, reason: lifecycleState.name);
+      expect(loop.isRunning, isFalse);
+
+      await tester.pumpWidget(const SizedBox());
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+    }
+  });
+
+  testWidgets('browser page visibility pauses a playing board', (tester) async {
+    final loop = ManualWidgetGameLoop();
+    final visibility = ManualWebVisibilitySource();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          webVisibilitySourceProvider.overrideWithValue(visibility),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+
+    expect(visibility.listenerCount, 1);
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    loop.tick();
+    await tester.pump();
+    final before = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider);
+
+    visibility.emit(hidden: true);
+    await tester.pump();
+    expect(find.text('一時停止'), findsOneWidget);
+    expect(loop.isRunning, isFalse);
+
+    loop.tick();
+    await tester.pump();
+    final after = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    ).read(gameControllerProvider);
+    expect(after, before.copyWith(phase: GamePhase.paused));
+
+    await tester.pumpWidget(const SizedBox());
+    expect(visibility.listenerCount, 0);
   });
 
   testWidgets('result screen offers replay and settings actions', (

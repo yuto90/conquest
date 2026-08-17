@@ -15,11 +15,16 @@ import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
+import 'web_visibility.dart';
 
 AppLocalizations _appLocalizations(BuildContext context) {
   return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
       AppLocalizationsEn();
 }
+
+final webVisibilitySourceProvider = Provider<WebVisibilitySource>(
+  (_) => createWebVisibilitySource(),
+);
 
 class Home extends StatelessWidget {
   const Home({super.key, this.letterboxToPortrait = kIsWeb});
@@ -77,14 +82,21 @@ class _GameSurface extends ConsumerStatefulWidget {
 
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
+  late final WebVisibilityBridge _webVisibilityBridge;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _webVisibilityBridge = WebVisibilityBridge(
+      source: ref.read(webVisibilitySourceProvider),
+      onHidden: _pauseGame,
+    )..start();
   }
 
   @override
   void dispose() {
+    _webVisibilityBridge.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -95,9 +107,11 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.detached) {
-      ref.read(gameControllerProvider.notifier).pauseGame();
+      _pauseGame();
     }
   }
+
+  void _pauseGame() => ref.read(gameControllerProvider.notifier).pauseGame();
 
   @override
   Widget build(BuildContext context) {
