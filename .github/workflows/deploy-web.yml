@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  deployments: write
 
 concurrency:
   group: deploy-web-${{ github.workflow }}-${{ github.ref }}
@@ -18,6 +19,9 @@ jobs:
     name: Build Flutter web and deploy to Vercel
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'Preview' || 'Production' }}
+      url: ${{ steps.deploy.outputs.url }}
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -72,6 +76,7 @@ jobs:
         run: echo "::notice::Vercel secrets are not configured; built build/web without deploying."
 
       - name: Deploy to Vercel
+        id: deploy
         if: env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
         shell: bash
         run: |
@@ -83,4 +88,5 @@ jobs:
           fi
           url="$(vercel deploy build/web --yes --token="$VERCEL_TOKEN" "${extra[@]}")"
           echo "Deployed $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_STEP_SUMMARY"
