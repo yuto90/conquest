@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/match_setup.dart';
+
 final class _LocalizationLoop implements GameLoop {
   void Function()? _onTick;
 
@@ -36,11 +38,14 @@ void main() {
       const Locale('en', 'GB'),
     ]) {
       await tester.pumpWidget(MyApp(locale: locale));
+      await openMatchSetup(tester);
       expect(find.text('Match Setup'), findsOneWidget);
     }
     await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
+    await openMatchSetup(tester);
     expect(find.text('対戦設定'), findsOneWidget);
     await tester.pumpWidget(const MyApp(locale: Locale('fr', 'FR')));
+    await openMatchSetup(tester);
     expect(find.text('Match Setup'), findsOneWidget);
   });
 
@@ -48,11 +53,13 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const MyApp(locale: Locale('en', 'US')));
+    await openMatchSetup(tester);
     expect(find.text('Match Setup / 01'), findsOneWidget);
     expect(find.text('Match Setup'), findsOneWidget);
     expect(find.text('Start Game'), findsOneWidget);
 
     await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
+    await openMatchSetup(tester);
     await tester.pump();
     expect(find.text('対戦設定 / 01'), findsOneWidget);
     expect(find.text('対戦設定'), findsOneWidget);
@@ -63,12 +70,14 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
+    await openMatchSetup(tester);
     expect(find.text('CPU対戦'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
     expect(find.text('CPU同士を観戦'), findsOneWidget);
 
     await tester.pumpWidget(const MyApp(locale: Locale('en', 'US')));
+    await openMatchSetup(tester);
     expect(find.text('PLAY VS CPU'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
@@ -93,6 +102,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('start-game')));
     loop.tickMany(60);
     await tester.pump();

@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/match_setup.dart';
+
 final class _ManualGameLoop implements GameLoop {
   void Function()? _onTick;
 
@@ -44,6 +46,7 @@ Future<void> _pumpApp(
       child: MyApp(locale: locale),
     ),
   );
+  await openMatchSetup(tester);
 }
 
 void main() {
