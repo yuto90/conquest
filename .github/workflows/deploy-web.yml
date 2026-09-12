@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   deployments: write
+  statuses: write
 
 concurrency:
   group: deploy-web-${{ github.workflow }}-${{ github.ref }}
@@ -90,3 +91,27 @@ jobs:
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish Preview link in PR checks
+        if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_URL: ${{ steps.deploy.outputs.url }}
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state=failure
+          description='Preview deployment did not complete; see workflow logs'
+          target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [[ "$DEPLOY_OUTCOME" == success && -n "$PREVIEW_URL" ]]; then
+            state=success
+            description='Preview ready — open Details to view'
+            target_url="$PREVIEW_URL"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            -f state="$state" \
+            -f context='Vercel Preview' \
+            -f description="$description" \
+            -f target_url="$target_url"
