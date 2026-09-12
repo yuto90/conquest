@@ -104,6 +104,18 @@ abstract class AppLocalizations {
   /// **'CONQUEST'**
   String get brandName;
 
+  /// The title screen action that opens match setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get titleStart;
+
+  /// The match setup action that returns to the title screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Title'**
+  String get returnTitle;
+
   /// The stable countdown start word.
   ///
   /// In en, this message translates to:

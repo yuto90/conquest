@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:integration_test/integration_test.dart';
 
+import '../test/support/match_setup.dart';
+
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
@@ -48,6 +50,7 @@ void main() {
       await tester.pumpWidget(
         const ProviderScope(child: MyApp(locale: Locale('ja'))),
       );
+      await openMatchSetup(tester);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('start-game')), findsOneWidget);

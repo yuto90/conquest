@@ -18,6 +18,8 @@ import 'package:flutter/semantics.dart' show SemanticsNode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/match_setup.dart';
+
 class ManualWidgetGameLoop implements GameLoop {
   void Function()? _onTick;
 
@@ -119,6 +121,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     for (final count in GameConfiguration.allowedIslandCounts) {
       expect(find.byKey(ValueKey('island-count-$count')), findsOneWidget);
@@ -157,6 +160,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
     const expectedLabels = <CpuDifficulty, String>{
       CpuDifficulty.veryEasy: 'Very Easy',
       CpuDifficulty.easy: 'Easy',
@@ -226,6 +230,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     expect(
       find.byKey(const ValueKey('game-mode-player-vs-cpu')),
@@ -289,6 +294,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
@@ -340,6 +346,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
     await tester.ensureVisible(
@@ -418,6 +425,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     expect(find.byKey(const ValueKey('island-0')), findsOneWidget);
     expect(find.text('3'), findsNothing);
@@ -452,6 +460,7 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(child: MyApp(locale: Locale('ja'))),
     );
+    await openMatchSetup(tester);
 
     expect(find.byType(Scaffold), findsOneWidget);
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);
@@ -469,6 +478,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
@@ -520,6 +530,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
       contains('1P'),
@@ -543,6 +554,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
     expect(
       tester.getSemantics(find.byKey(const ValueKey('island-button-0'))).label,
       contains('プレイヤー'),
@@ -598,6 +610,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
       loop.tick();
@@ -634,6 +647,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
       spectatorLoop.tick();
@@ -685,6 +699,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
       standardLoop.tick();
@@ -720,6 +735,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
       await tester.tap(find.byKey(const ValueKey('start-game')));
       for (var index = 0; index < 60; index++) {
         loop.tick();
@@ -768,6 +784,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       final islandFinder = find.byKey(const ValueKey('island-button-0'));
       final container = ProviderScope.containerOf(tester.element(islandFinder));
@@ -829,6 +846,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
@@ -868,6 +886,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
@@ -895,6 +914,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       final islandFinder = find.byKey(const ValueKey('island-button-0'));
       final container = ProviderScope.containerOf(tester.element(islandFinder));
@@ -965,6 +985,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
@@ -1024,6 +1045,7 @@ void main() {
         ),
       ),
     );
+    await openMatchSetup(tester);
 
     final cpu = find.byKey(const ValueKey('island-button-1'));
     final player = find.byKey(const ValueKey('island-button-0'));
@@ -1047,6 +1069,7 @@ void main() {
         child: const MaterialApp(home: Home(letterboxToPortrait: true)),
       ),
     );
+    await openMatchSetup(tester);
 
     final stageBox = tester.getRect(
       find.byKey(const ValueKey('playable-stage')),
@@ -1082,6 +1105,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     final button = tester.element(find.byType(ElevatedButton).first);
     final container = ProviderScope.containerOf(button);
@@ -1117,6 +1141,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     expect(tester.takeException(), isNull);
     expect(
@@ -1177,6 +1202,7 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(child: MyApp(locale: Locale('ja'))),
     );
+    await openMatchSetup(tester);
 
     expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
     expect(find.byKey(const ValueKey('island-count-10')), findsOneWidget);
@@ -1202,6 +1228,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     final islandFinder = find.byKey(const ValueKey('island-0'));
     final container = ProviderScope.containerOf(tester.element(islandFinder));
@@ -1245,6 +1272,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
@@ -1287,6 +1315,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
@@ -1354,6 +1383,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
       await tester.pump();
@@ -1425,6 +1455,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
@@ -1475,6 +1506,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
@@ -1527,6 +1559,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       await tester.tap(find.byKey(const ValueKey('start-game')));
       for (var index = 0; index < 60; index++) {
@@ -1573,6 +1606,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
@@ -1617,6 +1651,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
 
       await tester.tap(find.byKey(const ValueKey('start-game')));
       for (var index = 0; index < 60; index++) {
@@ -1650,6 +1685,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     expect(visibility.listenerCount, 1);
     await tester.tap(find.byKey(const ValueKey('start-game')));
@@ -1691,6 +1727,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
 
     final islandFinder = find.byKey(const ValueKey('island-0'));
     final container = ProviderScope.containerOf(tester.element(islandFinder));
@@ -1724,6 +1761,7 @@ void main() {
         child: const MyApp(locale: Locale('ja')),
       ),
     );
+    await openMatchSetup(tester);
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
     final container = ProviderScope.containerOf(
@@ -1772,6 +1810,7 @@ void main() {
           child: const MyApp(locale: Locale('ja')),
         ),
       );
+      await openMatchSetup(tester);
       final container = ProviderScope.containerOf(
         tester.element(find.byKey(const ValueKey('island-0'))),
       );

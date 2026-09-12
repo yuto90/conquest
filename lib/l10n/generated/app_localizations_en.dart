@@ -12,6 +12,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get brandName => 'CONQUEST';
 
   @override
+  String get titleStart => 'Start';
+
+  @override
+  String get returnTitle => 'Back to Title';
+
+  @override
   String get startWord => 'START';
 
   @override
