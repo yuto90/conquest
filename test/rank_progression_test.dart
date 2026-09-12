@@ -161,14 +161,17 @@ class _FakeRankStore implements RankProgressStore {
     this.loadError,
     this.saveError,
     this.loadCompleter,
+    this.saveCompleters,
   });
 
   int? value;
   Object? loadError;
   Object? saveError;
   Completer<int?>? loadCompleter;
+  List<Completer<void>>? saveCompleters;
   int loadCount = 0;
   int saveCount = 0;
+  final savedValues = <int>[];
 
   @override
   Future<int?> loadTotalXp() async {
@@ -180,9 +183,13 @@ class _FakeRankStore implements RankProgressStore {
 
   @override
   Future<void> saveTotalXp(int totalXp) async {
-    saveCount++;
+    final saveIndex = saveCount++;
     if (saveError != null) throw saveError!;
+    if (saveCompleters != null && saveIndex < saveCompleters!.length) {
+      await saveCompleters![saveIndex].future;
+    }
     value = totalXp;
+    savedValues.add(totalXp);
   }
 }
 
@@ -204,6 +211,12 @@ final class _ManualRankGameLoop implements GameLoop {
     for (var index = 0; index < count; index++) {
       _onTick?.call();
     }
+  }
+}
+
+Future<void> _flushMicrotasks([int count = 3]) async {
+  for (var index = 0; index < count; index++) {
+    await Future<void>.delayed(Duration.zero);
   }
 }
 
@@ -246,6 +259,50 @@ void main() {
       expect(max.isMax, isTrue);
       expect(max.nextRankXp, isNull);
       expect(max.progressRatio, 1);
+    });
+  });
+
+  group('result progress snapshots', () {
+    test('fills the old rank before resetting into the next rank', () {
+      final before = RankProgress.fromTotalXp(2500);
+      final after = RankProgress.fromTotalXp(3000);
+
+      expect(
+        rankProgressBarValue(before: before, after: after, animation: 0),
+        closeTo(before.progressRatio, 1e-12),
+      );
+      expect(
+        rankProgressBarValue(before: before, after: after, animation: 0.5),
+        1,
+      );
+      expect(
+        rankProgressBarValue(before: before, after: after, animation: 1),
+        closeTo(after.progressRatio, 1e-12),
+      );
+    });
+
+    test('interpolates within one rank and stays full after MAX', () {
+      final before = RankProgress.fromTotalXp(3500);
+      final after = RankProgress.fromTotalXp(4500);
+      expect(
+        rankProgressBarValue(before: before, after: after, animation: 0.5),
+        closeTo(0.125, 1e-12),
+      );
+
+      final maxBefore = RankProgress.fromTotalXp(RankCatalog.stageXpTotal);
+      final maxAfter = RankProgress.fromTotalXp(
+        RankCatalog.stageXpTotal + 3000,
+      );
+      for (final animation in [0.0, 0.5, 1.0]) {
+        expect(
+          rankProgressBarValue(
+            before: maxBefore,
+            after: maxAfter,
+            animation: animation,
+          ),
+          1,
+        );
+      }
     });
   });
 
@@ -313,25 +370,53 @@ void main() {
       expect(store.saveCount, 1);
     });
 
-    test('keeps the in-memory result when storage fails', () async {
-      final manager = RankProgressManager(
-        store: _FakeRankStore(saveError: StateError('unavailable')),
+    test('does not commit or consume a match when storage fails', () async {
+      final store = _FakeRankStore(saveError: StateError('unavailable'));
+      final manager = RankProgressManager(store: store);
+
+      await expectLater(
+        manager.recordVictory(
+          matchId: 'storage-error',
+          difficulty: CpuDifficulty.easy,
+        ),
+        throwsA(isA<StateError>()),
       );
 
+      expect(manager.current, RankProgress.zero);
+      expect(store.value, isNull);
+      expect(store.savedValues, isEmpty);
+      expect(manager.storageError, isA<StateError>());
+
+      final reloaded = RankProgressManager(store: store);
+      expect(await reloaded.load(), RankProgress.zero);
+
+      store.saveError = null;
       final award = await manager.recordVictory(
         matchId: 'storage-error',
         difficulty: CpuDifficulty.easy,
       );
-
-      expect(award.after.totalXp, 1000);
+      expect(award.xpAwarded, 1000);
       expect(manager.current.totalXp, 1000);
-      expect(manager.storageError, isA<StateError>());
+      expect(store.value, 1000);
+      expect(store.savedValues, [1000]);
+      expect(manager.storageError, isNull);
+
+      final duplicate = await manager.recordVictory(
+        matchId: 'storage-error',
+        difficulty: CpuDifficulty.hard,
+      );
+      expect(duplicate.xpAwarded, 0);
+      expect(store.value, 1000);
+      expect(store.saveCount, 2);
     });
 
     test('starts from zero when loading storage fails', () async {
       final manager = RankProgressManager(
         store: _FakeRankStore(loadError: StateError('unavailable')),
       );
+
+      expect(await manager.load(), RankProgress.zero);
+      expect(manager.storageError, isA<StateError>());
 
       final award = await manager.recordVictory(
         matchId: 'load-error',
@@ -340,7 +425,7 @@ void main() {
 
       expect(award.before, RankProgress.zero);
       expect(award.after.totalXp, 500);
-      expect(manager.storageError, isA<StateError>());
+      expect(manager.storageError, isNull);
     });
   });
 
@@ -382,6 +467,100 @@ void main() {
       expect(store.saveCount, 1);
     },
   );
+
+  test('controller leaves the result unawarded when saving fails', () async {
+    final store = _FakeRankStore(saveError: StateError('unavailable'));
+    final loop = _ManualRankGameLoop();
+    final container = ProviderContainer(
+      overrides: [
+        rankProgressStoreProvider.overrideWithValue(store),
+        gameLoopProvider.overrideWithValue(loop),
+        randomProvider.overrideWithValue(Random(1)),
+        cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+      ],
+    );
+    addTearDown(container.dispose);
+    final gameStateSubscription = container.listen(
+      gameControllerProvider,
+      (_, __) {},
+    );
+    addTearDown(gameStateSubscription.close);
+
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    loop.tickMany(60);
+    controller.finish(const GameResult.victory(elapsedMs: 100));
+    await _flushMicrotasks();
+
+    final result = container.read(gameControllerProvider).result!;
+    expect(result.xpAwarded, 0);
+    expect(result.rankBefore, isNull);
+    expect(result.rankAfter, isNull);
+    expect(result.totalXpBefore, isNull);
+    expect(result.totalXpAfter, isNull);
+    expect(store.value, isNull);
+    expect(store.savedValues, isEmpty);
+  });
+
+  test('ignores a delayed award after the next match has started', () async {
+    final loadCompleter = Completer<int?>();
+    final firstSave = Completer<void>();
+    final secondSave = Completer<void>();
+    final store = _FakeRankStore(
+      loadCompleter: loadCompleter,
+      saveCompleters: [firstSave, secondSave],
+    );
+    final loop = _ManualRankGameLoop();
+    final container = ProviderContainer(
+      overrides: [
+        rankProgressStoreProvider.overrideWithValue(store),
+        gameLoopProvider.overrideWithValue(loop),
+        randomProvider.overrideWithValue(Random(1)),
+        cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+      ],
+    );
+    addTearDown(container.dispose);
+    final gameStateSubscription = container.listen(
+      gameControllerProvider,
+      (_, __) {},
+    );
+    addTearDown(gameStateSubscription.close);
+
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.hard);
+    controller.startGame();
+    loop.tickMany(60);
+    controller.finish(const GameResult.victory(elapsedMs: 100));
+    await _flushMicrotasks();
+    expect(store.loadCount, 1);
+
+    controller.returnToConfiguration();
+    controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
+    controller.startGame();
+    loop.tickMany(60);
+    controller.finish(const GameResult.victory(elapsedMs: 200));
+    await _flushMicrotasks();
+
+    loadCompleter.complete(0);
+    await _flushMicrotasks();
+    expect(store.saveCount, 1);
+    expect(container.read(gameControllerProvider).result!.xpAwarded, 0);
+
+    firstSave.complete();
+    await _flushMicrotasks();
+    expect(store.saveCount, 2);
+    expect(container.read(gameControllerProvider).result!.xpAwarded, 0);
+
+    secondSave.complete();
+    await _flushMicrotasks(5);
+    final result = container.read(gameControllerProvider).result!;
+    expect(result.xpAwarded, 500);
+    expect(result.rankBefore, 1);
+    expect(result.rankAfter, 1);
+    expect(result.totalXpBefore, 3000);
+    expect(result.totalXpAfter, 3500);
+    expect(store.savedValues, [3000, 3500]);
+  });
 
   test('controller excludes spectator and non-win results', () async {
     final store = _FakeRankStore();
@@ -531,6 +710,56 @@ void main() {
     expect(find.byKey(const ValueKey('rank-award-summary')), findsOneWidget);
     expect(find.byKey(const ValueKey('result-rank-progress')), findsOneWidget);
     expect(find.text('+3000 XP'), findsOneWidget);
+    expect(find.text('昇級！ ランク 1・一等兵'), findsOneWidget);
+  });
+
+  testWidgets('animates the result bar from saved before and after XP', (
+    tester,
+  ) async {
+    final store = _FakeRankStore(value: 2500);
+    final loop = _ManualRankGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          rankProgressStoreProvider.overrideWithValue(store),
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-button-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
+    controller.startGame();
+    loop.tickMany(60);
+    controller.finish(const GameResult.victory(elapsedMs: 100));
+    await tester.pump();
+    await tester.pump();
+
+    final barFinder = find.byKey(const ValueKey('result-rank-progress'));
+    expect(barFinder, findsOneWidget);
+    expect(
+      tester.widget<LinearProgressIndicator>(barFinder).value,
+      closeTo(2500 / 3000, 1e-6),
+    );
+
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(
+      tester.widget<LinearProgressIndicator>(barFinder).value,
+      closeTo(1, 1e-6),
+    );
+
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(
+      tester.widget<LinearProgressIndicator>(barFinder).value,
+      closeTo(0, 1e-6),
+    );
     expect(find.text('昇級！ ランク 1・一等兵'), findsOneWidget);
   });
 }

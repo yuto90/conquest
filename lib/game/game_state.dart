@@ -516,6 +516,8 @@ final class GameResult {
     this.xpAwarded = 0,
     this.rankBefore,
     this.rankAfter,
+    this.totalXpBefore,
+    this.totalXpAfter,
   });
 
   const GameResult.victory({
@@ -524,6 +526,8 @@ final class GameResult {
     int xpAwarded = 0,
     int? rankBefore,
     int? rankAfter,
+    int? totalXpBefore,
+    int? totalXpAfter,
   }) : this(
          type: GameResultType.victory,
          elapsedMs: elapsedMs,
@@ -531,6 +535,8 @@ final class GameResult {
          xpAwarded: xpAwarded,
          rankBefore: rankBefore,
          rankAfter: rankAfter,
+         totalXpBefore: totalXpBefore,
+         totalXpAfter: totalXpAfter,
        );
 
   const GameResult.defeat({
@@ -547,6 +553,8 @@ final class GameResult {
   final int xpAwarded;
   final int? rankBefore;
   final int? rankAfter;
+  final int? totalXpBefore;
+  final int? totalXpAfter;
 
   bool get didRankUp =>
       rankBefore != null && rankAfter != null && rankAfter! > rankBefore!;
@@ -562,14 +570,30 @@ final class GameResult {
         other.winner == winner &&
         other.xpAwarded == xpAwarded &&
         other.rankBefore == rankBefore &&
-        other.rankAfter == rankAfter;
+        other.rankAfter == rankAfter &&
+        other.totalXpBefore == totalXpBefore &&
+        other.totalXpAfter == totalXpAfter;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(type, elapsedMs, winner, xpAwarded, rankBefore, rankAfter);
+  int get hashCode => Object.hash(
+    type,
+    elapsedMs,
+    winner,
+    xpAwarded,
+    rankBefore,
+    rankAfter,
+    totalXpBefore,
+    totalXpAfter,
+  );
 
-  GameResult copyWith({int? xpAwarded, int? rankBefore, int? rankAfter}) {
+  GameResult copyWith({
+    int? xpAwarded,
+    int? rankBefore,
+    int? rankAfter,
+    int? totalXpBefore,
+    int? totalXpAfter,
+  }) {
     return GameResult(
       type: type,
       elapsedMs: elapsedMs,
@@ -577,6 +601,8 @@ final class GameResult {
       xpAwarded: xpAwarded ?? this.xpAwarded,
       rankBefore: rankBefore ?? this.rankBefore,
       rankAfter: rankAfter ?? this.rankAfter,
+      totalXpBefore: totalXpBefore ?? this.totalXpBefore,
+      totalXpAfter: totalXpAfter ?? this.totalXpAfter,
     );
   }
 }

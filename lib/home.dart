@@ -682,10 +682,16 @@ class _RankAwardSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    final before = result.totalXpBefore == null
+        ? progress
+        : RankProgress.fromTotalXp(result.totalXpBefore!);
+    final after = result.totalXpAfter == null
+        ? progress
+        : RankProgress.fromTotalXp(result.totalXpAfter!);
     return TweenAnimationBuilder<double>(
       key: const ValueKey('rank-award-animation'),
       duration: const Duration(milliseconds: 700),
-      curve: Curves.easeOutCubic,
+      curve: Curves.linear,
       tween: Tween<double>(begin: 0, end: 1),
       builder: (context, animation, child) {
         return Container(
@@ -715,7 +721,11 @@ class _RankAwardSummary extends StatelessWidget {
               LinearProgressIndicator(
                 key: const ValueKey('result-rank-progress'),
                 minHeight: 5,
-                value: progress.progressRatio * animation,
+                value: rankProgressBarValue(
+                  before: before,
+                  after: after,
+                  animation: animation,
+                ),
                 backgroundColor: TacticalPalette.border.withValues(alpha: 0.55),
                 valueColor: const AlwaysStoppedAnimation<Color>(
                   TacticalPalette.player,
@@ -724,7 +734,7 @@ class _RankAwardSummary extends StatelessWidget {
               if (result.didRankUp) ...[
                 const SizedBox(height: 8),
                 Text(
-                  l10n.rankUp(rank: result.rankAfter!, title: progress.title),
+                  l10n.rankUp(rank: result.rankAfter!, title: after.title),
                   textAlign: TextAlign.center,
                   style: TacticalTypography.mono(
                     fontSize: 11,

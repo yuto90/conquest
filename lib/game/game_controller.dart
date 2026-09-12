@@ -274,6 +274,7 @@ class GameController extends _$GameController {
           .read(rankProgressProvider.notifier)
           .recordVictory(matchId: matchId, difficulty: difficulty);
       if (_disposed ||
+          _currentMatchId != matchId ||
           state.phase != GamePhase.result ||
           state.result == null) {
         return;
@@ -284,6 +285,8 @@ class GameController extends _$GameController {
           xpAwarded: award.xpAwarded,
           rankBefore: award.before.rank,
           rankAfter: award.after.rank,
+          totalXpBefore: award.before.totalXp,
+          totalXpAfter: award.after.totalXp,
         ),
       );
     } catch (_) {

@@ -268,6 +268,33 @@ final class RankProgress {
   );
 }
 
+/// Returns the result-screen bar value for an award animation.
+///
+/// Awards in the same rank interpolate directly between their saved
+/// before/after snapshots. A rank-up fills the old rank first, then starts the
+/// new rank at zero. MAX remains full while additional XP is accumulated.
+double rankProgressBarValue({
+  required RankProgress before,
+  required RankProgress after,
+  required double animation,
+}) {
+  final progress = animation.clamp(0.0, 1.0).toDouble();
+  if (before.isMax && after.isMax) {
+    return _lerp(before.progressRatio, after.progressRatio, progress);
+  }
+  if (after.rank > before.rank) {
+    if (progress <= 0.5) {
+      return _lerp(before.progressRatio, 1, progress * 2);
+    }
+    return _lerp(0, after.progressRatio, (progress - 0.5) * 2);
+  }
+  return _lerp(before.progressRatio, after.progressRatio, progress);
+}
+
+double _lerp(double start, double end, double progress) {
+  return start + (end - start) * progress;
+}
+
 final class RankAward {
   const RankAward({
     required this.before,
@@ -353,6 +380,7 @@ final class RankProgressManager {
     try {
       final storedXp = await store.loadTotalXp();
       _current = RankProgress.fromTotalXp(storedXp ?? 0);
+      storageError = null;
     } catch (error) {
       storageError = error;
       _current = RankProgress.zero;
@@ -367,19 +395,22 @@ final class RankProgressManager {
     late final Future<RankAward> operation;
     operation = _mutationQueue.then((_) async {
       final before = await load();
-      if (!_awardedMatchIds.add(matchId)) {
+      if (_awardedMatchIds.contains(matchId)) {
         return RankAward.none(before);
       }
 
       final after = RankProgress.fromTotalXp(
         before.totalXp + victoryXpFor(difficulty),
       );
-      _current = after;
       try {
         await store.saveTotalXp(after.totalXp);
       } catch (error) {
         storageError = error;
+        rethrow;
       }
+      storageError = null;
+      _current = after;
+      _awardedMatchIds.add(matchId);
       return RankAward(
         before: before,
         after: after,
