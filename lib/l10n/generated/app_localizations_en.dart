@@ -37,6 +37,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String rankDisplay({required int rank, required String title}) {
+    return 'Rank $rank · $title';
+  }
+
+  @override
+  String rankProgress({required int xp}) {
+    return '$xp XP to next rank';
+  }
+
+  @override
+  String get rankMax => 'MAX';
+
+  @override
   String get islandCountLabel => 'Island Count';
 
   @override
@@ -175,6 +188,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get draw => 'Draw';
+
+  @override
+  String xpEarned({required int xp}) {
+    return '+$xp XP';
+  }
+
+  @override
+  String rankUp({required int rank, required String title}) {
+    return 'Rank Up! Rank $rank · $title';
+  }
 
   @override
   String get spectatorPlayerWin => '1P WIN';

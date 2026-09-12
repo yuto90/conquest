@@ -7,6 +7,7 @@ import 'cpu_strategy.dart';
 import 'game_loop.dart';
 import 'game_rules.dart';
 import 'game_state.dart';
+import '../rank_progression.dart';
 
 part 'game_controller.g.dart';
 
@@ -71,6 +72,9 @@ class GameController extends _$GameController {
   IslandMapViewport? _cachedViewport;
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
+  var _matchSerial = 0;
+  var _currentMatchId = 'match-0';
+  var _rankRewardGranted = false;
 
   static const _interactionFeedbackDurationMs = 1500;
 
@@ -136,7 +140,7 @@ class GameController extends _$GameController {
     }
 
     final nextState = switch (state.phase) {
-      GamePhase.configuration => _rules.startCountdown(state),
+      GamePhase.configuration => _startNewMatch(),
       GamePhase.paused => _rules.resumeCountdown(state),
       _ => state,
     };
@@ -189,6 +193,7 @@ class GameController extends _$GameController {
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
+    _awardRankForResult(result);
   }
 
   /// Leaves the current match and shows the island-count configuration again.
@@ -205,6 +210,7 @@ class GameController extends _$GameController {
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
+    _rankRewardGranted = false;
     state = _newInitialStateFor(
       configuration: state.configuration,
       viewport: ref.read(mapViewportProvider),
@@ -235,10 +241,55 @@ class GameController extends _$GameController {
       return;
     }
     final countdown = _rules.startCountdown(initial);
+    _beginNewMatch();
     state = countdown;
     _clearCpuDecisionDeadlines();
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
+  }
+
+  GameState _startNewMatch() {
+    _beginNewMatch();
+    return _rules.startCountdown(state);
+  }
+
+  void _beginNewMatch() {
+    _matchSerial++;
+    _currentMatchId = 'match-$_matchSerial';
+    _rankRewardGranted = false;
+  }
+
+  bool _isRankEligible(GameConfiguration configuration, GameResult result) {
+    return configuration.gameMode == GameMode.playerVsCpu &&
+        result.type == GameResultType.victory &&
+        result.winner == Faction.player;
+  }
+
+  Future<void> _awardRankForMatch({
+    required String matchId,
+    required CpuDifficulty difficulty,
+  }) async {
+    try {
+      final award = await ref
+          .read(rankProgressProvider.notifier)
+          .recordVictory(matchId: matchId, difficulty: difficulty);
+      if (_disposed ||
+          state.phase != GamePhase.result ||
+          state.result == null) {
+        return;
+      }
+      if (award.xpAwarded == 0 || state.result!.xpAwarded != 0) return;
+      state = state.finishWithResult(
+        state.result!.copyWith(
+          xpAwarded: award.xpAwarded,
+          rankBefore: award.before.rank,
+          rankAfter: award.after.rank,
+        ),
+      );
+    } catch (_) {
+      // Rank progression must never make a completed match unusable. The
+      // manager already keeps the loaded value in memory when storage fails.
+    }
   }
 
   /// Compatibility alias for callers that name the replay action restart.
@@ -492,7 +543,20 @@ class GameController extends _$GameController {
       _gameLoop.stop();
       _lastTickMs = null;
       _clearCpuDecisionDeadlines();
+      final result = nextState.result;
+      if (result != null) _awardRankForResult(result);
     }
+  }
+
+  void _awardRankForResult(GameResult result) {
+    if (!_isRankEligible(state.configuration, result) || _rankRewardGranted) {
+      return;
+    }
+    _rankRewardGranted = true;
+    _awardRankForMatch(
+      difficulty: state.configuration.cpuDifficulty,
+      matchId: _currentMatchId,
+    );
   }
 
   Iterable<Faction> get _activeCpuFactions =>

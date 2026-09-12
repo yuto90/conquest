@@ -69,6 +69,8 @@ void main() {
         'factionCpu',
         'factionPlayerOne',
         'factionPlayerTwo',
+        'rankMax',
+        'xpEarned',
       };
       final identicalValues = englishMessages
           .where((key) => english[key] == japanese[key])
