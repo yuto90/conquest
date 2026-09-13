@@ -133,7 +133,13 @@ void main() {
     expect(after.transform.storage[1], lessThan(before.transform.storage[1]));
     expect(force.arrivalTimeMs, MovingForce.movementDefaultArrivalTimeMs);
     expect(find.text(force.currentValue.toString()), findsOneWidget);
-    expect(find.byType(IgnorePointer), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(MovingForceWidget),
+        matching: find.byType(IgnorePointer),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('falls back to zero for invalid board geometry', (tester) async {
