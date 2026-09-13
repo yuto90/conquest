@@ -2,6 +2,8 @@
   "@@locale": "en",
   "brandName": "CONQUEST",
   "@brandName": {"description": "The tactical game brand name."},
+  "appTitle": "CONQUEST ISLES",
+  "@appTitle": {"description": "The application title shown by the Web entry point and Flutter app."},
   "titleStart": "Start",
   "titleHowToPlay": "How to Play",
   "@titleHowToPlay": {"description": "Title screen help dialog heading and accessibility label."},

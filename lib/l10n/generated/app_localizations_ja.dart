@@ -12,6 +12,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get brandName => 'CONQUEST';
 
   @override
+  String get appTitle => 'CONQUEST ISLES';
+
+  @override
   String get titleStart => 'はじめる';
 
   @override
