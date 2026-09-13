@@ -1,11 +1,12 @@
 # Issue #63 browser verification
 
-Code HEAD: `0ca88a99f56a4edcb1f2592677c7b751d2cf7c81`.
+Code HEAD: `7f55e8c327d498e420ff93e334419e44f2fdccec`.
 Baseline: `4108aaaa59b94b6455b0dab85039eadfa193a1cc`.
 Environment: local Flutter release web build, headless Google Chrome, Japanese locale.
 
 - Settings: all 36 island asset requests observed before match start.
 - Normal match: 10 islands, 390x844. Dynamic troop count, capacity, faction and headquarters badge visible.
+- Compact status acceptance: the large unified three-line dark panel is removed; each island now shows a faction-colored pill, a dark troop chip with white text, and capacity text outside the chip. The smaller composition exposes clearly more island artwork while keeping `100` and `/200` readable.
 - Select player headquarters, wait >1 tick (120ms), then tap a neutral small island: dispatched force and observed capture from N durability10 to P with capacity50 (troops continue increasing after capture). Same outline and location visually retained.
 - Selected source badge/frame and destination brackets visible; Semantics reports selected source/valid target.
 - Pause and resume countdown verified. Images and values remain visible behind overlays.
@@ -13,15 +14,20 @@ Environment: local Flutter release web build, headless Google Chrome, Japanese l
 - Final full matrix run: no page errors or console errors. Result in browser-qa-result.json.
 - No iOS/Android device run in this browser check.
 
-## Known pre-existing visual constraint
+## Compact status acceptance
 
-At280x500 the lower headquarters overlaps the bottom instruction text. Reproduced in both baseline and updated build (before-board-8islands-280x500.png / after-board-8islands-280x500.png). The fix moves the new headquarters capacity text up: on both normal and selected 280x500 captures the current value and capacity now sit above the hint. Island positions and100px headquarters frame are unchanged; fixing map coordinates is out of scope. The comparison uses separately generated random maps, not identical seeds; headquarters anchors are deterministic.
+- Status comparison at390x844: `before-status-390x844.png` / `after-board-390x844.png`.
+- Status comparison at280x500: `before-status-280x500.png` / `after-selected-8islands-280x500.png`.
+- The old before captures and new after captures use separately generated random maps and are not identical layouts. Deterministic headquarters anchors support the status comparison; the original `before-board-390x844.png` and `before-board-8islands-280x500.png` remain as baseline board-context evidence.
+- In the selected280x500 layout, the capacity text remains separated from the bottom operation hint. Island positions and the100px headquarters frame are unchanged.
 
 ## Valid final screenshots
 
 - before-board-390x844.png
 - before-selected-390x844.png
 - before-board-8islands-280x500.png
+- before-status-390x844.png
+- before-status-280x500.png
 - after-board-390x844.png
 - after-selected-390x844.png
 - before-capture-390x844.png
