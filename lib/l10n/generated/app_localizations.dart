@@ -110,6 +110,54 @@ abstract class AppLocalizations {
   /// **'Start'**
   String get titleStart;
 
+  /// Title screen help dialog heading and accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get titleHowToPlay;
+
+  /// Game objective in the title help dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture the islands and defeat the opposing army.'**
+  String get titleHowToGoal;
+
+  /// First instruction in the title help dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Select one of your green islands with at least 2 forces.'**
+  String get titleHowToSelect;
+
+  /// Second instruction in the title help dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Tap another island to send half your forces. Send them to a friendly island to reinforce it.'**
+  String get titleHowToSend;
+
+  /// Third instruction in the title help dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Send more forces than the island\'s defenders to capture it. Eliminate all enemy islands and moving forces to win.'**
+  String get titleHowToCapture;
+
+  /// Title sound information heading and accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound'**
+  String get titleSound;
+
+  /// Explains current audio availability without implying a working mute toggle.
+  ///
+  /// In en, this message translates to:
+  /// **'This game currently plays without music or sound effects.'**
+  String get titleSoundDescription;
+
+  /// Close action for title information dialogs.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get titleClose;
+
   /// The match setup action that returns to the title screen.
   ///
   /// In en, this message translates to:
