@@ -36,8 +36,8 @@ void main() {
       const ProviderScope(child: MyApp(locale: Locale('ja'))),
     );
 
-    expect(find.text('CONQUEST'), findsOneWidget);
-    expect(find.text('はじめる'), findsOneWidget);
+    expect(find.byKey(const ValueKey('title-wordmark')), findsOneWidget);
+    expect(find.text('START'), findsOneWidget);
     expect(find.byKey(const ValueKey('settings-view')), findsNothing);
     expect(find.byKey(const ValueKey('island-0')), findsNothing);
     final container = ProviderScope.containerOf(
@@ -111,7 +111,7 @@ void main() {
       await tester.pumpWidget(
         const ProviderScope(child: MyApp(locale: Locale('en'))),
       );
-      expect(find.text('Start'), findsOneWidget);
+      expect(find.text('START'), findsOneWidget);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pump();
