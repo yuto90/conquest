@@ -118,6 +118,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
     final controller = ref.read(gameControllerProvider.notifier);
     // Keep watching the same controller on both screens so configuration
@@ -182,6 +183,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                       alignment: Alignment(force.x, force.y),
                       child: MovingForceWidget(
                         force: force,
+                        boardSize: Size(viewport.width, viewport.height),
                         presentation: FactionPresentation.forMode(
                           state.configuration.gameMode,
                           force.faction,
