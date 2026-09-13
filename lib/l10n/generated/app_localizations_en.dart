@@ -90,6 +90,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startGame => 'Start Game';
 
   @override
+  String get mapUnavailableMessage =>
+      'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.';
+
+  @override
   String selectedSummary({
     required int islandCount,
     required String difficulty,

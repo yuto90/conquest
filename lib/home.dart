@@ -805,6 +805,19 @@ class _ConfigurationPanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (onStart == null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          key: const ValueKey('map-unavailable-message'),
+                          l10n.mapUnavailableMessage,
+                          textAlign: TextAlign.center,
+                          style: TacticalTypography.body(
+                            fontSize: 12,
+                            color: TacticalPalette.muted,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 17),
                       Text(
                         _selectionSummary(l10n, state.configuration),

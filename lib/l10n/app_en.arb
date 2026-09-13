@@ -50,6 +50,8 @@
   "@opponentCpuDifficultyLabel": {"description": "The opponent CPU difficulty label in spectator mode."},
   "startGame": "Start Game",
   "@startGame": {"description": "The start game button text."},
+  "mapUnavailableMessage": "The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.",
+  "@mapUnavailableMessage": {"description": "Explains why the map cannot be started and how to recover."},
   "selectedSummary": "Selected: {islandCount} islands / {difficulty}",
   "@selectedSummary": {"description": "The selected standard match summary.", "placeholders": {"islandCount": {"type": "int"}, "difficulty": {"type": "String"}}},
   "selectedSummarySpectator": "Selected: {islandCount} islands / 1P {playerDifficulty} / 2P {cpuDifficulty}",

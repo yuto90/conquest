@@ -248,6 +248,12 @@ abstract class AppLocalizations {
   /// **'Start Game'**
   String get startGame;
 
+  /// Explains why the map cannot be started and how to recover.
+  ///
+  /// In en, this message translates to:
+  /// **'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.'**
+  String get mapUnavailableMessage;
+
   /// The selected standard match summary.
   ///
   /// In en, this message translates to:
