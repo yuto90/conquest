@@ -201,6 +201,7 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           isFocusable: true,
+          isFocused: true,
           hasTapAction: true,
           hasFocusAction: true,
         ),
