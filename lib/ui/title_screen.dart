@@ -9,6 +9,8 @@ import '../l10n/generated/app_localizations_en.dart';
 const _ink = Color(0xFF002C36);
 const _paper = Color(0xFFF6F8F7);
 const _referenceSize = Size(941, 1672);
+// トップ画面の補助ボタンは、再表示するまで一時的に非表示にする。
+const _showSecondaryActions = false;
 
 /// The app's entry screen. Match state and navigation belong to its host.
 class TitleScreen extends StatelessWidget {
@@ -71,63 +73,66 @@ class TitleScreen extends StatelessWidget {
                         primary: true,
                       ),
                     ),
-                    SizedBox(height: 42 * scale),
-                    SizedBox(
-                      width: secondaryWidth,
-                      child: largeText
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                _settingsButton(l10n, scale),
-                                const SizedBox(height: 12),
-                                _helpButton(context, l10n, scale),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(child: _settingsButton(l10n, scale)),
-                                SizedBox(width: 24 * scale),
-                                Expanded(
-                                  child: _helpButton(context, l10n, scale),
-                                ),
-                              ],
-                            ),
-                    ),
+                    if (_showSecondaryActions) ...[
+                      SizedBox(height: 42 * scale),
+                      SizedBox(
+                        width: secondaryWidth,
+                        child: largeText
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  _settingsButton(l10n, scale),
+                                  const SizedBox(height: 12),
+                                  _helpButton(context, l10n, scale),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(child: _settingsButton(l10n, scale)),
+                                  SizedBox(width: 24 * scale),
+                                  Expanded(
+                                    child: _helpButton(context, l10n, scale),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ],
                     // Let short screens and enlarged text scroll every action
                     // into view without shrinking interactive targets.
                     SizedBox(height: math.max(24.0, 32 * scale)),
                   ],
                 ),
-                Positioned(
-                  top: math.max(4.0, 60 * scale - iconInset),
-                  right: math.max(4.0, 44 * scale - iconInset),
-                  child: Row(
-                    children: [
-                      _ChartIconButton(
-                        buttonKey: const ValueKey('title-sound'),
-                        icon: CupertinoIcons.speaker_2_fill,
-                        tooltip: l10n.titleSound,
-                        size: iconSize,
-                        onPressed: () => _showInformation(
-                          context,
-                          title: l10n.titleSound,
-                          content: Text(l10n.titleSoundDescription),
-                          closeLabel: l10n.titleClose,
+                if (_showSecondaryActions)
+                  Positioned(
+                    top: math.max(4.0, 60 * scale - iconInset),
+                    right: math.max(4.0, 44 * scale - iconInset),
+                    child: Row(
+                      children: [
+                        _ChartIconButton(
+                          buttonKey: const ValueKey('title-sound'),
+                          icon: CupertinoIcons.speaker_2_fill,
+                          tooltip: l10n.titleSound,
+                          size: iconSize,
+                          onPressed: () => _showInformation(
+                            context,
+                            title: l10n.titleSound,
+                            content: Text(l10n.titleSoundDescription),
+                            closeLabel: l10n.titleClose,
+                          ),
                         ),
-                      ),
-                      SizedBox(
-                        width: math.max(0.0, 30 * scale - 2 * iconInset),
-                      ),
-                      _ChartIconButton(
-                        buttonKey: const ValueKey('title-settings-icon'),
-                        icon: CupertinoIcons.gear_alt_fill,
-                        tooltip: l10n.settingsTitle,
-                        size: iconSize,
-                        onPressed: onStart,
-                      ),
-                    ],
+                        SizedBox(
+                          width: math.max(0.0, 30 * scale - 2 * iconInset),
+                        ),
+                        _ChartIconButton(
+                          buttonKey: const ValueKey('title-settings-icon'),
+                          icon: CupertinoIcons.gear_alt_fill,
+                          tooltip: l10n.settingsTitle,
+                          size: iconSize,
+                          onPressed: onStart,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
           ),

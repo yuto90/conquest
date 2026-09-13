@@ -10,41 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'support/match_setup.dart';
 
 void main() {
-  testWidgets('both title settings buttons open the retained match setup', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      const ProviderScope(child: MyApp(locale: Locale('en'))),
-    );
-    for (final key in ['title-settings', 'title-settings-icon']) {
-      await tester.tap(find.byKey(ValueKey(key)));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('return-title')));
-      await tester.pumpAndSettle();
-    }
-  });
-
-  testWidgets('how to play opens and closes without starting the match', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      const ProviderScope(child: MyApp(locale: Locale('ja'))),
-    );
-    await tester.tap(find.byKey(const ValueKey('title-how-to-play')));
-    await tester.pumpAndSettle();
-    expect(find.text('遊び方'), findsOneWidget);
-    expect(find.textContaining('半分'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('title-dialog-close')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('title-view')), findsOneWidget);
-    expect(find.byKey(const ValueKey('settings-view')), findsNothing);
-  });
-
   testWidgets(
     'keeps title actions at least 48 pixels tall on desktop',
     (tester) async {
