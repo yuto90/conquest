@@ -81,11 +81,16 @@ class Base extends StatelessWidget {
                   ),
                 ),
               ),
-              _IslandStatusPanel(
-                base: base,
-                marker: _effectivePresentation.marker,
-                isHeadquarters: isHeadquarters,
-                numberColor: numberColor,
+              Transform.translate(
+                offset: isHeadquarters && base.y > 0
+                    ? const Offset(0, -8)
+                    : Offset.zero,
+                child: _IslandStatusPanel(
+                  base: base,
+                  marker: _effectivePresentation.marker,
+                  isHeadquarters: isHeadquarters,
+                  numberColor: numberColor,
+                ),
               ),
               if (isHeadquarters)
                 Positioned(
