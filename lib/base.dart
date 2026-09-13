@@ -35,9 +35,6 @@ class Base extends StatelessWidget {
         Localizations.of<AppLocalizations>(context, AppLocalizations) ??
         AppLocalizationsEn();
     final isHeadquarters = base.size == IslandSize.headquarters;
-    final numberColor = base.faction == Faction.neutral
-        ? TacticalPalette.foreground
-        : TacticalPalette.paper;
     final interactive = onPressed != null;
     final assetPath = islandAssetPath(islandId: base.id, faction: base.faction);
 
@@ -88,8 +85,6 @@ class Base extends StatelessWidget {
                 child: _IslandStatusPanel(
                   base: base,
                   marker: _effectivePresentation.marker,
-                  isHeadquarters: isHeadquarters,
-                  numberColor: numberColor,
                 ),
               ),
               if (isHeadquarters)
@@ -199,17 +194,10 @@ class Base extends StatelessWidget {
 }
 
 class _IslandStatusPanel extends StatelessWidget {
-  const _IslandStatusPanel({
-    required this.base,
-    required this.marker,
-    required this.isHeadquarters,
-    required this.numberColor,
-  });
+  const _IslandStatusPanel({required this.base, required this.marker});
 
   final IslandState base;
   final String marker;
-  final bool isHeadquarters;
-  final Color numberColor;
 
   @override
   Widget build(BuildContext context) {
@@ -218,71 +206,88 @@ class _IslandStatusPanel extends StatelessWidget {
       Faction.cpu => TacticalPalette.cpu,
       Faction.neutral => TacticalPalette.neutral,
     };
-    final panelColor = base.faction == Faction.neutral
-        ? TacticalPalette.surface.withValues(alpha: 0.84)
-        : TacticalPalette.outer.withValues(alpha: 0.72);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: panelColor,
-        border: Border.all(color: accent.withValues(alpha: 0.72), width: 0.8),
-        borderRadius: BorderRadius.circular(isHeadquarters ? 12 : 10),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: isHeadquarters ? 7 : 5,
-          vertical: isHeadquarters ? 4 : 3,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
+    final deepAccent = switch (base.faction) {
+      Faction.player => TacticalPalette.playerDeep,
+      Faction.cpu => TacticalPalette.cpuDeep,
+      Faction.neutral => TacticalPalette.foreground,
+    };
+    final troopFontSize = switch (base.size) {
+      IslandSize.small => 13.0,
+      IslandSize.medium => 14.0,
+      IslandSize.large => 15.0,
+      IslandSize.headquarters => 17.0,
+    };
+    final markerFontSize = base.size == IslandSize.small ? 7.0 : 8.0;
+    final capacityFontSize = base.size == IslandSize.small ? 7.0 : 8.0;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: accent,
+            border: Border.all(color: deepAccent.withValues(alpha: 0.82)),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: marker.length > 1 ? 3 : 2,
+              vertical: 1,
+            ),
+            child: Text(
               marker,
               style: TacticalTypography.mono(
-                fontSize: isHeadquarters ? 10 : 8,
+                fontSize: markerFontSize,
                 fontWeight: FontWeight.w800,
-                color: numberColor,
+                color: TacticalPalette.paper,
                 height: 1,
               ),
             ),
-            Text(
+          ),
+        ),
+        const SizedBox(height: 1),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: TacticalPalette.outer.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            child: Text(
               base.currentValue.toString(),
               key: base.faction == Faction.neutral
                   ? ValueKey('island-${base.id}-value')
                   : ValueKey('island-${base.id}-current'),
-              style:
-                  TacticalTypography.display(
-                    fontSize: isHeadquarters ? 27 : 20,
-                    fontWeight: FontWeight.w800,
-                    color: numberColor,
-                    height: 1,
-                    letterSpacing: -0.8,
-                  ).copyWith(
-                    shadows: base.faction == Faction.neutral
-                        ? null
-                        : const <Shadow>[
-                            Shadow(
-                              color: Color(0xB0001116),
-                              offset: Offset(0, 1),
-                              blurRadius: 1,
-                            ),
-                          ],
-                  ),
-            ),
-            if (base.faction != Faction.neutral)
-              Text(
-                '/${base.capacity}',
-                key: ValueKey('island-${base.id}-capacity'),
-                style: TacticalTypography.mono(
-                  fontSize: isHeadquarters ? 9 : 8,
-                  fontWeight: FontWeight.w700,
-                  color: numberColor.withValues(alpha: 0.86),
-                  height: 1,
-                ),
+              style: TacticalTypography.display(
+                fontSize: troopFontSize,
+                fontWeight: FontWeight.w800,
+                color: TacticalPalette.paper,
+                height: 1,
+                letterSpacing: -0.3,
               ),
-          ],
+            ),
+          ),
         ),
-      ),
+        if (base.faction != Faction.neutral)
+          Text(
+            '/${base.capacity}',
+            key: ValueKey('island-${base.id}-capacity'),
+            style:
+                TacticalTypography.mono(
+                  fontSize: capacityFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: TacticalPalette.paper,
+                  height: 1,
+                ).copyWith(
+                  shadows: const <Shadow>[
+                    Shadow(
+                      color: Color(0xC0001116),
+                      offset: Offset(0, 1),
+                      blurRadius: 1.5,
+                    ),
+                  ],
+                ),
+          ),
+      ],
     );
   }
 }
