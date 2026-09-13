@@ -56,6 +56,9 @@ flutter:
 
   assets:
     - assets/title/
+    - assets/islands/ally/
+    - assets/islands/enemy/
+    - assets/islands/neutral/
 
   fonts:
     - family: Libre Baskerville
