@@ -72,15 +72,8 @@ void main() {
     ];
 
     for (final movement in cases) {
-      final force = _force(
-        deltaX: movement.deltaX,
-        deltaY: movement.deltaY,
-      );
-      await _pumpForce(
-        tester,
-        force: force,
-        boardSize: _tallBoard,
-      );
+      final force = _force(deltaX: movement.deltaX, deltaY: movement.deltaY);
+      await _pumpForce(tester, force: force, boardSize: _tallBoard);
 
       _expectHeading(
         _aircraftTransform(tester),

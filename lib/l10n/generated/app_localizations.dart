@@ -104,6 +104,12 @@ abstract class AppLocalizations {
   /// **'CONQUEST'**
   String get brandName;
 
+  /// The application title shown by the Web entry point and Flutter app.
+  ///
+  /// In en, this message translates to:
+  /// **'CONQUEST ISLES'**
+  String get appTitle;
+
   /// The title screen action that opens match setup.
   ///
   /// In en, this message translates to:
@@ -247,6 +253,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Start Game'**
   String get startGame;
+
+  /// Explains why the map cannot be started and how to recover.
+  ///
+  /// In en, this message translates to:
+  /// **'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.'**
+  String get mapUnavailableMessage;
 
   /// The selected standard match summary.
   ///

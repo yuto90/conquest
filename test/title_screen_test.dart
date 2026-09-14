@@ -4,6 +4,7 @@ import 'package:conquest/game/game_state.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -55,6 +56,39 @@ void main() {
     expect(find.text('対戦設定'), findsOneWidget);
     expect(find.text('タイトルへ戻る'), findsOneWidget);
   });
+
+  for (final key in [LogicalKeyboardKey.enter, LogicalKeyboardKey.space]) {
+    testWidgets('opens match setup once with ${key.keyLabel}', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        const ProviderScope(child: MyApp(locale: Locale('en'))),
+      );
+      await tester.pump();
+
+      final start = find.byKey(const ValueKey('title-start'));
+      expect(
+        tester.getSemantics(start),
+        matchesSemantics(
+          label: 'Start',
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          isFocused: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+      );
+
+      await tester.sendKeyEvent(key);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('title-view')), findsNothing);
+      expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    });
+  }
 
   for (final systemBack in [false, true]) {
     testWidgets(
@@ -167,6 +201,7 @@ void main() {
           hasEnabledState: true,
           isEnabled: true,
           isFocusable: true,
+          isFocused: true,
           hasTapAction: true,
           hasFocusAction: true,
         ),

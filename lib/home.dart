@@ -13,6 +13,7 @@ import 'game/game_rules.dart';
 import 'game/game_state.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
+import 'ui/island_assets.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
@@ -140,92 +141,95 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
       },
       child: ColoredBox(
         color: TacticalPalette.background,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const TacticalMapBackground(),
-            CustomPaint(painter: _RoutePainter(state: state)),
-            Semantics(
-              container: true,
-              label: l10n.boardMapSemantics(
-                islandCount: state.configuration.totalIslandCount,
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  for (final island in state.islands)
-                    Align(
-                      key: ValueKey('island-${island.id}'),
-                      alignment: Alignment(island.x, island.y),
-                      child: SizedBox.square(
-                        dimension: GameRules.islandWidgetSize(island.size),
-                        child: Base(
-                          key: ValueKey('island-button-${island.id}'),
-                          base: island,
+        child: IslandAssetPreloader(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const TacticalMapBackground(),
+              CustomPaint(painter: _RoutePainter(state: state)),
+              Semantics(
+                container: true,
+                label: l10n.boardMapSemantics(
+                  islandCount: state.configuration.totalIslandCount,
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    for (final island in state.islands)
+                      Align(
+                        key: ValueKey('island-${island.id}'),
+                        alignment: Alignment(island.x, island.y),
+                        child: SizedBox.square(
+                          dimension: GameRules.islandWidgetSize(island.size),
+                          child: Base(
+                            key: ValueKey('island-button-${island.id}'),
+                            base: island,
+                            presentation: FactionPresentation.forMode(
+                              state.configuration.gameMode,
+                              island.faction,
+                            ),
+                            selected: state.selectedIslandId == island.id,
+                            destinationCandidate:
+                                isPlayerInteractionEnabled &&
+                                state.selectedIslandId != null &&
+                                state.selectedIslandId != island.id,
+                            onPressed: isPlayerInteractionEnabled
+                                ? () => controller.tapBase(island.id)
+                                : null,
+                          ),
+                        ),
+                      ),
+                    for (final force in state.movingForces)
+                      Align(
+                        key: ValueKey('moving-force-position-${force.id}'),
+                        alignment: Alignment(force.x, force.y),
+                        child: MovingForceWidget(
+                          force: force,
+                          boardSize: Size(viewport.width, viewport.height),
                           presentation: FactionPresentation.forMode(
                             state.configuration.gameMode,
-                            island.faction,
+                            force.faction,
                           ),
-                          selected: state.selectedIslandId == island.id,
-                          destinationCandidate:
-                              isPlayerInteractionEnabled &&
-                              state.selectedIslandId != null &&
-                              state.selectedIslandId != island.id,
-                          onPressed: isPlayerInteractionEnabled
-                              ? () => controller.tapBase(island.id)
-                              : null,
+                          semanticsKey: ValueKey('moving-force-${force.id}'),
                         ),
                       ),
-                    ),
-                  for (final force in state.movingForces)
-                    Align(
-                      key: ValueKey('moving-force-position-${force.id}'),
-                      alignment: Alignment(force.x, force.y),
-                      child: MovingForceWidget(
-                        force: force,
-                        boardSize: Size(viewport.width, viewport.height),
-                        presentation: FactionPresentation.forMode(
-                          state.configuration.gameMode,
-                          force.faction,
-                        ),
-                        semanticsKey: ValueKey('moving-force-${force.id}'),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (showBoardChrome)
-              _BoardChrome(
-                state: state,
-                onPause: state.phase == GamePhase.playing
-                    ? controller.pauseGame
-                    : null,
-              ),
-            if (state.hasInteractionFeedback)
-              _InteractionFeedback(type: state.interactionFeedback!),
-            if (state.phase == GamePhase.configuration)
-              _ConfigurationPanel(
-                state: state,
-                onTitle: () => setState(() => _showTitle = true),
-                onStart:
-                    state.islands.length == state.configuration.totalIslandCount
-                    ? controller.startGame
-                    : null,
-              ),
-            if (state.phase == GamePhase.paused)
-              _PauseMenu(
-                onResume: controller.resumeGame,
-                onQuit: () => _confirmQuit(context, controller),
-              ),
-            if (state.phase == GamePhase.result)
-              _ResultPanel(
-                configuration: state.configuration,
-                result: state.result!,
-                onReplay: controller.replayGame,
-                onSettings: controller.returnToConfiguration,
-              ),
-            _CountdownOverlay(state: state),
-          ],
+              if (showBoardChrome)
+                _BoardChrome(
+                  state: state,
+                  onPause: state.phase == GamePhase.playing
+                      ? controller.pauseGame
+                      : null,
+                ),
+              if (state.hasInteractionFeedback)
+                _InteractionFeedback(type: state.interactionFeedback!),
+              if (state.phase == GamePhase.configuration)
+                _ConfigurationPanel(
+                  state: state,
+                  onTitle: () => setState(() => _showTitle = true),
+                  onStart:
+                      state.islands.length ==
+                          state.configuration.totalIslandCount
+                      ? controller.startGame
+                      : null,
+                ),
+              if (state.phase == GamePhase.paused)
+                _PauseMenu(
+                  onResume: controller.resumeGame,
+                  onQuit: () => _confirmQuit(context, controller),
+                ),
+              if (state.phase == GamePhase.result)
+                _ResultPanel(
+                  configuration: state.configuration,
+                  result: state.result!,
+                  onReplay: controller.replayGame,
+                  onSettings: controller.returnToConfiguration,
+                ),
+              _CountdownOverlay(state: state),
+            ],
+          ),
         ),
       ),
     );
@@ -807,6 +811,19 @@ class _ConfigurationPanel extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (onStart == null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          key: const ValueKey('map-unavailable-message'),
+                          l10n.mapUnavailableMessage,
+                          textAlign: TextAlign.center,
+                          style: TacticalTypography.body(
+                            fontSize: 12,
+                            color: TacticalPalette.muted,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 17),
                       Text(
                         _selectionSummary(l10n, state.configuration),

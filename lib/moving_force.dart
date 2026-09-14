@@ -156,7 +156,8 @@ class MovingForceWidget extends StatelessWidget {
 
     final screenDeltaX = force.deltaX * horizontalSpan;
     final screenDeltaY = force.deltaY * verticalSpan;
-    if (!screenDeltaX.isFinite || !screenDeltaY.isFinite ||
+    if (!screenDeltaX.isFinite ||
+        !screenDeltaY.isFinite ||
         (screenDeltaX == 0 && screenDeltaY == 0)) {
       return 0;
     }

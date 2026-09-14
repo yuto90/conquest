@@ -12,6 +12,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get brandName => 'CONQUEST';
 
   @override
+  String get appTitle => 'CONQUEST ISLES';
+
+  @override
   String get titleStart => 'Start';
 
   @override
@@ -88,6 +91,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startGame => 'Start Game';
+
+  @override
+  String get mapUnavailableMessage =>
+      'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.';
 
   @override
   String selectedSummary({

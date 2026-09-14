@@ -44,6 +44,8 @@ void main() {
 
       expect(english['brandName'], 'CONQUEST');
       expect(japanese['brandName'], 'CONQUEST');
+      expect(english['appTitle'], 'CONQUEST ISLES');
+      expect(japanese['appTitle'], 'CONQUEST ISLES');
       expect(english['startWord'], 'START');
       expect(japanese['startWord'], 'START');
       for (final key in <String>[
@@ -61,6 +63,7 @@ void main() {
 
       const stableValues = <String>{
         'brandName',
+        'appTitle',
         'startWord',
         'difficultyVeryEasy',
         'difficultyEasy',
@@ -77,7 +80,7 @@ void main() {
         identicalValues,
         stableValues,
         reason:
-            'Only explicitly stable brand, start, CPU, numeric, and difficulty values may remain identical.',
+            'Only explicitly stable app title, brand, start, CPU, numeric, and difficulty values may remain identical.',
       );
     },
   );
