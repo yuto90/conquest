@@ -1,0 +1,28 @@
+{
+  "head": "7f55e8c327d498e420ff93e334419e44f2fdccec",
+  "errors": [],
+  "captureObserved": true,
+  "selectedObserved": true,
+  "matrix": [
+    [
+      6,
+      390,
+      844
+    ],
+    [
+      8,
+      280,
+      500
+    ],
+    [
+      12,
+      390,
+      844
+    ],
+    [
+      10,
+      1200,
+      700
+    ]
+  ]
+}

@@ -59,6 +59,15 @@ jobs:
           export PATH="$HOME/.pub-cache/bin:$PATH"
           fvm flutter pub get
 
+      - name: Check Dart formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          format_check=(fvm dart format --output=none --set-exit-if-changed lib test integration_test)
+          echo "Dart format check: ${format_check[*]}"
+          echo "To format locally: fvm dart format lib test integration_test"
+          "${format_check[@]}"
+
       - name: Analyze
         run: fvm flutter analyze
 

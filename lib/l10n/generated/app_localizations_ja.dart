@@ -12,6 +12,40 @@ class AppLocalizationsJa extends AppLocalizations {
   String get brandName => 'CONQUEST';
 
   @override
+  String get appTitle => 'CONQUEST ISLES';
+
+  @override
+  String get titleStart => 'はじめる';
+
+  @override
+  String get titleHowToPlay => '遊び方';
+
+  @override
+  String get titleHowToGoal => '島を占領して兵力を増やし、相手の軍を全滅させましょう。';
+
+  @override
+  String get titleHowToSelect => '1. 兵力が2以上ある、緑色の自軍の島をタップします。';
+
+  @override
+  String get titleHowToSend => '2. 別の島をタップすると、兵力の半分を送り出します。自軍の島には増援を送れます。';
+
+  @override
+  String get titleHowToCapture =>
+      '3. 相手の兵力を上回る部隊を送ると、島を占領できます。相手の島と移動中の部隊をすべてなくすと勝利です。';
+
+  @override
+  String get titleSound => 'サウンド';
+
+  @override
+  String get titleSoundDescription => 'このゲームは現在、音楽・効果音なしでプレイできます。';
+
+  @override
+  String get titleClose => '閉じる';
+
+  @override
+  String get returnTitle => 'タイトルへ戻る';
+
+  @override
   String get startWord => 'START';
 
   @override
@@ -65,6 +99,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get startGame => 'ゲーム開始';
+
+  @override
+  String get mapUnavailableMessage =>
+      '現在の画面サイズでは盤面を準備できません。ウィンドウを広げるか、縦向きで開き直してください。';
 
   @override
   String selectedSummary({

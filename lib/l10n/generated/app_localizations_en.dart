@@ -12,6 +12,44 @@ class AppLocalizationsEn extends AppLocalizations {
   String get brandName => 'CONQUEST';
 
   @override
+  String get appTitle => 'CONQUEST ISLES';
+
+  @override
+  String get titleStart => 'Start';
+
+  @override
+  String get titleHowToPlay => 'How to Play';
+
+  @override
+  String get titleHowToGoal =>
+      'Capture the islands and defeat the opposing army.';
+
+  @override
+  String get titleHowToSelect =>
+      '1. Select one of your green islands with at least 2 forces.';
+
+  @override
+  String get titleHowToSend =>
+      '2. Tap another island to send half your forces. Send them to a friendly island to reinforce it.';
+
+  @override
+  String get titleHowToCapture =>
+      '3. Send more forces than the island\'s defenders to capture it. Eliminate all enemy islands and moving forces to win.';
+
+  @override
+  String get titleSound => 'Sound';
+
+  @override
+  String get titleSoundDescription =>
+      'This game currently plays without music or sound effects.';
+
+  @override
+  String get titleClose => 'Close';
+
+  @override
+  String get returnTitle => 'Back to Title';
+
+  @override
   String get startWord => 'START';
 
   @override
@@ -66,6 +104,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startGame => 'Start Game';
+
+  @override
+  String get mapUnavailableMessage =>
+      'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.';
 
   @override
   String selectedSummary({

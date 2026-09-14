@@ -1,5 +1,5 @@
 name: conquest
-description: A new Flutter project.
+description: A real-time tactical game about conquering islands.
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `pub publish`. This is preferred for private packages.
@@ -54,6 +54,22 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/title/
+    - assets/islands/ally/
+    - assets/islands/enemy/
+    - assets/islands/neutral/
+
+  fonts:
+    - family: Libre Baskerville
+      fonts:
+        - asset: assets/fonts/LibreBaskerville.ttf
+          weight: 700
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/Barlow-SemiBold.ttf
+          weight: 600
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,6 +1,6 @@
 # conquest
 
-A new Flutter project.
+Conquest は、島を占領しながら敵と戦うリアルタイム戦術ゲームです。
 
 ## Documentation
 
@@ -19,14 +19,13 @@ Vercel への公開は GitHub Actions の `Deploy Web` が `build/web` をデプ
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+事前に [FVM](https://fvm.app/) をインストールし、リポジトリのルートで次のコマンドを実行してください。
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+fvm install
+fvm flutter pub get
+fvm flutter analyze
+fvm flutter test
+fvm flutter run -d chrome
+```
 # conquest

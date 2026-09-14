@@ -1,0 +1,629 @@
+{
+  "source": "User supplied on 2026-09-13 from Desktop/isles; supersedes Issue #63 hashes",
+  "sha256": {
+    "ally": "d9368f60b6a29ca850e40ba63f250b7d88b7e04968abadc24b44cce5bb95438f",
+    "enemy": "80f7f492c36611cef1a6f666b3497ed932d37a4dce61ce4b1ca2803ad0adde42",
+    "neutral": "e0c5363f8ceca3935338630aac8137bbd41efb297873b6e3cc1fadb5cc7b08ab"
+  },
+  "source_size": [
+    1448,
+    1086
+  ],
+  "x_boundaries": [
+    0,
+    360,
+    750,
+    1105,
+    1448
+  ],
+  "y_boundaries": [
+    0,
+    400,
+    730,
+    1086
+  ],
+  "padding_min_px": 4,
+  "scale": 1,
+  "layouts": [
+    {
+      "id": 1,
+      "crop_ltrb": [
+        0,
+        0,
+        360,
+        400
+      ],
+      "canvas_size": 327,
+      "common_origin_xy": [
+        -35,
+        -63
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          0
+        ],
+        "neutral": [
+          0,
+          0
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98773,
+        "neutral": 0.98404
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "crop_ltrb": [
+        360,
+        0,
+        750,
+        400
+      ],
+      "canvas_size": 333,
+      "common_origin_xy": [
+        -48,
+        -63
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          0
+        ],
+        "neutral": [
+          0,
+          0
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98904,
+        "neutral": 0.98653
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          249.0,
+          5.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "crop_ltrb": [
+        750,
+        0,
+        1105,
+        400
+      ],
+      "canvas_size": 231,
+      "common_origin_xy": [
+        -74,
+        -95
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          1,
+          0
+        ],
+        "neutral": [
+          0,
+          0
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.96641,
+        "neutral": 0.96757
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          249.0,
+          5.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          9.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "crop_ltrb": [
+        1105,
+        0,
+        1448,
+        400
+      ],
+      "canvas_size": 288,
+      "common_origin_xy": [
+        -19,
+        -79
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          1,
+          0
+        ],
+        "neutral": [
+          0,
+          0
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.97818,
+        "neutral": 0.97669
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          249.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "crop_ltrb": [
+        0,
+        400,
+        360,
+        730
+      ],
+      "canvas_size": 299,
+      "common_origin_xy": [
+        -52,
+        -15
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -1
+        ],
+        "neutral": [
+          0,
+          -3
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.99005,
+        "neutral": 0.98365
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "crop_ltrb": [
+        360,
+        400,
+        750,
+        730
+      ],
+      "canvas_size": 329,
+      "common_origin_xy": [
+        -53,
+        -11
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -1
+        ],
+        "neutral": [
+          0,
+          -3
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98947,
+        "neutral": 0.98587
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          249.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "crop_ltrb": [
+        750,
+        400,
+        1105,
+        730
+      ],
+      "canvas_size": 329,
+      "common_origin_xy": [
+        -14,
+        3
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -1
+        ],
+        "neutral": [
+          0,
+          -3
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.9907,
+        "neutral": 0.98333
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          18.0
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "crop_ltrb": [
+        1105,
+        400,
+        1448,
+        730
+      ],
+      "canvas_size": 258,
+      "common_origin_xy": [
+        -39,
+        -37
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -1
+        ],
+        "neutral": [
+          0,
+          -2
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98528,
+        "neutral": 0.97942
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "crop_ltrb": [
+        0,
+        730,
+        360,
+        1086
+      ],
+      "canvas_size": 245,
+      "common_origin_xy": [
+        -46,
+        -22
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -3
+        ],
+        "neutral": [
+          0,
+          -5
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98655,
+        "neutral": 0.97891
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          18.0
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "crop_ltrb": [
+        360,
+        730,
+        750,
+        1086
+      ],
+      "canvas_size": 290,
+      "common_origin_xy": [
+        -15,
+        -12
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -2
+        ],
+        "neutral": [
+          0,
+          -5
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98846,
+        "neutral": 0.98171
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "crop_ltrb": [
+        750,
+        730,
+        1105,
+        1086
+      ],
+      "canvas_size": 280,
+      "common_origin_xy": [
+        -13,
+        -27
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -2
+        ],
+        "neutral": [
+          0,
+          -5
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98734,
+        "neutral": 0.97749
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          19.0
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "crop_ltrb": [
+        1105,
+        730,
+        1448,
+        1086
+      ],
+      "canvas_size": 300,
+      "common_origin_xy": [
+        0,
+        0
+      ],
+      "translation_xy": {
+        "ally": [
+          0,
+          0
+        ],
+        "enemy": [
+          0,
+          -3
+        ],
+        "neutral": [
+          0,
+          -5
+        ]
+      },
+      "mask_iou_vs_ally": {
+        "ally": 1.0,
+        "enemy": 0.98589,
+        "neutral": 0.97961
+      },
+      "sampled_background_rgb": {
+        "ally": [
+          2.0,
+          250.0,
+          4.0
+        ],
+        "enemy": [
+          2.0,
+          249.0,
+          8.0
+        ],
+        "neutral": [
+          2.0,
+          248.0,
+          18.0
+        ]
+      }
+    }
+  ]
+}

@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/match_setup.dart';
+
 const _expectedBf4Tiers = <RankTier>[
   RankTier(0, '新兵', 0),
   RankTier(1, "一等兵", 3000),
@@ -673,6 +675,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
+    await openMatchSetup(tester);
     expect(find.text('ランク 0・新兵'), findsOneWidget);
     expect(find.text('次の昇級まで 500 XP'), findsOneWidget);
   });
@@ -694,6 +697,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await openMatchSetup(tester);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-button-0'))),
@@ -730,6 +734,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await openMatchSetup(tester);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-button-0'))),

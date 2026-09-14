@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/match_setup.dart';
+
 final class _ManualGameLoop implements GameLoop {
   void Function()? _onTick;
 
@@ -44,6 +46,7 @@ Future<void> _pumpApp(
       child: MyApp(locale: locale),
     ),
   );
+  await openMatchSetup(tester);
 }
 
 void main() {
@@ -91,6 +94,12 @@ void main() {
     final playerHeadquarters = tester.getRect(
       find.byKey(const ValueKey('island-button-0')),
     );
+    final playerHeadquartersCapacity = tester.getRect(
+      find.byKey(const ValueKey('island-0-capacity')),
+    );
+    final boardStatusDetail = tester.getRect(
+      find.byKey(const ValueKey('board-status-detail')),
+    );
     expect(
       cpuHeadquarters.overlaps(
         tester.getRect(find.byKey(const ValueKey('board-title-block'))),
@@ -103,12 +112,8 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      playerHeadquarters.overlaps(
-        tester.getRect(find.byKey(const ValueKey('board-status-detail'))),
-      ),
-      isFalse,
-    );
+    expect(playerHeadquarters.overlaps(boardStatusDetail), isFalse);
+    expect(playerHeadquartersCapacity.overlaps(boardStatusDetail), isFalse);
 
     await tester.tap(find.byKey(const ValueKey('island-button-0')));
     await tester.pump();
@@ -177,6 +182,32 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
     expect(find.text('Prepare to Deploy'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps the headquarters capacity above the compact board hint', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    await _pumpApp(tester, loop: loop, size: const Size(280, 500));
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    loop.tickMany(60);
+    await tester.pump();
+
+    final current = tester.getRect(
+      find.byKey(const ValueKey('island-0-current')),
+    );
+    final capacity = tester.getRect(
+      find.byKey(const ValueKey('island-0-capacity')),
+    );
+    final detail = tester.getRect(
+      find.byKey(const ValueKey('board-status-detail')),
+    );
+
+    expect(current.height, greaterThan(capacity.height));
+    expect(capacity.bottom, lessThanOrEqualTo(detail.top - 12));
     expect(tester.takeException(), isNull);
   });
 }
