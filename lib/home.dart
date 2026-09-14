@@ -1115,9 +1115,7 @@ class _ConfigurationPanel extends StatelessWidget {
                           ],
                         ],
                       ),
-                      const SizedBox(height: 16),
                       _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
-                      const SizedBox(height: 29),
                       Semantics(
                         button: onStart != null,
                         enabled: onStart != null,
