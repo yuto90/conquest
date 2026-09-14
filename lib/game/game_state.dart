@@ -5,6 +5,7 @@
 /// tests without having to construct a widget tree.
 
 import 'movement_timing.dart';
+import 'match_summary.dart';
 
 enum GamePhase {
   configuration,
@@ -620,6 +621,7 @@ final class GameState {
     MovingForce? movement,
     InteractionFeedbackType? interactionFeedback,
     int interactionFeedbackUntilMs = 0,
+    MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
   }) : configuration = configuration ?? GameConfiguration.initial,
@@ -633,6 +635,7 @@ final class GameState {
        ),
        interactionFeedback = interactionFeedback,
        interactionFeedbackUntilMs = interactionFeedbackUntilMs,
+       matchSummary = matchSummary ?? MatchSummary.empty,
        result = result,
        countdownRemainingMs = countdownRemainingMs ?? 0 {
     if ((phase == GamePhase.result) != (result != null)) {
@@ -650,6 +653,7 @@ final class GameState {
   final List<MovingForce> movingForces;
   final InteractionFeedbackType? interactionFeedback;
   final int interactionFeedbackUntilMs;
+  final MatchSummary matchSummary;
   final GameResult? result;
   final int countdownRemainingMs;
 
@@ -657,6 +661,10 @@ final class GameState {
   List<IslandState> get bases => islands;
   int? get selectedBaseId => selectedIslandId;
   MovingForce? get movement => movingForces.isEmpty ? null : movingForces.first;
+
+  /// Short alias for consumers that treat the summary as the current match
+  /// metrics rather than as a state field.
+  MatchSummary get summary => matchSummary;
 
   bool get hasInteractionFeedback =>
       interactionFeedback != null && elapsedMs < interactionFeedbackUntilMs;
@@ -678,6 +686,7 @@ final class GameState {
     List<MovingForce>? movingForces,
     InteractionFeedbackType? interactionFeedback,
     int? interactionFeedbackUntilMs,
+    MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
   }) {
@@ -692,6 +701,7 @@ final class GameState {
       interactionFeedback: interactionFeedback ?? this.interactionFeedback,
       interactionFeedbackUntilMs:
           interactionFeedbackUntilMs ?? this.interactionFeedbackUntilMs,
+      matchSummary: matchSummary ?? this.matchSummary,
       result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
     );
@@ -709,6 +719,7 @@ final class GameState {
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      matchSummary: matchSummary.withElapsedMs(nextResult.elapsedMs),
       result: nextResult,
       countdownRemainingMs: 0,
     );
@@ -736,6 +747,7 @@ final class GameState {
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -753,6 +765,7 @@ final class GameState {
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -769,6 +782,7 @@ final class GameState {
       movingForces: const <MovingForce>[],
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -789,6 +803,7 @@ final class GameState {
       movingForces: movingForces,
       interactionFeedback: interactionFeedback,
       interactionFeedbackUntilMs: interactionFeedbackUntilMs,
+      matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -813,6 +828,7 @@ final class GameState {
       movingForces: movingForces,
       interactionFeedback: null,
       interactionFeedbackUntilMs: 0,
+      matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
     );
@@ -829,6 +845,7 @@ final class GameState {
         _listEquals(other.movingForces, movingForces) &&
         other.interactionFeedback == interactionFeedback &&
         other.interactionFeedbackUntilMs == interactionFeedbackUntilMs &&
+        other.matchSummary == matchSummary &&
         other.result == result &&
         other.countdownRemainingMs == countdownRemainingMs;
   }
@@ -843,6 +860,7 @@ final class GameState {
     Object.hashAll(movingForces),
     interactionFeedback,
     interactionFeedbackUntilMs,
+    matchSummary,
     result,
     countdownRemainingMs,
   );

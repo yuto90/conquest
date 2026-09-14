@@ -11,10 +11,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'game/game_controller.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
+import 'game/match_summary.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'rank_progression.dart';
 import 'ui/island_assets.dart';
+import 'ui/match_summary.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
@@ -228,6 +230,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 _ResultPanel(
                   configuration: state.configuration,
                   result: state.result!,
+                  summary: state.matchSummary,
                   rankProgress: rankProgress,
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
@@ -503,6 +506,7 @@ class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
     required this.configuration,
     required this.result,
+    required this.summary,
     required this.rankProgress,
     required this.onReplay,
     required this.onSettings,
@@ -510,6 +514,7 @@ class _ResultPanel extends StatelessWidget {
 
   final GameConfiguration configuration;
   final GameResult result;
+  final MatchSummary summary;
   final RankProgress rankProgress;
   final VoidCallback onReplay;
   final VoidCallback onSettings;
@@ -591,6 +596,13 @@ class _ResultPanel extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (configuration.gameMode == GameMode.playerVsCpu) ...[
+                  const SizedBox(height: 18),
+                  MatchSummaryPanel(
+                    configuration: configuration,
+                    summary: summary,
+                  ),
+                ],
                 if (result.xpAwarded > 0) ...[
                   const SizedBox(height: 18),
                   _RankAwardSummary(result: result, progress: rankProgress),

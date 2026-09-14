@@ -225,6 +225,48 @@ class AppLocalizationsJa extends AppLocalizations {
   String get draw => '引き分け';
 
   @override
+  String get matchSummaryHeading => '試合サマリー';
+
+  @override
+  String matchSummarySettings({
+    required int islandCount,
+    required String difficulty,
+  }) {
+    return '$islandCount島 / CPU $difficulty';
+  }
+
+  @override
+  String matchSummaryTime({required String time}) {
+    return '試合時間 $time';
+  }
+
+  @override
+  String matchSummaryDispatches({required int count}) {
+    return '成立出兵 $count回';
+  }
+
+  @override
+  String matchSummaryForces({required int forces}) {
+    return '累計送兵数 $forces';
+  }
+
+  @override
+  String matchSummaryCaptures({required int count}) {
+    return '占領 $count回';
+  }
+
+  @override
+  String matchSummarySemantics({
+    required String settings,
+    required String time,
+    required String dispatches,
+    required String forces,
+    required String captures,
+  }) {
+    return '試合サマリー。$settings。$time。$dispatches。$forces。$captures。';
+  }
+
+  @override
   String xpEarned({required int xp}) {
     return '+$xp XP';
   }
