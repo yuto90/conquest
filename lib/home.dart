@@ -589,16 +589,20 @@ class _BgmToggle extends StatelessWidget {
           ),
           Semantics(
             label: l10n.bgmToggleSemantics(state: state),
-            child: Switch(
-              key: const ValueKey('bgm-toggle'),
-              value: enabled,
-              onChanged: onChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.compact,
-              activeThumbColor: TacticalPalette.player,
-              activeTrackColor: TacticalPalette.player.withValues(alpha: 0.35),
-              inactiveThumbColor: TacticalPalette.muted,
-              inactiveTrackColor: TacticalPalette.border,
+            child: SizedBox(
+              height: 30,
+              child: Switch(
+                key: const ValueKey('bgm-toggle'),
+                value: enabled,
+                onChanged: onChanged,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                activeThumbColor: TacticalPalette.player,
+                activeTrackColor: TacticalPalette.player.withValues(
+                  alpha: 0.35,
+                ),
+                inactiveThumbColor: TacticalPalette.muted,
+                inactiveTrackColor: TacticalPalette.border,
+              ),
             ),
           ),
         ],
