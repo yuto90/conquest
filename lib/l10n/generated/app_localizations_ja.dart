@@ -88,6 +88,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get startGame => 'ゲーム開始';
 
   @override
+  String get mapUnavailableMessage =>
+      '現在の画面サイズでは盤面を準備できません。ウィンドウを広げるか、縦向きで開き直してください。';
+
+  @override
   String selectedSummary({
     required int islandCount,
     required String difficulty,
