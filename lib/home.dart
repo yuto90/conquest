@@ -593,7 +593,7 @@ class _BgmToggle extends StatelessWidget {
               key: const ValueKey('bgm-toggle'),
               value: enabled,
               onChanged: onChanged,
-              activeColor: TacticalPalette.player,
+              activeThumbColor: TacticalPalette.player,
               activeTrackColor: TacticalPalette.player.withValues(alpha: 0.35),
               inactiveThumbColor: TacticalPalette.muted,
               inactiveTrackColor: TacticalPalette.border,
