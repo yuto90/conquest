@@ -953,9 +953,6 @@ class _ConfigurationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
-    final verticalPadding = MediaQuery.sizeOf(context).height <= 500
-        ? 14.0
-        : 24.0;
     return ColoredBox(
       key: const ValueKey('settings-view'),
       color: TacticalPalette.background,
@@ -963,241 +960,256 @@ class _ConfigurationPanel extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           const CustomPaint(painter: _SettingsDecorationPainter()),
-          Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: 30,
-                vertical: verticalPadding,
-              ),
-              child: Transform.translate(
-                offset: const Offset(0, 4),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 330),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.settingsStep,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: TacticalPalette.muted,
-                          height: 1.2,
-                          letterSpacing: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          l10n.settingsTitle,
-                          style: TacticalTypography.display(
-                            fontSize: 40,
-                            height: 0.96,
-                            letterSpacing: -1.2,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final verticalPadding = constraints.maxHeight <= 500
+                  ? 14.0
+                  : 24.0;
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: verticalPadding,
+                  ),
+                  child: Transform.translate(
+                    offset: const Offset(0, 4),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 330),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            l10n.settingsStep,
+                            style: TacticalTypography.mono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: TacticalPalette.muted,
+                              height: 1.2,
+                              letterSpacing: 1.6,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.settingsDescription,
-                        style: TacticalTypography.body(
-                          fontSize: 12,
-                          color: TacticalPalette.muted,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _RankProgressCard(progress: rankProgress),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.islandCountLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index <
-                                GameConfiguration.allowedIslandCounts.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            Expanded(
-                              child: _IslandCountChoice(
-                                state: state,
-                                count: GameConfiguration
-                                    .allowedIslandCounts[index],
+                          const SizedBox(height: 10),
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              l10n.settingsTitle,
+                              style: TacticalTypography.display(
+                                fontSize: 40,
+                                height: 0.96,
+                                letterSpacing: -1.2,
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        l10n.gameModeLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (final mode in GameMode.values) ...[
-                            if (mode != GameMode.values.first)
-                              const SizedBox(width: 7),
-                            Expanded(
-                              child: _GameModeChoice(state: state, mode: mode),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.settingsDescription,
+                            style: TacticalTypography.body(
+                              fontSize: 12,
+                              color: TacticalPalette.muted,
+                              height: 1.55,
                             ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        state.configuration.gameMode == GameMode.cpuVsCpu
-                            ? l10n.playerCpuDifficultyLabel
-                            : l10n.cpuDifficultyLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (state.configuration.gameMode ==
-                          GameMode.cpuVsCpu) ...[
-                        Row(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < CpuDifficulty.values.length;
-                              index++
-                            ) ...[
-                              if (index > 0) const SizedBox(width: 7),
-                              Expanded(
-                                child: _DifficultyChoice(
-                                  state: state,
-                                  difficulty: CpuDifficulty.values[index],
-                                  playerCpu: true,
-                                  keyPrefix: 'player-cpu-difficulty',
+                          ),
+                          const SizedBox(height: 4),
+                          _RankProgressCard(progress: rankProgress),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.islandCountLabel,
+                            style: TacticalTypography.mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index <
+                                    GameConfiguration
+                                        .allowedIslandCounts
+                                        .length;
+                                index++
+                              ) ...[
+                                if (index > 0) const SizedBox(width: 7),
+                                Expanded(
+                                  child: _IslandCountChoice(
+                                    state: state,
+                                    count: GameConfiguration
+                                        .allowedIslandCounts[index],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          l10n.opponentCpuDifficultyLabel,
-                          style: TacticalTypography.mono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.9,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < CpuDifficulty.values.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            Expanded(
-                              child: _DifficultyChoice(
-                                state: state,
-                                difficulty: CpuDifficulty.values[index],
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.gameModeLabel,
+                            style: TacticalTypography.mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              for (final mode in GameMode.values) ...[
+                                if (mode != GameMode.values.first)
+                                  const SizedBox(width: 7),
+                                Expanded(
+                                  child: _GameModeChoice(
+                                    state: state,
+                                    mode: mode,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            state.configuration.gameMode == GameMode.cpuVsCpu
+                                ? l10n.playerCpuDifficultyLabel
+                                : l10n.cpuDifficultyLabel,
+                            style: TacticalTypography.mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (state.configuration.gameMode ==
+                              GameMode.cpuVsCpu) ...[
+                            Row(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < CpuDifficulty.values.length;
+                                  index++
+                                ) ...[
+                                  if (index > 0) const SizedBox(width: 7),
+                                  Expanded(
+                                    child: _DifficultyChoice(
+                                      state: state,
+                                      difficulty: CpuDifficulty.values[index],
+                                      playerCpu: true,
+                                      keyPrefix: 'player-cpu-difficulty',
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              l10n.opponentCpuDifficultyLabel,
+                              style: TacticalTypography.mono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.9,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < CpuDifficulty.values.length;
+                                index++
+                              ) ...[
+                                if (index > 0) const SizedBox(width: 7),
+                                Expanded(
+                                  child: _DifficultyChoice(
+                                    state: state,
+                                    difficulty: CpuDifficulty.values[index],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          _BgmToggle(
+                            enabled: bgmEnabled,
+                            onChanged: onBgmChanged,
+                          ),
+                          Semantics(
+                            button: onStart != null,
+                            enabled: onStart != null,
+                            child: SizedBox(
+                              height: 46,
+                              child: ElevatedButton(
+                                key: const ValueKey('start-game'),
+                                onPressed: onStart,
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  backgroundColor: TacticalPalette.foreground,
+                                  foregroundColor: TacticalPalette.paper,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                                child: Semantics(
+                                  excludeSemantics: true,
+                                  label: _startLabel(l10n, state.configuration),
+                                  child: Text(
+                                    l10n.startGame,
+                                    style: TacticalTypography.body(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: TacticalPalette.paper,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (onStart == null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              key: const ValueKey('map-unavailable-message'),
+                              l10n.mapUnavailableMessage,
+                              textAlign: TextAlign.center,
+                              style: TacticalTypography.body(
+                                fontSize: 12,
+                                color: TacticalPalette.muted,
+                                height: 1.5,
                               ),
                             ),
                           ],
+                          const SizedBox(height: 17),
+                          Text(
+                            _selectionSummary(l10n, state.configuration),
+                            textAlign: TextAlign.center,
+                            style: TacticalTypography.mono(
+                              fontSize: 10,
+                              color: TacticalPalette.muted,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            key: const ValueKey('return-title'),
+                            onPressed: onTitle,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              visualDensity: VisualDensity.standard,
+                              foregroundColor: TacticalPalette.muted,
+                            ),
+                            child: Text(
+                              l10n.returnTitle,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ],
                       ),
-                      _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
-                      Semantics(
-                        button: onStart != null,
-                        enabled: onStart != null,
-                        child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton(
-                            key: const ValueKey('start-game'),
-                            onPressed: onStart,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              backgroundColor: TacticalPalette.foreground,
-                              foregroundColor: TacticalPalette.paper,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(2),
-                                ),
-                              ),
-                            ),
-                            child: Semantics(
-                              excludeSemantics: true,
-                              label: _startLabel(l10n, state.configuration),
-                              child: Text(
-                                l10n.startGame,
-                                style: TacticalTypography.body(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: TacticalPalette.paper,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (onStart == null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          key: const ValueKey('map-unavailable-message'),
-                          l10n.mapUnavailableMessage,
-                          textAlign: TextAlign.center,
-                          style: TacticalTypography.body(
-                            fontSize: 12,
-                            color: TacticalPalette.muted,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 17),
-                      Text(
-                        _selectionSummary(l10n, state.configuration),
-                        textAlign: TextAlign.center,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          color: TacticalPalette.muted,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        key: const ValueKey('return-title'),
-                        onPressed: onTitle,
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          visualDensity: VisualDensity.standard,
-                          foregroundColor: TacticalPalette.muted,
-                        ),
-                        child: Text(
-                          l10n.returnTitle,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
