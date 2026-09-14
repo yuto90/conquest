@@ -953,8 +953,9 @@ class _ConfigurationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
-    final verticalPadding =
-        MediaQuery.sizeOf(context).height <= 500 ? 14.0 : 24.0;
+    final verticalPadding = MediaQuery.sizeOf(context).height <= 500
+        ? 14.0
+        : 24.0;
     return ColoredBox(
       key: const ValueKey('settings-view'),
       color: TacticalPalette.background,
