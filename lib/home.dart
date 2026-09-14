@@ -589,20 +589,14 @@ class _BgmToggle extends StatelessWidget {
           ),
           Semantics(
             label: l10n.bgmToggleSemantics(state: state),
-            child: SizedBox(
-              height: 30,
-              child: Switch(
-                key: const ValueKey('bgm-toggle'),
-                value: enabled,
-                onChanged: onChanged,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                activeThumbColor: TacticalPalette.player,
-                activeTrackColor: TacticalPalette.player.withValues(
-                  alpha: 0.35,
-                ),
-                inactiveThumbColor: TacticalPalette.muted,
-                inactiveTrackColor: TacticalPalette.border,
-              ),
+            child: Switch(
+              key: const ValueKey('bgm-toggle'),
+              value: enabled,
+              onChanged: onChanged,
+              activeThumbColor: TacticalPalette.player,
+              activeTrackColor: TacticalPalette.player.withValues(alpha: 0.35),
+              inactiveThumbColor: TacticalPalette.muted,
+              inactiveTrackColor: TacticalPalette.border,
             ),
           ),
         ],
@@ -959,6 +953,8 @@ class _ConfigurationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    final verticalPadding =
+        MediaQuery.sizeOf(context).height <= 500 ? 14.0 : 24.0;
     return ColoredBox(
       key: const ValueKey('settings-view'),
       color: TacticalPalette.background,
@@ -968,7 +964,10 @@ class _ConfigurationPanel extends StatelessWidget {
           const CustomPaint(painter: _SettingsDecorationPainter()),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+              padding: EdgeInsets.symmetric(
+                horizontal: 30,
+                vertical: verticalPadding,
+              ),
               child: Transform.translate(
                 offset: const Offset(0, 4),
                 child: ConstrainedBox(
