@@ -29,7 +29,6 @@ void main() {
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
-    addTearDown(semanticsHandle.dispose);
     final loop = _ManualGameLoop();
     await tester.pumpWidget(
       ProviderScope(
@@ -79,6 +78,7 @@ void main() {
       expect(semantics.label, contains('試合時間 1:02:03'));
       expect(semantics.label, contains('成立出兵 2回'));
     }
+    semanticsHandle.dispose();
   });
 
   testWidgets('keeps result actions reachable on a compact English screen', (

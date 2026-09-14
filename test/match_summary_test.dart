@@ -65,7 +65,7 @@ void main() {
     );
 
     test('counts capture, recapture, and capture again in one rules tick', () {
-      const state = GameState(
+      final state = GameState(
         phase: GamePhase.playing,
         elapsedMs: 0,
         islands: const [playerSource, target, cpuSource],
