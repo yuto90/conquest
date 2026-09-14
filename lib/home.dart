@@ -342,7 +342,9 @@ class _BoardChrome extends StatelessWidget {
                         textAlign: TextAlign.right,
                         style: TacticalTypography.body(
                           fontSize: 10,
-                          color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
+                          color: TacticalPalette.seaDeep.withValues(
+                            alpha: 0.85,
+                          ),
                           height: 1.35,
                         ),
                       ),

@@ -174,9 +174,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('keeps the compact unselected board clear', (
-    tester,
-  ) async {
+  testWidgets('keeps the compact unselected board clear', (tester) async {
     final loop = _ManualGameLoop();
     await _pumpApp(tester, loop: loop, size: const Size(280, 500));
 
