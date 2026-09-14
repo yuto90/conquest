@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       onGenerateTitle: (context) => Localizations.of<AppLocalizations>(
         context,
         AppLocalizations,
-      )!.brandName,
+      )!.appTitle,
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,

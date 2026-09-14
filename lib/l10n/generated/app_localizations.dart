@@ -104,6 +104,12 @@ abstract class AppLocalizations {
   /// **'CONQUEST'**
   String get brandName;
 
+  /// The application title shown by the Web entry point and Flutter app.
+  ///
+  /// In en, this message translates to:
+  /// **'CONQUEST ISLES'**
+  String get appTitle;
+
   /// The title screen action that opens match setup.
   ///
   /// In en, this message translates to:

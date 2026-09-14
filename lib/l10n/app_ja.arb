@@ -2,6 +2,8 @@
   "@@locale": "ja",
   "brandName": "CONQUEST",
   "@brandName": {"description": "ゲームのブランド名。"},
+  "appTitle": "CONQUEST ISLES",
+  "@appTitle": {"description": "Webの起動時とFlutterアプリで表示するアプリタイトル。"},
   "titleStart": "はじめる",
   "titleHowToPlay": "遊び方",
   "@titleHowToPlay": {"description": "Title screen help dialog heading and accessibility label."},
