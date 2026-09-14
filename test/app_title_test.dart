@@ -30,21 +30,18 @@ void main() {
     expect(manifest['start_url'], '.');
     expect(manifest['background_color'], '#84C9C6');
     expect(manifest['theme_color'], '#84C9C6');
-    expect(
-      manifest['icons'],
-      <Map<String, String>>[
-        <String, String>{
-          'src': 'icons/Icon-192.png',
-          'sizes': '192x192',
-          'type': 'image/png',
-        },
-        <String, String>{
-          'src': 'icons/Icon-512.png',
-          'sizes': '512x512',
-          'type': 'image/png',
-        },
-      ],
-    );
+    expect(manifest['icons'], <Map<String, String>>[
+      <String, String>{
+        'src': 'icons/Icon-192.png',
+        'sizes': '192x192',
+        'type': 'image/png',
+      },
+      <String, String>{
+        'src': 'icons/Icon-512.png',
+        'sizes': '512x512',
+        'type': 'image/png',
+      },
+    ]);
   });
 
   test('localized app titles and the HUD brand name remain distinct', () {

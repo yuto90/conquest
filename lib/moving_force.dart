@@ -13,6 +13,7 @@ import 'ui/tactical_theme.dart';
 class MovingForceWidget extends StatelessWidget {
   const MovingForceWidget({
     required this.force,
+    required this.boardSize,
     this.presentation,
     this.semanticsKey,
     super.key,
@@ -21,6 +22,7 @@ class MovingForceWidget extends StatelessWidget {
   static const size = GameRules.movingForceWidgetSize;
 
   final MovingForce force;
+  final Size boardSize;
   final FactionPresentation? presentation;
   final Key? semanticsKey;
 
@@ -29,9 +31,7 @@ class MovingForceWidget extends StatelessWidget {
     final l10n =
         Localizations.of<AppLocalizations>(context, AppLocalizations) ??
         AppLocalizationsEn();
-    final angle = force.deltaX == 0 && force.deltaY == 0
-        ? 0.0
-        : math.atan2(force.deltaY, force.deltaX);
+    final angle = _headingAngle;
     return Semantics(
       key: semanticsKey,
       container: true,
@@ -132,6 +132,38 @@ class MovingForceWidget extends StatelessWidget {
   FactionPresentation get _effectivePresentation =>
       presentation ??
       FactionPresentation.forMode(GameMode.playerVsCpu, force.faction);
+
+  double get _headingAngle {
+    if (force.deltaX == 0 && force.deltaY == 0) {
+      return 0;
+    }
+
+    final width = boardSize.width;
+    final height = boardSize.height;
+    if (!size.isFinite ||
+        !width.isFinite ||
+        !height.isFinite ||
+        !force.deltaX.isFinite ||
+        !force.deltaY.isFinite) {
+      return 0;
+    }
+
+    final horizontalSpan = width - size;
+    final verticalSpan = height - size;
+    if (horizontalSpan <= 0 || verticalSpan <= 0) {
+      return 0;
+    }
+
+    final screenDeltaX = force.deltaX * horizontalSpan;
+    final screenDeltaY = force.deltaY * verticalSpan;
+    if (!screenDeltaX.isFinite ||
+        !screenDeltaY.isFinite ||
+        (screenDeltaX == 0 && screenDeltaY == 0)) {
+      return 0;
+    }
+
+    return math.atan2(screenDeltaY, screenDeltaX);
+  }
 
   String _factionName(AppLocalizations l10n) {
     if (_effectivePresentation.semanticName == '1P') {

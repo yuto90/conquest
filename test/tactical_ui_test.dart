@@ -112,12 +112,7 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      playerHeadquarters.overlaps(
-        boardStatusDetail,
-      ),
-      isFalse,
-    );
+    expect(playerHeadquarters.overlaps(boardStatusDetail), isFalse);
     expect(playerHeadquartersCapacity.overlaps(boardStatusDetail), isFalse);
 
     await tester.tap(find.byKey(const ValueKey('island-button-0')));
@@ -194,11 +189,7 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
-    await _pumpApp(
-      tester,
-      loop: loop,
-      size: const Size(280, 500),
-    );
+    await _pumpApp(tester, loop: loop, size: const Size(280, 500));
 
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();

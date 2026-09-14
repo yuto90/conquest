@@ -577,6 +577,7 @@ void main() {
       MaterialApp(
         home: MovingForceWidget(
           force: force,
+          boardSize: const Size(390, 844),
           presentation: FactionPresentation.forMode(
             GameMode.cpuVsCpu,
             Faction.player,
