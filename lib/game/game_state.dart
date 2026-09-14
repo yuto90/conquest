@@ -509,12 +509,35 @@ typedef GameOutcome = GameResultType;
 enum InteractionFeedbackType { unavailableSource, invalidatedSource }
 
 final class GameResult {
-  const GameResult({required this.type, required this.elapsedMs, this.winner});
+  const GameResult({
+    required this.type,
+    required this.elapsedMs,
+    this.winner,
+    this.xpAwarded = 0,
+    this.rankBefore,
+    this.rankAfter,
+    this.totalXpBefore,
+    this.totalXpAfter,
+  });
 
   const GameResult.victory({
     required int elapsedMs,
     Faction winner = Faction.player,
-  }) : this(type: GameResultType.victory, elapsedMs: elapsedMs, winner: winner);
+    int xpAwarded = 0,
+    int? rankBefore,
+    int? rankAfter,
+    int? totalXpBefore,
+    int? totalXpAfter,
+  }) : this(
+         type: GameResultType.victory,
+         elapsedMs: elapsedMs,
+         winner: winner,
+         xpAwarded: xpAwarded,
+         rankBefore: rankBefore,
+         rankAfter: rankAfter,
+         totalXpBefore: totalXpBefore,
+         totalXpAfter: totalXpAfter,
+       );
 
   const GameResult.defeat({
     required int elapsedMs,
@@ -527,6 +550,14 @@ final class GameResult {
   final GameResultType type;
   final int elapsedMs;
   final Faction? winner;
+  final int xpAwarded;
+  final int? rankBefore;
+  final int? rankAfter;
+  final int? totalXpBefore;
+  final int? totalXpAfter;
+
+  bool get didRankUp =>
+      rankBefore != null && rankAfter != null && rankAfter! > rankBefore!;
 
   GameResultType get outcome => type;
   GameResultType get resultType => type;
@@ -536,11 +567,44 @@ final class GameResult {
     return other is GameResult &&
         other.type == type &&
         other.elapsedMs == elapsedMs &&
-        other.winner == winner;
+        other.winner == winner &&
+        other.xpAwarded == xpAwarded &&
+        other.rankBefore == rankBefore &&
+        other.rankAfter == rankAfter &&
+        other.totalXpBefore == totalXpBefore &&
+        other.totalXpAfter == totalXpAfter;
   }
 
   @override
-  int get hashCode => Object.hash(type, elapsedMs, winner);
+  int get hashCode => Object.hash(
+    type,
+    elapsedMs,
+    winner,
+    xpAwarded,
+    rankBefore,
+    rankAfter,
+    totalXpBefore,
+    totalXpAfter,
+  );
+
+  GameResult copyWith({
+    int? xpAwarded,
+    int? rankBefore,
+    int? rankAfter,
+    int? totalXpBefore,
+    int? totalXpAfter,
+  }) {
+    return GameResult(
+      type: type,
+      elapsedMs: elapsedMs,
+      winner: winner,
+      xpAwarded: xpAwarded ?? this.xpAwarded,
+      rankBefore: rankBefore ?? this.rankBefore,
+      rankAfter: rankAfter ?? this.rankAfter,
+      totalXpBefore: totalXpBefore ?? this.totalXpBefore,
+      totalXpAfter: totalXpAfter ?? this.totalXpAfter,
+    );
+  }
 }
 
 final class GameState {

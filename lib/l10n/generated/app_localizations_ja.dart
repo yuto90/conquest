@@ -70,6 +70,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String rankDisplay({required int rank, required String title}) {
+    return 'ランク $rank・$title';
+  }
+
+  @override
+  String rankProgress({required int xp}) {
+    return '次の昇級まで $xp XP';
+  }
+
+  @override
+  String get rankMax => 'MAX';
+
+  @override
   String get islandCountLabel => '島数';
 
   @override
@@ -210,6 +223,16 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get draw => '引き分け';
+
+  @override
+  String xpEarned({required int xp}) {
+    return '+$xp XP';
+  }
+
+  @override
+  String rankUp({required int rank, required String title}) {
+    return '昇級！ ランク $rank・$title';
+  }
 
   @override
   String get spectatorPlayerWin => '1P 勝利';

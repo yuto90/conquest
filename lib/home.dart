@@ -13,6 +13,7 @@ import 'game/game_rules.dart';
 import 'game/game_state.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
+import 'rank_progression.dart';
 import 'ui/island_assets.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
@@ -121,6 +122,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     final l10n = _appLocalizations(context);
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
+    final rankProgress =
+        ref.watch(rankProgressProvider).value ?? RankProgress.zero;
     final controller = ref.read(gameControllerProvider.notifier);
     // Keep watching the same controller on both screens so configuration
     // selections survive a visit to the title without recreating the match.
@@ -208,6 +211,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
               if (state.phase == GamePhase.configuration)
                 _ConfigurationPanel(
                   state: state,
+                  rankProgress: rankProgress,
                   onTitle: () => setState(() => _showTitle = true),
                   onStart:
                       state.islands.length ==
@@ -224,6 +228,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 _ResultPanel(
                   configuration: state.configuration,
                   result: state.result!,
+                  rankProgress: rankProgress,
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
                 ),
@@ -498,12 +503,14 @@ class _ResultPanel extends StatelessWidget {
   const _ResultPanel({
     required this.configuration,
     required this.result,
+    required this.rankProgress,
     required this.onReplay,
     required this.onSettings,
   });
 
   final GameConfiguration configuration;
   final GameResult result;
+  final RankProgress rankProgress;
   final VoidCallback onReplay;
   final VoidCallback onSettings;
 
@@ -531,70 +538,77 @@ class _ResultPanel extends StatelessWidget {
     return ColoredBox(
       color: TacticalPalette.outer.withValues(alpha: 0.62),
       child: Center(
-        child: Container(
-          key: const ValueKey('result-sheet'),
-          width: 248,
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              TacticalPalette.surface.withValues(alpha: 0.94),
-              TacticalPalette.background,
-            ),
-            border: Border.all(color: TacticalPalette.border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x2E1A4448),
-                blurRadius: 28,
-                offset: Offset(0, 12),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Container(
+            key: const ValueKey('result-sheet'),
+            width: 248,
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.94),
+                TacticalPalette.background,
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.resultHeading,
-                style: TacticalTypography.mono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: TacticalPalette.muted,
-                  height: 1.2,
-                  letterSpacing: 1.6,
+              border: Border.all(color: TacticalPalette.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x2E1A4448),
+                  blurRadius: 28,
+                  offset: Offset(0, 12),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                key: const ValueKey('result-rule'),
-                width: 54,
-                height: 4,
-                color: ruleColor,
-              ),
-              const SizedBox(height: 18),
-              Semantics(
-                header: true,
-                liveRegion: true,
-                child: Text(
-                  title,
-                  style: TacticalTypography.display(
-                    fontSize: 46,
-                    height: 1,
-                    letterSpacing: 0.9,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.resultHeading,
+                  style: TacticalTypography.mono(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: TacticalPalette.muted,
+                    height: 1.2,
+                    letterSpacing: 1.6,
                   ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              _PrimaryActionButton(
-                key: const ValueKey('replay-game'),
-                onPressed: onReplay,
-                label: l10n.replay,
-              ),
-              const SizedBox(height: 9),
-              _SecondaryActionButton(
-                key: const ValueKey('return-settings'),
-                onPressed: onSettings,
-                label: l10n.returnSettings,
-              ),
-            ],
+                const SizedBox(height: 10),
+                Container(
+                  key: const ValueKey('result-rule'),
+                  width: 54,
+                  height: 4,
+                  color: ruleColor,
+                ),
+                const SizedBox(height: 18),
+                Semantics(
+                  header: true,
+                  liveRegion: true,
+                  child: Text(
+                    title,
+                    style: TacticalTypography.display(
+                      fontSize: 46,
+                      height: 1,
+                      letterSpacing: 0.9,
+                    ),
+                  ),
+                ),
+                if (result.xpAwarded > 0) ...[
+                  const SizedBox(height: 18),
+                  _RankAwardSummary(result: result, progress: rankProgress),
+                ],
+                const SizedBox(height: 22),
+                _PrimaryActionButton(
+                  key: const ValueKey('replay-game'),
+                  onPressed: onReplay,
+                  label: l10n.replay,
+                ),
+                const SizedBox(height: 9),
+                _SecondaryActionButton(
+                  key: const ValueKey('return-settings'),
+                  onPressed: onSettings,
+                  label: l10n.returnSettings,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -602,14 +616,173 @@ class _ResultPanel extends StatelessWidget {
   }
 }
 
+class _RankProgressCard extends StatelessWidget {
+  const _RankProgressCard({required this.progress});
+
+  final RankProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    return Container(
+      key: const ValueKey('rank-progress-card'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: TacticalPalette.surface.withValues(alpha: 0.72),
+        border: Border.all(color: TacticalPalette.border),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final rankLabel = Text(
+            l10n.rankDisplay(rank: progress.rank, title: progress.title),
+            overflow: TextOverflow.ellipsis,
+            style: TacticalTypography.mono(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: TacticalPalette.foreground,
+            ),
+          );
+          final progressLabel = Text(
+            progress.isMax
+                ? l10n.rankMax
+                : l10n.rankProgress(xp: progress.xpToNextRank),
+            overflow: TextOverflow.ellipsis,
+            style: TacticalTypography.mono(
+              fontSize: 8,
+              color: TacticalPalette.muted,
+            ),
+          );
+          final progressBar = SizedBox(
+            width: 38,
+            child: LinearProgressIndicator(
+              key: const ValueKey('rank-progress-bar'),
+              minHeight: 4,
+              value: progress.progressRatio,
+              backgroundColor: TacticalPalette.border.withValues(alpha: 0.55),
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                TacticalPalette.player,
+              ),
+            ),
+          );
+          if (constraints.maxWidth < 120) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                rankLabel,
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(child: progressLabel),
+                    const SizedBox(width: 6),
+                    progressBar,
+                  ],
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: rankLabel),
+              const SizedBox(width: 6),
+              Flexible(child: progressLabel),
+              const SizedBox(width: 6),
+              progressBar,
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RankAwardSummary extends StatelessWidget {
+  const _RankAwardSummary({required this.result, required this.progress});
+
+  final GameResult result;
+  final RankProgress progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    final before = result.totalXpBefore == null
+        ? progress
+        : RankProgress.fromTotalXp(result.totalXpBefore!);
+    final after = result.totalXpAfter == null
+        ? progress
+        : RankProgress.fromTotalXp(result.totalXpAfter!);
+    return TweenAnimationBuilder<double>(
+      key: const ValueKey('rank-award-animation'),
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.linear,
+      tween: Tween<double>(begin: 0, end: 1),
+      builder: (context, animation, child) {
+        return Container(
+          key: const ValueKey('rank-award-summary'),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: TacticalPalette.player.withValues(alpha: 0.10),
+            border: Border.all(
+              color: result.didRankUp
+                  ? TacticalPalette.player
+                  : TacticalPalette.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
+                textAlign: TextAlign.center,
+                style: TacticalTypography.mono(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: TacticalPalette.foreground,
+                ),
+              ),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                key: const ValueKey('result-rank-progress'),
+                minHeight: 5,
+                value: rankProgressBarValue(
+                  before: before,
+                  after: after,
+                  animation: animation,
+                ),
+                backgroundColor: TacticalPalette.border.withValues(alpha: 0.55),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  TacticalPalette.player,
+                ),
+              ),
+              if (result.didRankUp) ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.rankUp(rank: result.rankAfter!, title: after.title),
+                  textAlign: TextAlign.center,
+                  style: TacticalTypography.mono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: TacticalPalette.player,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _ConfigurationPanel extends StatelessWidget {
   const _ConfigurationPanel({
     required this.state,
+    required this.rankProgress,
     required this.onStart,
     required this.onTitle,
   });
 
   final GameState state;
+  final RankProgress rankProgress;
   final VoidCallback? onStart;
   final VoidCallback onTitle;
 
@@ -665,7 +838,9 @@ class _ConfigurationPanel extends StatelessWidget {
                           height: 1.55,
                         ),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 4),
+                      _RankProgressCard(progress: rankProgress),
+                      const SizedBox(height: 4),
                       Text(
                         l10n.islandCountLabel,
                         style: TacticalTypography.mono(

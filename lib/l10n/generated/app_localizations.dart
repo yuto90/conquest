@@ -218,6 +218,24 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
+  /// The current rank and title.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank {rank} · {title}'**
+  String rankDisplay({required int rank, required String title});
+
+  /// The XP remaining until the next rank.
+  ///
+  /// In en, this message translates to:
+  /// **'{xp} XP to next rank'**
+  String rankProgress({required int xp});
+
+  /// The maximum rank display.
+  ///
+  /// In en, this message translates to:
+  /// **'MAX'**
+  String get rankMax;
+
   /// The island count setting label.
   ///
   /// In en, this message translates to:
@@ -453,6 +471,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Draw'**
   String get draw;
+
+  /// The XP earned in the result screen.
+  ///
+  /// In en, this message translates to:
+  /// **'+{xp} XP'**
+  String xpEarned({required int xp});
+
+  /// The result display for a rank up.
+  ///
+  /// In en, this message translates to:
+  /// **'Rank Up! Rank {rank} · {title}'**
+  String rankUp({required int rank, required String title});
 
   /// The spectator result when 1P wins.
   ///
