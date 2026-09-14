@@ -9,10 +9,10 @@ final class MatchSummary {
     this.playerDispatchCount = 0,
     this.playerDispatchedForces = 0,
     this.playerCaptureCount = 0,
-  })  : assert(elapsedMs >= 0),
-        assert(playerDispatchCount >= 0),
-        assert(playerDispatchedForces >= 0),
-        assert(playerCaptureCount >= 0);
+  }) : assert(elapsedMs >= 0),
+       assert(playerDispatchCount >= 0),
+       assert(playerDispatchedForces >= 0),
+       assert(playerCaptureCount >= 0);
 
   static const empty = MatchSummary();
 
@@ -81,9 +81,7 @@ final class MatchSummary {
 String formatMatchDuration(int elapsedMs) {
   final totalSeconds = elapsedMs < 0 ? 0 : elapsedMs ~/ 1000;
   final hours = totalSeconds ~/ 3600;
-  final minutes = hours == 0
-      ? totalSeconds ~/ 60
-      : (totalSeconds % 3600) ~/ 60;
+  final minutes = hours == 0 ? totalSeconds ~/ 60 : (totalSeconds % 3600) ~/ 60;
   final seconds = totalSeconds % 60;
 
   String padTwo(int value) => value.toString().padLeft(2, '0');

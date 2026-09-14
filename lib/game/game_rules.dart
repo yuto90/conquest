@@ -633,15 +633,12 @@ final class GameRules {
     return island.copyWith(currentForces: defense - strength);
   }
 
-  ({List<IslandState> islands, MatchSummary matchSummary})
-  _resolveArrivalGroup(
+  ({List<IslandState> islands, MatchSummary matchSummary}) _resolveArrivalGroup(
     List<IslandState> islands,
-    List<MovingForce> group,
-    {
-      required MatchSummary matchSummary,
-      required bool tracksPlayerSummary,
-    },
-  ) {
+    List<MovingForce> group, {
+    required MatchSummary matchSummary,
+    required bool tracksPlayerSummary,
+  }) {
     final arrivalsByTarget = <int, Map<Faction, int>>{};
     for (final force in group) {
       if (force.strength <= 0 || force.faction == Faction.neutral) {

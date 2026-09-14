@@ -12,10 +12,7 @@ void main() {
       expect(summary.recordDispatch(-1), same(summary));
       expect(
         summary.recordDispatch(2).recordDispatch(3),
-        const MatchSummary(
-          playerDispatchCount: 2,
-          playerDispatchedForces: 5,
-        ),
+        const MatchSummary(playerDispatchCount: 2, playerDispatchedForces: 5),
       );
     });
 

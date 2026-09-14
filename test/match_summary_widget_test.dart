@@ -136,12 +136,10 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
     );
-    container.read(gameControllerProvider.notifier).state =
-        container.read(gameControllerProvider).finishWithResult(
-          const GameResult.victory(
-            elapsedMs: 1_000,
-            winner: Faction.player,
-          ),
+    container.read(gameControllerProvider.notifier).state = container
+        .read(gameControllerProvider)
+        .finishWithResult(
+          const GameResult.victory(elapsedMs: 1_000, winner: Faction.player),
         );
     await tester.pump();
 
