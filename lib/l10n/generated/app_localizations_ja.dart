@@ -9,9 +9,6 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
-  String get brandName => 'CONQUEST';
-
-  @override
   String get appTitle => 'CONQUEST ISLES';
 
   @override
@@ -165,13 +162,7 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get boardStatusUnselected => '自軍の島を選択';
-
-  @override
   String get boardStatusSelected => '出兵元を選択中';
-
-  @override
-  String get boardStatusUnselectedDetail => '島をタップして選択\n兵力2以上で出兵可能';
 
   @override
   String get boardStatusSelectedDetail => 'タップで目標を指定\n兵力の半分を派遣';

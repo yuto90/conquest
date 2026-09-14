@@ -707,18 +707,10 @@ void main() {
     }
     await tester.pump();
 
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('board-status-label')))
-          .data,
-      '自軍の島を選択',
-    );
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('board-status-detail')))
-          .data,
-      '島をタップして選択\n兵力2以上で出兵可能',
-    );
+    expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
+    expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
+    expect(find.text('自軍の島を選択'), findsNothing);
+    expect(find.text('島をタップして選択\n兵力2以上で出兵可能'), findsNothing);
     semanticsHandle.dispose();
   });
 

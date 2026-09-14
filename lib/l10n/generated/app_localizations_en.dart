@@ -9,9 +9,6 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get brandName => 'CONQUEST';
-
-  @override
   String get appTitle => 'CONQUEST ISLES';
 
   @override
@@ -170,14 +167,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get boardStatusUnselected => 'Select one of your islands';
-
-  @override
   String get boardStatusSelected => 'Dispatch source selected';
-
-  @override
-  String get boardStatusUnselectedDetail =>
-      'Tap an island to select it\nRequires at least 2 forces';
 
   @override
   String get boardStatusSelectedDetail =>

@@ -290,34 +290,18 @@ class _BoardChrome extends StatelessWidget {
             top: 16,
             left: 17,
             child: IgnorePointer(
-              child: Column(
+              child: Text(
+                l10n.boardTitle(
+                  islandCount: state.configuration.totalIslandCount,
+                ),
                 key: const ValueKey('board-title-block'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.brandName,
-                    style: TacticalTypography.mono(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: TacticalPalette.seaDeep,
-                      height: 1,
-                      letterSpacing: 1.45,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    l10n.boardTitle(
-                      islandCount: state.configuration.totalIslandCount,
-                    ),
-                    style: TacticalTypography.mono(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                      color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
-                      height: 1,
-                      letterSpacing: 1.05,
-                    ),
-                  ),
-                ],
+                style: TacticalTypography.mono(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
+                  height: 1,
+                  letterSpacing: 1.05,
+                ),
               ),
             ),
           ),
@@ -326,50 +310,47 @@ class _BoardChrome extends StatelessWidget {
             right: 17,
             child: _PauseButton(onPressed: onPause),
           ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: 17,
-            child: IgnorePointer(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Text(
-                      key: const ValueKey('board-status-label'),
-                      isSpectator
-                          ? l10n.spectatorStatus
-                          : selected
-                          ? l10n.boardStatusSelected
-                          : l10n.boardStatusUnselected,
-                      style: TacticalTypography.mono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: TacticalPalette.foreground,
-                        height: 1.3,
+          if (isSpectator || selected)
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 17,
+              child: IgnorePointer(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        key: const ValueKey('board-status-label'),
+                        isSpectator
+                            ? l10n.spectatorStatus
+                            : l10n.boardStatusSelected,
+                        style: TacticalTypography.mono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: TacticalPalette.foreground,
+                          height: 1.3,
+                        ),
                       ),
                     ),
-                  ),
-                  Flexible(
-                    child: Text(
-                      key: const ValueKey('board-status-detail'),
-                      isSpectator
-                          ? l10n.spectatorDetail
-                          : selected
-                          ? l10n.boardStatusSelectedDetail
-                          : l10n.boardStatusUnselectedDetail,
-                      textAlign: TextAlign.right,
-                      style: TacticalTypography.body(
-                        fontSize: 10,
-                        color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
-                        height: 1.35,
+                    Flexible(
+                      child: Text(
+                        key: const ValueKey('board-status-detail'),
+                        isSpectator
+                            ? l10n.spectatorDetail
+                            : l10n.boardStatusSelectedDetail,
+                        textAlign: TextAlign.right,
+                        style: TacticalTypography.body(
+                          fontSize: 10,
+                          color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
+                          height: 1.35,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

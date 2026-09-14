@@ -98,12 +98,6 @@ abstract class AppLocalizations {
     Locale('ja'),
   ];
 
-  /// The tactical game brand name.
-  ///
-  /// In en, this message translates to:
-  /// **'CONQUEST'**
-  String get brandName;
-
   /// The application title shown by the Web entry point and Flutter app.
   ///
   /// In en, this message translates to:
@@ -352,23 +346,11 @@ abstract class AppLocalizations {
   /// **'Tactical Chart / {islandCount} islands'**
   String boardTitle({required int islandCount});
 
-  /// The board status before selecting a source.
-  ///
-  /// In en, this message translates to:
-  /// **'Select one of your islands'**
-  String get boardStatusUnselected;
-
   /// The board status after selecting a source.
   ///
   /// In en, this message translates to:
   /// **'Dispatch source selected'**
   String get boardStatusSelected;
-
-  /// The board hint before selecting a source.
-  ///
-  /// In en, this message translates to:
-  /// **'Tap an island to select it\nRequires at least 2 forces'**
-  String get boardStatusUnselectedDetail;
 
   /// The board hint after selecting a source.
   ///
