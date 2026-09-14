@@ -247,17 +247,17 @@ void _assertIslandCountAndMap(GameState state, int islandCount) {
   expect(state.islands, hasLength(islandCount));
   expect(state.islands[0].faction, Faction.player);
   expect(state.islands[1].faction, Faction.cpu);
+  expect(state.islands[0].size, IslandSize.headquarters);
+  expect(state.islands[1].size, IslandSize.headquarters);
   expect(state.islands[0].currentForces, 100);
   expect(state.islands[1].currentForces, 100);
-  for (var index = 2; index < state.islands.length; index += 2) {
-    final first = state.islands[index];
-    final second = state.islands[index + 1];
-    expect(first.faction, Faction.neutral);
-    expect(second.faction, Faction.neutral);
-    expect(second.size, first.size);
-    expect(second.position.x, closeTo(-first.position.x, 1e-12));
-    expect(second.position.y, closeTo(-first.position.y, 1e-12));
-    expect(second.durability, first.durability);
+  for (var index = 2; index < state.islands.length; index++) {
+    final island = state.islands[index];
+    expect(island.id, index);
+    expect(island.faction, Faction.neutral);
+    expect(island.currentForces, 0);
+    expect(island.durability, island.size.neutralDurability);
+    expect(island.capacity, island.size.capacity);
   }
 }
 

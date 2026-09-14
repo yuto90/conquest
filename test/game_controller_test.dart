@@ -94,25 +94,23 @@ void main() {
 
   tearDown(() => container.dispose());
 
-  test('builds the ten expected bases', () {
+  test('builds the ten expected islands', () {
     final state = container.read(gameControllerProvider);
 
     expect(state.phase, GamePhase.ready);
     expect(state.bases, hasLength(10));
-    expect(
-      state.bases[0],
-      const BaseState(id: 0, x: 1, y: 1, control: BaseControl.ally, scale: 100),
-    );
-    expect(
-      state.bases[1],
-      const BaseState(
-        id: 1,
-        x: -1,
-        y: -1,
-        control: BaseControl.enemy,
-        scale: 100,
-      ),
-    );
+    expect(state.bases[0].id, 0);
+    expect(state.bases[0].control, BaseControl.ally);
+    expect(state.bases[0].scale, 100);
+    expect(state.bases[0].size, IslandSize.headquarters);
+    expect(state.bases[0].x, inInclusiveRange(-1.0, 1.0));
+    expect(state.bases[0].y, inInclusiveRange(-1.0, 1.0));
+    expect(state.bases[1].id, 1);
+    expect(state.bases[1].control, BaseControl.enemy);
+    expect(state.bases[1].scale, 100);
+    expect(state.bases[1].size, IslandSize.headquarters);
+    expect(state.bases[1].x, inInclusiveRange(-1.0, 1.0));
+    expect(state.bases[1].y, inInclusiveRange(-1.0, 1.0));
     expect(
       state.bases
           .skip(2)
@@ -247,6 +245,34 @@ void main() {
       controller.selectCpuDifficulty(CpuDifficulty.hard);
 
       expect(container.read(gameControllerProvider), same(countdown));
+    },
+  );
+
+  test(
+    'regenerates every island for a replay while retaining the island count',
+    () {
+      final controller = container.read(gameControllerProvider.notifier);
+      final initial = container.read(gameControllerProvider);
+      final initialPositions = [
+        for (final island in initial.islands) island.position,
+      ];
+
+      controller.startGame();
+      controller.state = container
+          .read(gameControllerProvider)
+          .copyWith(
+            phase: GamePhase.result,
+            result: const GameResult.victory(elapsedMs: 1),
+          );
+      controller.replayGame();
+
+      final replay = container.read(gameControllerProvider);
+      expect(replay.phase, GamePhase.startCountdown);
+      expect(replay.islands, hasLength(initial.configuration.totalIslandCount));
+      expect(
+        replay.islands.map((island) => island.position),
+        isNot(orderedEquals(initialPositions)),
+      );
     },
   );
 
@@ -662,6 +688,17 @@ void main() {
       final controller = container.read(gameControllerProvider.notifier);
       controller.startGame();
       completeStartCountdown(loop);
+      final playing = container.read(gameControllerProvider);
+      controller.state = playing.copyWith(
+        islands: [
+          for (final island in playing.islands)
+            island.id == 0
+                ? island.copyWith(position: const IslandPosition(x: 1, y: 1))
+                : island.id == 1
+                ? island.copyWith(position: const IslandPosition(x: -1, y: -1))
+                : island,
+        ],
+      );
       controller.tapBase(0);
       controller.tapBase(1);
 
@@ -692,6 +729,17 @@ void main() {
     final controller = container.read(gameControllerProvider.notifier);
     controller.startGame();
     completeStartCountdown(loop);
+    final playing = container.read(gameControllerProvider);
+    controller.state = playing.copyWith(
+      islands: [
+        for (final island in playing.islands)
+          island.id == 0
+              ? island.copyWith(position: const IslandPosition(x: 1, y: 1))
+              : island.id == 1
+              ? island.copyWith(position: const IslandPosition(x: -1, y: -1))
+              : island,
+      ],
+    );
     controller.tapBase(0);
     controller.tapBase(1);
     loop.tickMany(20);
