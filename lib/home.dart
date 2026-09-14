@@ -962,9 +962,7 @@ class _ConfigurationPanel extends StatelessWidget {
           const CustomPaint(painter: _SettingsDecorationPainter()),
           LayoutBuilder(
             builder: (context, constraints) {
-              final verticalPadding = constraints.maxHeight <= 500
-                  ? 14.0
-                  : 24.0;
+              final verticalPadding = constraints.maxHeight <= 500 ? 4.0 : 24.0;
               return Center(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
