@@ -48,3 +48,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# The DOVA-SYNDROME track is a license-controlled build input.  Keep the
+# approved audio outside version control; only the directory marker is shared.
+/assets/audio/*
+!/assets/audio/.gitkeep

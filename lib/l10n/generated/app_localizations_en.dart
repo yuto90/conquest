@@ -41,7 +41,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get titleSoundDescription =>
-      'This game currently plays without music or sound effects.';
+      'Background music can be controlled in match setup and while paused.';
 
   @override
   String get titleClose => 'Close';
@@ -101,6 +101,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get opponentCpuDifficultyLabel => '2P CPU Difficulty';
+
+  @override
+  String get bgmLabel => 'BGM';
+
+  @override
+  String get bgmOn => 'ON';
+
+  @override
+  String get bgmOff => 'OFF';
+
+  @override
+  String bgmToggleSemantics({required String state}) {
+    return 'Background music: $state';
+  }
 
   @override
   String get startGame => 'Start Game';
@@ -357,4 +371,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get feedbackInvalidatedSource =>
       'Dispatch unavailable: the source must be player-owned and have more than 1 force.';
+
+  @override
+  String get bgmUnavailableMessage =>
+      'BGM could not be played. The match continues without music.';
+
+  @override
+  String get bgmRetry => 'Play BGM';
 }

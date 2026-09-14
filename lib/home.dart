@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
@@ -8,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'audio/battle_bgm_controller.dart';
+import 'audio/bgm_player.dart';
 import 'game/game_controller.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
@@ -28,6 +31,8 @@ AppLocalizations _appLocalizations(BuildContext context) {
 final webVisibilitySourceProvider = Provider<WebVisibilitySource>(
   (_) => createWebVisibilitySource(),
 );
+
+final bgmPlayerProvider = Provider<BgmPlayer>((_) => AudioPlayersBgmPlayer());
 
 class Home extends StatelessWidget {
   const Home({super.key, this.letterboxToPortrait = kIsWeb});
@@ -86,15 +91,21 @@ class _GameSurface extends ConsumerStatefulWidget {
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
   late final WebVisibilityBridge _webVisibilityBridge;
+  late final BattleBgmController _battleBgmController;
   bool _showTitle = true;
+  bool _bgmEnabled = true;
 
   @override
   void initState() {
     super.initState();
+    _battleBgmController = BattleBgmController(
+      player: ref.read(bgmPlayerProvider),
+    )..addListener(_handleBgmChanged);
     WidgetsBinding.instance.addObserver(this);
     _webVisibilityBridge = WebVisibilityBridge(
       source: ref.read(webVisibilitySourceProvider),
-      onHidden: _pauseGame,
+      onHidden: _handleHidden,
+      onVisibilityChanged: _handleWebVisibilityChanged,
     )..start();
   }
 
@@ -102,6 +113,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void dispose() {
     _webVisibilityBridge.dispose();
     WidgetsBinding.instance.removeObserver(this);
+    _battleBgmController.removeListener(_handleBgmChanged);
+    unawaited(_battleBgmController.dispose());
     super.dispose();
   }
 
@@ -111,15 +124,42 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.detached) {
-      _pauseGame();
+      _handleHidden();
+    } else if (lifecycleState == AppLifecycleState.resumed) {
+      // Returning to the foreground only makes future explicit game actions
+      // eligible. The paused game still has to be resumed by the user.
+      _battleBgmController.setAppVisible(true);
     }
   }
 
   void _pauseGame() => ref.read(gameControllerProvider.notifier).pauseGame();
 
+  void _handleHidden() {
+    _battleBgmController.setAppVisible(false);
+    _pauseGame();
+  }
+
+  void _handleWebVisibilityChanged(bool hidden) {
+    if (!hidden) _battleBgmController.setAppVisible(true);
+  }
+
+  void _handleBgmChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _setBgmEnabled(bool enabled) {
+    if (_bgmEnabled == enabled) return;
+    setState(() => _bgmEnabled = enabled);
+    _battleBgmController.setEnabled(enabled);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    ref.listen<GamePhase>(
+      gameControllerProvider.select((gameState) => gameState.phase),
+      (_, phase) => _battleBgmController.handlePhase(phase),
+    );
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
     final rankProgress =
@@ -213,6 +253,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   state: state,
                   rankProgress: rankProgress,
                   onTitle: () => setState(() => _showTitle = true),
+                  bgmEnabled: _bgmEnabled,
+                  onBgmChanged: _setBgmEnabled,
                   onStart:
                       state.islands.length ==
                           state.configuration.totalIslandCount
@@ -223,6 +265,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 _PauseMenu(
                   onResume: controller.resumeGame,
                   onQuit: () => _confirmQuit(context, controller),
+                  bgmEnabled: _bgmEnabled,
+                  onBgmChanged: _setBgmEnabled,
                 ),
               if (state.phase == GamePhase.result)
                 _ResultPanel(
@@ -231,6 +275,15 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   rankProgress: rankProgress,
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
+                ),
+              if (state.phase == GamePhase.playing &&
+                  _battleBgmController.canRetry)
+                Positioned(
+                  right: 16,
+                  bottom: 56,
+                  child: _BgmUnavailableNotice(
+                    onRetry: _battleBgmController.retry,
+                  ),
                 ),
               _CountdownOverlay(state: state),
             ],
@@ -420,10 +473,17 @@ class _PauseButton extends StatelessWidget {
 }
 
 class _PauseMenu extends StatelessWidget {
-  const _PauseMenu({required this.onResume, required this.onQuit});
+  const _PauseMenu({
+    required this.onResume,
+    required this.onQuit,
+    required this.bgmEnabled,
+    required this.onBgmChanged,
+  });
 
   final VoidCallback onResume;
   final VoidCallback onQuit;
+  final bool bgmEnabled;
+  final ValueChanged<bool> onBgmChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +539,9 @@ class _PauseMenu extends StatelessWidget {
                   color: TacticalPalette.muted,
                 ),
               ),
-              const SizedBox(height: 21),
+              const SizedBox(height: 14),
+              _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
+              const SizedBox(height: 14),
               _PrimaryActionButton(
                 key: const ValueKey('resume-game'),
                 onPressed: onResume,
@@ -493,6 +555,104 @@ class _PauseMenu extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BgmToggle extends StatelessWidget {
+  const _BgmToggle({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    final state = enabled ? l10n.bgmOn : l10n.bgmOff;
+    return Semantics(
+      container: true,
+      label: l10n.bgmLabel,
+      value: state,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.bgmLabel,
+              style: TacticalTypography.mono(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.9,
+              ),
+            ),
+          ),
+          Semantics(
+            label: l10n.bgmToggleSemantics(state: state),
+            child: Switch(
+              key: const ValueKey('bgm-toggle'),
+              value: enabled,
+              onChanged: onChanged,
+              activeColor: TacticalPalette.player,
+              activeTrackColor: TacticalPalette.player.withValues(alpha: 0.35),
+              inactiveThumbColor: TacticalPalette.muted,
+              inactiveTrackColor: TacticalPalette.border,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BgmUnavailableNotice extends StatelessWidget {
+  const _BgmUnavailableNotice({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: l10n.bgmUnavailableMessage,
+      child: Container(
+        width: 250,
+        padding: const EdgeInsets.fromLTRB(12, 9, 8, 5),
+        decoration: BoxDecoration(
+          color: Color.alphaBlend(
+            TacticalPalette.surface.withValues(alpha: 0.94),
+            TacticalPalette.background,
+          ),
+          border: Border.all(color: TacticalPalette.border),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              l10n.bgmUnavailableMessage,
+              style: TacticalTypography.body(
+                fontSize: 10,
+                color: TacticalPalette.muted,
+                height: 1.35,
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const ValueKey('bgm-retry'),
+                onPressed: onRetry,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  foregroundColor: TacticalPalette.foreground,
+                ),
+                child: Text(l10n.bgmRetry),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -779,12 +939,16 @@ class _ConfigurationPanel extends StatelessWidget {
     required this.rankProgress,
     required this.onStart,
     required this.onTitle,
+    required this.bgmEnabled,
+    required this.onBgmChanged,
   });
 
   final GameState state;
   final RankProgress rankProgress;
   final VoidCallback? onStart;
   final VoidCallback onTitle;
+  final bool bgmEnabled;
+  final ValueChanged<bool> onBgmChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -951,6 +1115,8 @@ class _ConfigurationPanel extends StatelessWidget {
                           ],
                         ],
                       ),
+                      const SizedBox(height: 16),
+                      _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
                       const SizedBox(height: 29),
                       Semantics(
                         button: onStart != null,

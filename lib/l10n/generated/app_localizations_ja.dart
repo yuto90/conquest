@@ -37,7 +37,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get titleSound => 'サウンド';
 
   @override
-  String get titleSoundDescription => 'このゲームは現在、音楽・効果音なしでプレイできます。';
+  String get titleSoundDescription => 'BGMは対戦設定と一時停止メニューで切り替えられます。';
 
   @override
   String get titleClose => '閉じる';
@@ -96,6 +96,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get opponentCpuDifficultyLabel => '2P CPU難易度';
+
+  @override
+  String get bgmLabel => 'BGM';
+
+  @override
+  String get bgmOn => 'オン';
+
+  @override
+  String get bgmOff => 'オフ';
+
+  @override
+  String bgmToggleSemantics({required String state}) {
+    return 'BGM：$state';
+  }
 
   @override
   String get startGame => 'ゲーム開始';
@@ -345,4 +359,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get feedbackInvalidatedSource => '出兵できません。出兵元は自軍が所有し、兵力が2以上必要です。';
+
+  @override
+  String get bgmUnavailableMessage => 'BGMを再生できません。音なしで対戦を続けます。';
+
+  @override
+  String get bgmRetry => 'BGMを再生';
 }

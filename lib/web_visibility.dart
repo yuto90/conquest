@@ -20,18 +20,26 @@ final class WebVisibilityBridge {
   WebVisibilityBridge({
     required WebVisibilitySource source,
     required VoidCallback onHidden,
+    ValueChanged<bool>? onVisibilityChanged,
   }) : _source = source,
-       _onHidden = onHidden;
+       _onHidden = onHidden,
+       _onVisibilityChanged = onVisibilityChanged;
 
   final WebVisibilitySource _source;
   final VoidCallback _onHidden;
+  final ValueChanged<bool>? _onVisibilityChanged;
   var _listening = false;
 
   void start() {
     if (_listening) return;
     _listening = true;
     _source.addListener(_handleVisibilityChanged);
-    if (_source.isHidden) _onHidden();
+    if (_source.isHidden) {
+      _onHidden();
+      _onVisibilityChanged?.call(true);
+    } else {
+      _onVisibilityChanged?.call(false);
+    }
   }
 
   void dispose() {
@@ -41,6 +49,9 @@ final class WebVisibilityBridge {
   }
 
   void _handleVisibilityChanged() {
-    if (_listening && _source.isHidden) _onHidden();
+    if (!_listening) return;
+    final hidden = _source.isHidden;
+    if (hidden) _onHidden();
+    _onVisibilityChanged?.call(hidden);
   }
 }
