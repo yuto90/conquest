@@ -343,6 +343,7 @@ class _TitleButton extends StatelessWidget {
       child: OutlinedButton(
         key: buttonKey,
         onPressed: onPressed,
+        autofocus: primary,
         style: OutlinedButton.styleFrom(
           minimumSize: Size(0, math.max(48, (primary ? 141 : 93) * scale)),
           visualDensity: VisualDensity.standard,
