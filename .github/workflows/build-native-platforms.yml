@@ -1,0 +1,98 @@
+name: Build Native Platforms
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-native-platforms.yml
+      - android/**
+      - assets/fonts/**
+      - ios/**
+      - lib/**
+      - pubspec.lock
+      - pubspec.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Build Android release APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Read Flutter version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter_version="$(jq -er '.flutterSdkVersion | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .fvm/fvm_config.json)"
+          [[ "$flutter_version" == "3.44.8" ]] || {
+            echo "::error::.fvm/fvm_config.json must select Flutter 3.44.8"
+            exit 1
+          }
+          echo "flutter_version=$flutter_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          fvm flutter pub get
+
+      - name: Build Android release APK
+        run: fvm flutter build apk --release
+
+  ios-simulator:
+    name: Build iOS Simulator release app
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Read Flutter version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter_version="$(jq -er '.flutterSdkVersion | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .fvm/fvm_config.json)"
+          [[ "$flutter_version" == "3.44.8" ]] || {
+            echo "::error::.fvm/fvm_config.json must select Flutter 3.44.8"
+            exit 1
+          }
+          echo "flutter_version=$flutter_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Install Flutter dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          fvm flutter pub get
+
+      - name: Build iOS Simulator release app
+        run: fvm flutter build ios --simulator --release --no-codesign
