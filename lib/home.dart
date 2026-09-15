@@ -714,6 +714,7 @@ class _BgmRetryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      key: const ValueKey('bgm-retry'),
       button: true,
       label: label,
       child: Tooltip(
@@ -721,7 +722,6 @@ class _BgmRetryButton extends StatelessWidget {
         child: SizedBox.square(
           dimension: 48,
           child: IconButton(
-            key: const ValueKey('bgm-retry'),
             onPressed: onRetry,
             style: IconButton.styleFrom(
               padding: EdgeInsets.zero,
