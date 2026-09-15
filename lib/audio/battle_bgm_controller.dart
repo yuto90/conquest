@@ -36,6 +36,7 @@ final class BattleBgmController {
   var _hasPlayedThisMatch = false;
   var _resetPending = false;
   var _matchSerial = 0;
+  var _playRequestSerial = 0;
 
   BattleBgmStatus get status => _status;
 
@@ -72,8 +73,17 @@ final class BattleBgmController {
   /// harmless and do not issue another play/resume call.
   void handlePhase(GamePhase phase) {
     if (_disposed) return;
+    final wasReadyToPlay = _shouldPlay;
     final previous = _phase;
     _phase = phase;
+
+    if ((phase == GamePhase.configuration || phase == GamePhase.result) &&
+        previous != phase) {
+      // A terminal phase invalidates any platform call that is still waiting
+      // to complete. It may still need to be paused/reset after completion,
+      // but it must not publish a stale playing state for the next screen.
+      _matchSerial++;
+    }
 
     if (phase == GamePhase.startCountdown &&
         previous != GamePhase.startCountdown &&
@@ -93,10 +103,12 @@ final class BattleBgmController {
     } else {
       _reconcile();
     }
+    _invalidateStalePlayRequest(wasReadyToPlay);
   }
 
   void setEnabled(bool enabled) {
     if (_disposed || _enabled == enabled) return;
+    final wasReadyToPlay = _shouldPlay;
     _enabled = enabled;
     if (!enabled) {
       _reconcile();
@@ -106,16 +118,19 @@ final class BattleBgmController {
       _clearError();
       _reconcile();
     }
+    _invalidateStalePlayRequest(wasReadyToPlay);
     _notifyListeners();
   }
 
   void setAppVisible(bool visible) {
     if (_disposed || _appVisible == visible) return;
+    final wasReadyToPlay = _shouldPlay;
     _appVisible = visible;
     if (!visible) {
       _visibilityPauseNeedsExplicitPhaseChange = true;
     }
     _reconcile();
+    _invalidateStalePlayRequest(wasReadyToPlay);
   }
 
   /// Retries the current failed request using this same player instance. The
@@ -226,16 +241,21 @@ final class BattleBgmController {
   }
 
   void _queuePlay(int matchSerial, {required bool resume}) {
+    final playRequestSerial = _playRequestSerial;
     _playPending = true;
     _enqueue(() async {
       try {
-        if (!_isCurrentMatch(matchSerial) || !_shouldPlay) return;
+        if (!_isCurrentPlayRequest(matchSerial, playRequestSerial) ||
+            !_shouldPlay) {
+          return;
+        }
         if (resume) {
           await _player.resume();
         } else {
           await _player.playFromStart();
         }
-        if (!_isCurrentMatch(matchSerial)) {
+        if (!_isCurrentPlayRequest(matchSerial, playRequestSerial) ||
+            !_shouldPlay) {
           // A new match or disposal arrived while the platform call was
           // pending. Do not leave the old request playing.
           await _player.pause();
@@ -251,7 +271,11 @@ final class BattleBgmController {
         }
       } catch (error, stackTrace) {
         if (_isCurrentMatch(matchSerial)) {
-          _recordError(error, stackTrace);
+          if (playRequestSerial == _playRequestSerial) {
+            _recordError(error, stackTrace);
+          } else {
+            _reportError(error, stackTrace);
+          }
           try {
             // A platform implementation may reject after it has already
             // started the native player. Ensure a failed request cannot leave
@@ -328,6 +352,17 @@ final class BattleBgmController {
 
   bool _isCurrentMatch(int matchSerial) =>
       !_disposed && matchSerial == _matchSerial;
+
+  bool _isCurrentPlayRequest(int matchSerial, int playRequestSerial) {
+    return _isCurrentMatch(matchSerial) &&
+        playRequestSerial == _playRequestSerial;
+  }
+
+  void _invalidateStalePlayRequest(bool wasReadyToPlay) {
+    if (wasReadyToPlay && !_shouldPlay) {
+      _playRequestSerial++;
+    }
+  }
 
   void _enqueue(Future<void> Function() operation) {
     _operationTail = _operationTail.then<void>((_) async {

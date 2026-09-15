@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 final class FakeBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Completer<void>? prepareGate;
+  Completer<void>? playGate;
   Object? prepareError;
   Object? playError;
   var disposeCount = 0;
@@ -24,6 +25,8 @@ final class FakeBgmPlayer implements BgmPlayer {
   @override
   Future<void> playFromStart() async {
     calls.add('playFromStart');
+    final gate = playGate;
+    if (gate != null) await gate.future;
     final error = playError;
     if (error != null) throw error;
   }
@@ -226,4 +229,84 @@ void main() {
     expect(player.calls.where((call) => call == 'playFromStart'), isEmpty);
     expect(player.disposeCount, 1);
   });
+
+  test(
+    'terminal phase invalidates pending playback before reporting it as playing',
+    () async {
+      final player = FakeBgmPlayer()..playGate = Completer<void>();
+      final controller = BattleBgmController(player: player);
+      final statuses = <BattleBgmStatus>[];
+      controller.addListener(() => statuses.add(controller.status));
+
+      controller.handlePhase(GamePhase.startCountdown);
+      await controller.settled;
+      controller.handlePhase(GamePhase.playing);
+      await Future<void>.delayed(Duration.zero);
+
+      controller.handlePhase(GamePhase.result);
+      player.playGate!.complete();
+      await controller.settled;
+
+      expect(statuses, isNot(contains(BattleBgmStatus.playing)));
+      expect(controller.status, BattleBgmStatus.idle);
+      expect(player.calls, [
+        'prepare',
+        'playFromStart',
+        'pause',
+        'stopAndReset',
+      ]);
+
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'disabling BGM invalidates pending playback before reporting it as playing',
+    () async {
+      final player = FakeBgmPlayer()..playGate = Completer<void>();
+      final controller = BattleBgmController(player: player);
+      final statuses = <BattleBgmStatus>[];
+      controller.addListener(() => statuses.add(controller.status));
+
+      controller.handlePhase(GamePhase.startCountdown);
+      await controller.settled;
+      controller.handlePhase(GamePhase.playing);
+      await Future<void>.delayed(Duration.zero);
+
+      controller.setEnabled(false);
+      player.playGate!.complete();
+      await controller.settled;
+
+      expect(statuses, isNot(contains(BattleBgmStatus.playing)));
+      expect(controller.status, BattleBgmStatus.paused);
+      expect(player.calls, ['prepare', 'playFromStart', 'pause']);
+
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'hidden app invalidates pending playback before reporting it as playing',
+    () async {
+      final player = FakeBgmPlayer()..playGate = Completer<void>();
+      final controller = BattleBgmController(player: player);
+      final statuses = <BattleBgmStatus>[];
+      controller.addListener(() => statuses.add(controller.status));
+
+      controller.handlePhase(GamePhase.startCountdown);
+      await controller.settled;
+      controller.handlePhase(GamePhase.playing);
+      await Future<void>.delayed(Duration.zero);
+
+      controller.setAppVisible(false);
+      player.playGate!.complete();
+      await controller.settled;
+
+      expect(statuses, isNot(contains(BattleBgmStatus.playing)));
+      expect(controller.status, BattleBgmStatus.paused);
+      expect(player.calls, ['prepare', 'playFromStart', 'pause']);
+
+      await controller.dispose();
+    },
+  );
 }

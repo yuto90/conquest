@@ -634,11 +634,9 @@ class _BgmUnavailableNotice extends StatelessWidget {
           children: [
             Text(
               l10n.bgmUnavailableMessage,
-              style: TacticalTypography.of(context).body(
-                fontSize: 10,
-                color: TacticalPalette.muted,
-                height: 1.35,
-              ),
+              style: TacticalTypography.of(
+                context,
+              ).body(fontSize: 10, color: TacticalPalette.muted, height: 1.35),
             ),
             Align(
               alignment: Alignment.centerRight,
