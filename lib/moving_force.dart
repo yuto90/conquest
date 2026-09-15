@@ -65,7 +65,7 @@ class MovingForceWidget extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 3),
                       child: Text(
                         _effectivePresentation.marker,
-                        style: TacticalTypography.mono(
+                        style: TacticalTypography.of(context).mono(
                           fontSize: 8,
                           fontWeight: FontWeight.w800,
                           height: 1,
@@ -110,7 +110,7 @@ class MovingForceWidget extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 3),
                           child: Text(
                             force.currentValue.toString(),
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               height: 1,

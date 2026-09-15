@@ -146,10 +146,10 @@ abstract class AppLocalizations {
   /// **'Sound'**
   String get titleSound;
 
-  /// Explains current audio availability without implying a working mute toggle.
+  /// Explains where the in-match background music setting is available.
   ///
   /// In en, this message translates to:
-  /// **'This game currently plays without music or sound effects.'**
+  /// **'Background music can be controlled in match setup and while paused.'**
   String get titleSoundDescription;
 
   /// Close action for title information dialogs.
@@ -212,6 +212,162 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
+  /// The English and Japanese base title for rank 0.
+  ///
+  /// In en, this message translates to:
+  /// **'Recruit'**
+  String get rankTitleRecruit;
+
+  /// The English and Japanese base title for ranks 1 through 5.
+  ///
+  /// In en, this message translates to:
+  /// **'Private First Class'**
+  String get rankTitlePrivateFirstClass;
+
+  /// The English and Japanese base title for ranks 6 through 10.
+  ///
+  /// In en, this message translates to:
+  /// **'Lance Corporal'**
+  String get rankTitleLanceCorporal;
+
+  /// The English and Japanese base title for ranks 11 through 15.
+  ///
+  /// In en, this message translates to:
+  /// **'Corporal'**
+  String get rankTitleCorporal;
+
+  /// The English and Japanese base title for ranks 16 through 20.
+  ///
+  /// In en, this message translates to:
+  /// **'Sergeant'**
+  String get rankTitleSergeant;
+
+  /// The English and Japanese base title for ranks 21 through 25.
+  ///
+  /// In en, this message translates to:
+  /// **'Staff Sergeant'**
+  String get rankTitleStaffSergeant;
+
+  /// The English and Japanese base title for ranks 26 through 30.
+  ///
+  /// In en, this message translates to:
+  /// **'Gunnery Sergeant'**
+  String get rankTitleGunnerySergeant;
+
+  /// The English and Japanese base title for ranks 31 through 35.
+  ///
+  /// In en, this message translates to:
+  /// **'Master Sergeant'**
+  String get rankTitleMasterSergeant;
+
+  /// The English and Japanese base title for ranks 36 through 40.
+  ///
+  /// In en, this message translates to:
+  /// **'First Sergeant'**
+  String get rankTitleFirstSergeant;
+
+  /// The English and Japanese base title for ranks 41 through 45.
+  ///
+  /// In en, this message translates to:
+  /// **'Master Gunnery Sergeant'**
+  String get rankTitleMasterGunnerySergeant;
+
+  /// The English and Japanese base title for ranks 46 through 50.
+  ///
+  /// In en, this message translates to:
+  /// **'Sergeant Major'**
+  String get rankTitleSergeantMajor;
+
+  /// The English and Japanese base title for ranks 51 through 55.
+  ///
+  /// In en, this message translates to:
+  /// **'Warrant Officer One'**
+  String get rankTitleWarrantOfficerOne;
+
+  /// The English and Japanese base title for ranks 56 through 60.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief Warrant Officer Two'**
+  String get rankTitleChiefWarrantOfficerTwo;
+
+  /// The English and Japanese base title for ranks 61 through 65.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief Warrant Officer Three'**
+  String get rankTitleChiefWarrantOfficerThree;
+
+  /// The English and Japanese base title for ranks 66 through 70.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief Warrant Officer Four'**
+  String get rankTitleChiefWarrantOfficerFour;
+
+  /// The English and Japanese base title for ranks 71 through 75.
+  ///
+  /// In en, this message translates to:
+  /// **'Chief Warrant Officer Five'**
+  String get rankTitleChiefWarrantOfficerFive;
+
+  /// The English and Japanese base title for ranks 76 through 80.
+  ///
+  /// In en, this message translates to:
+  /// **'Second Lieutenant'**
+  String get rankTitleSecondLieutenant;
+
+  /// The English and Japanese base title for ranks 81 through 85.
+  ///
+  /// In en, this message translates to:
+  /// **'First Lieutenant'**
+  String get rankTitleFirstLieutenant;
+
+  /// The English and Japanese base title for ranks 86 through 90.
+  ///
+  /// In en, this message translates to:
+  /// **'Captain'**
+  String get rankTitleCaptain;
+
+  /// The English and Japanese base title for ranks 91 through 95.
+  ///
+  /// In en, this message translates to:
+  /// **'Major'**
+  String get rankTitleMajor;
+
+  /// The English and Japanese base title for ranks 96 through 99.
+  ///
+  /// In en, this message translates to:
+  /// **'Lieutenant Colonel'**
+  String get rankTitleLieutenantColonel;
+
+  /// The English and Japanese base title for ranks 100 through 109.
+  ///
+  /// In en, this message translates to:
+  /// **'Colonel'**
+  String get rankTitleColonel;
+
+  /// The English and Japanese base title for ranks 110 through 119.
+  ///
+  /// In en, this message translates to:
+  /// **'Brigadier General'**
+  String get rankTitleBrigadierGeneral;
+
+  /// The English and Japanese base title for ranks 120 through 129.
+  ///
+  /// In en, this message translates to:
+  /// **'Major General'**
+  String get rankTitleMajorGeneral;
+
+  /// The English and Japanese base title for ranks 130 through 139.
+  ///
+  /// In en, this message translates to:
+  /// **'Lieutenant General'**
+  String get rankTitleLieutenantGeneral;
+
+  /// The English and Japanese base title for rank 140.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get rankTitleGeneral;
+
   /// The current rank and title.
   ///
   /// In en, this message translates to:
@@ -259,6 +415,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'2P CPU Difficulty'**
   String get opponentCpuDifficultyLabel;
+
+  /// The background music setting label.
+  ///
+  /// In en, this message translates to:
+  /// **'BGM'**
+  String get bgmLabel;
+
+  /// The enabled state of the background music setting.
+  ///
+  /// In en, this message translates to:
+  /// **'ON'**
+  String get bgmOn;
+
+  /// The disabled state of the background music setting.
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get bgmOff;
+
+  /// The background music toggle accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Background music: {state}'**
+  String bgmToggleSemantics({required String state});
 
   /// The start game button text.
   ///
@@ -656,6 +836,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dispatch unavailable: the source must be player-owned and have more than 1 force.'**
   String get feedbackInvalidatedSource;
+
+  /// Non-modal explanation shown when background music preparation or playback fails.
+  ///
+  /// In en, this message translates to:
+  /// **'BGM could not be played. The match continues without music.'**
+  String get bgmUnavailableMessage;
+
+  /// Explicit retry action for a rejected or unavailable background music playback.
+  ///
+  /// In en, this message translates to:
+  /// **'Play BGM'**
+  String get bgmRetry;
 }
 
 class _AppLocalizationsDelegate

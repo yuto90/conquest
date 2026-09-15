@@ -1042,11 +1042,13 @@ void main() {
 
     final cpu = find.byKey(const ValueKey('island-button-1'));
     final player = find.byKey(const ValueKey('island-button-0'));
-    final cpuTop = tester.getTopLeft(cpu).dy;
-    final playerBottom = tester.getBottomRight(player).dy;
-    expect(cpuTop, greaterThanOrEqualTo(24));
-    expect(playerBottom, lessThanOrEqualTo(484));
-    expect(cpuTop - 24, closeTo(484 - playerBottom, 1e-6));
+    final cpuRect = tester.getRect(cpu);
+    final playerRect = tester.getRect(player);
+    expect(cpuRect.top, greaterThanOrEqualTo(24));
+    expect(cpuRect.bottom, lessThanOrEqualTo(484));
+    expect(playerRect.top, greaterThanOrEqualTo(24));
+    expect(playerRect.bottom, lessThanOrEqualTo(484));
+    expect(cpuRect.overlaps(playerRect), isFalse);
   });
 
   testWidgets('letterboxes a landscape window onto a centered portrait stage', (
@@ -1725,6 +1727,10 @@ void main() {
     final islandFinder = find.byKey(const ValueKey('island-0'));
     final container = ProviderScope.containerOf(tester.element(islandFinder));
     final controller = container.read(gameControllerProvider.notifier);
+    final initialPositions = [
+      for (final island in container.read(gameControllerProvider).islands)
+        island.position,
+    ];
     controller.startGame();
     for (var index = 0; index < 60; index++) {
       loop.tick();
@@ -1737,6 +1743,22 @@ void main() {
     expect(find.byKey(const ValueKey('return-settings')), findsOneWidget);
     expect(loop.isRunning, isFalse);
 
+    await tester.tap(find.byKey(const ValueKey('replay-game')));
+    await tester.pump();
+    final replay = container.read(gameControllerProvider);
+    expect(replay.phase, GamePhase.startCountdown);
+    expect(replay.islands, hasLength(10));
+    expect(
+      replay.islands.map((island) => island.position),
+      isNot(orderedEquals(initialPositions)),
+    );
+    expect(loop.isRunning, isTrue);
+
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    controller.finish(const GameResult.victory(elapsedMs: 1));
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('return-settings')));
     await tester.pump();
     expect(find.byKey(const ValueKey('start-game')), findsOneWidget);

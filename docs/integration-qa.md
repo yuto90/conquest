@@ -212,7 +212,7 @@ Easy/Normal/Hardは上表のとおり未実行であり、順序・頻度・候�
 
 | 確認項目 | 自動テスト | 結果 |
 | --- | --- | --- |
-| 6・8・10・12島の生成、点対称ペア、開始前マップ、3秒カウントダウン | `starts every supported map deterministically through the countdown` | PASS |
+| 6・8・10・12島の生成、全島の独立ランダム配置、開始前マップ、3秒カウントダウン | `starts every supported map deterministically through the countdown`、`test/game_rules_test.dart` の独立乱数・矩形制約回帰 | PASS |
 | 固定乱数で同じ試合結果を再現 | `replays the same CPU result with a fixed seed and manual loop` | PASS |
 | プレイヤー勝利（CPU本陣占領） | `completes a scripted player victory on every map size` | PASS |
 | CPU勝利（プレイヤー最後の島を占領） | `replays the same CPU result with a fixed seed and manual loop` | PASS |
@@ -260,7 +260,7 @@ Flutter debugアプリを `fvm flutter run -d 2EBD3334-E7B5-42DC-BFBE-EEF75C95AE
 | --- | --- |
 | ゲームの目的、陣営色以外の識別、本陣喪失と全滅、勝利/敗北/引き分け | `game_rules_test.dart` の結果判定・本陣単独喪失・同時全滅、`integration_qa_test.dart` の3結果、端末AXのP/C/Nラベル |
 | ゲーム開始、6/8/10/12島、初期10島、3/2/1/START | `game_rules_test.dart` の構成/マップ、`integration_qa_test.dart` の全島数開始、`widget_test.dart` の設定/カウントダウン、端末QA |
-| 点対称マップ、島サイズ、耐久力、容量、Safe Area、重なりなし | `game_rules_test.dart` の生成/矩形検査、`widget_test.dart` の縦長/resize検査、端末QA |
+| 全島の独立ランダム配置、島サイズ、耐久力、容量、Safe Area、重なりなし | `game_rules_test.dart` の独立乱数/生成/矩形検査、`widget_test.dart` の縦長/resize検査、端末QA |
 | 兵力増加、1秒境界、上限、中立非成長、到着前成長 | `game_rules_test.dart` のgrowth/境界/容量テスト |
 | 島選択、半分切り捨て、選択解除、繰り返し出兵、複数部隊 | `game_controller_test.dart` のselection/dispatch/multiple troops、`widget_test.dart` のsemantics、統合多数部隊 |
 | 移動速度、距離比例、到着時のみ処理 | `game_rules_test.dart` のmovement duration/arrival tests、統合境界到着 |

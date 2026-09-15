@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:conquest/base.dart';
@@ -8,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'audio/battle_bgm_controller.dart';
+import 'audio/bgm_player.dart';
 import 'game/game_controller.dart';
 import 'game/game_rules.dart';
 import 'game/game_state.dart';
@@ -29,6 +32,8 @@ final webVisibilitySourceProvider = Provider<WebVisibilitySource>(
   (_) => createWebVisibilitySource(),
 );
 
+final bgmPlayerProvider = Provider<BgmPlayer>((_) => AudioPlayersBgmPlayer());
+
 class Home extends StatelessWidget {
   const Home({super.key, this.letterboxToPortrait = kIsWeb});
 
@@ -41,35 +46,39 @@ class Home extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TacticalPalette.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final window = Size(constraints.maxWidth, constraints.maxHeight);
-            final stage = letterboxToPortrait
-                ? fitPortraitStage(window)
-                : window;
-            final viewport = IslandMapViewport(
-              width: stage.width,
-              height: stage.height,
-            );
-            return Align(
-              alignment: Alignment.center,
-              child: SizedBox(
-                key: const ValueKey('playable-stage'),
+    final typography = TacticalTypography.of(context);
+    return Theme(
+      data: buildTacticalTheme(typography: typography),
+      child: Scaffold(
+        backgroundColor: TacticalPalette.background,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final window = Size(constraints.maxWidth, constraints.maxHeight);
+              final stage = letterboxToPortrait
+                  ? fitPortraitStage(window)
+                  : window;
+              final viewport = IslandMapViewport(
                 width: stage.width,
                 height: stage.height,
-                child: ProviderScope(
-                  overrides: [
-                    mapViewportProvider.overrideWithValue(viewport),
-                    gameControllerProvider.overrideWith(GameController.new),
-                  ],
-                  child: const _GameSurface(),
+              );
+              return Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  key: const ValueKey('playable-stage'),
+                  width: stage.width,
+                  height: stage.height,
+                  child: ProviderScope(
+                    overrides: [
+                      mapViewportProvider.overrideWithValue(viewport),
+                      gameControllerProvider.overrideWith(GameController.new),
+                    ],
+                    child: const _GameSurface(),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -86,15 +95,21 @@ class _GameSurface extends ConsumerStatefulWidget {
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
   late final WebVisibilityBridge _webVisibilityBridge;
+  late final BattleBgmController _battleBgmController;
   bool _showTitle = true;
+  bool _bgmEnabled = true;
 
   @override
   void initState() {
     super.initState();
+    _battleBgmController = BattleBgmController(
+      player: ref.read(bgmPlayerProvider),
+    )..addListener(_handleBgmChanged);
     WidgetsBinding.instance.addObserver(this);
     _webVisibilityBridge = WebVisibilityBridge(
       source: ref.read(webVisibilitySourceProvider),
-      onHidden: _pauseGame,
+      onHidden: _handleHidden,
+      onVisibilityChanged: _handleWebVisibilityChanged,
     )..start();
   }
 
@@ -102,6 +117,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void dispose() {
     _webVisibilityBridge.dispose();
     WidgetsBinding.instance.removeObserver(this);
+    _battleBgmController.removeListener(_handleBgmChanged);
+    unawaited(_battleBgmController.dispose());
     super.dispose();
   }
 
@@ -111,15 +128,42 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.detached) {
-      _pauseGame();
+      _handleHidden();
+    } else if (lifecycleState == AppLifecycleState.resumed) {
+      // Returning to the foreground only makes future explicit game actions
+      // eligible. The paused game still has to be resumed by the user.
+      _battleBgmController.setAppVisible(true);
     }
   }
 
   void _pauseGame() => ref.read(gameControllerProvider.notifier).pauseGame();
 
+  void _handleHidden() {
+    _battleBgmController.setAppVisible(false);
+    _pauseGame();
+  }
+
+  void _handleWebVisibilityChanged(bool hidden) {
+    if (!hidden) _battleBgmController.setAppVisible(true);
+  }
+
+  void _handleBgmChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _setBgmEnabled(bool enabled) {
+    if (_bgmEnabled == enabled) return;
+    setState(() => _bgmEnabled = enabled);
+    _battleBgmController.setEnabled(enabled);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    ref.listen<GamePhase>(
+      gameControllerProvider.select((gameState) => gameState.phase),
+      (_, phase) => _battleBgmController.handlePhase(phase),
+    );
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
     final rankProgress =
@@ -213,6 +257,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   state: state,
                   rankProgress: rankProgress,
                   onTitle: () => setState(() => _showTitle = true),
+                  bgmEnabled: _bgmEnabled,
+                  onBgmChanged: _setBgmEnabled,
                   onStart:
                       state.islands.length ==
                           state.configuration.totalIslandCount
@@ -223,6 +269,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 _PauseMenu(
                   onResume: controller.resumeGame,
                   onQuit: () => _confirmQuit(context, controller),
+                  bgmEnabled: _bgmEnabled,
+                  onBgmChanged: _setBgmEnabled,
                 ),
               if (state.phase == GamePhase.result)
                 _ResultPanel(
@@ -232,6 +280,22 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
                 ),
+              if (state.phase == GamePhase.playing &&
+                  _battleBgmController.canRetry) ...[
+                Positioned(
+                  right: 16,
+                  bottom: 56,
+                  child: const _BgmUnavailableNotice(),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 68,
+                  child: _BgmRetryButton(
+                    label: l10n.bgmRetry,
+                    onRetry: _battleBgmController.retry,
+                  ),
+                ),
+              ],
               _CountdownOverlay(state: state),
             ],
           ),
@@ -295,7 +359,7 @@ class _BoardChrome extends StatelessWidget {
                   islandCount: state.configuration.totalIslandCount,
                 ),
                 key: const ValueKey('board-title-block'),
-                style: TacticalTypography.mono(
+                style: TacticalTypography.of(context).mono(
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
@@ -325,7 +389,7 @@ class _BoardChrome extends StatelessWidget {
                         isSpectator
                             ? l10n.spectatorStatus
                             : l10n.boardStatusSelected,
-                        style: TacticalTypography.mono(
+                        style: TacticalTypography.of(context).mono(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           color: TacticalPalette.foreground,
@@ -340,7 +404,7 @@ class _BoardChrome extends StatelessWidget {
                             ? l10n.spectatorDetail
                             : l10n.boardStatusSelectedDetail,
                         textAlign: TextAlign.right,
-                        style: TacticalTypography.body(
+                        style: TacticalTypography.of(context).body(
                           fontSize: 10,
                           color: TacticalPalette.seaDeep.withValues(
                             alpha: 0.85,
@@ -403,10 +467,17 @@ class _PauseButton extends StatelessWidget {
 }
 
 class _PauseMenu extends StatelessWidget {
-  const _PauseMenu({required this.onResume, required this.onQuit});
+  const _PauseMenu({
+    required this.onResume,
+    required this.onQuit,
+    required this.bgmEnabled,
+    required this.onBgmChanged,
+  });
 
   final VoidCallback onResume;
   final VoidCallback onQuit;
+  final bool bgmEnabled;
+  final ValueChanged<bool> onBgmChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -437,7 +508,7 @@ class _PauseMenu extends StatelessWidget {
             children: [
               Text(
                 l10n.pauseHeading,
-                style: TacticalTypography.mono(
+                style: TacticalTypography.of(context).mono(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: TacticalPalette.muted,
@@ -448,21 +519,20 @@ class _PauseMenu extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 l10n.pauseTitle,
-                style: TacticalTypography.display(
-                  fontSize: 30,
-                  height: 1,
-                  letterSpacing: 0.6,
-                ),
+                style: TacticalTypography.of(
+                  context,
+                ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
               ),
               const SizedBox(height: 12),
               Text(
                 l10n.pauseDescription,
-                style: TacticalTypography.body(
-                  fontSize: 12,
-                  color: TacticalPalette.muted,
-                ),
+                style: TacticalTypography.of(
+                  context,
+                ).body(fontSize: 12, color: TacticalPalette.muted),
               ),
-              const SizedBox(height: 21),
+              const SizedBox(height: 14),
+              _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
+              const SizedBox(height: 14),
               _PrimaryActionButton(
                 key: const ValueKey('resume-game'),
                 onPressed: onResume,
@@ -475,6 +545,126 @@ class _PauseMenu extends StatelessWidget {
                 label: l10n.returnSettings,
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BgmToggle extends StatelessWidget {
+  const _BgmToggle({required this.enabled, required this.onChanged});
+
+  final bool enabled;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    final state = enabled ? l10n.bgmOn : l10n.bgmOff;
+    return Semantics(
+      container: true,
+      label: l10n.bgmLabel,
+      value: state,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.bgmLabel,
+              style: TacticalTypography.of(context).mono(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.9,
+              ),
+            ),
+          ),
+          Semantics(
+            label: l10n.bgmToggleSemantics(state: state),
+            child: Switch(
+              key: const ValueKey('bgm-toggle'),
+              value: enabled,
+              onChanged: onChanged,
+              activeThumbColor: TacticalPalette.player,
+              activeTrackColor: TacticalPalette.player.withValues(alpha: 0.35),
+              inactiveThumbColor: TacticalPalette.muted,
+              inactiveTrackColor: TacticalPalette.border,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BgmUnavailableNotice extends StatelessWidget {
+  const _BgmUnavailableNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    return SizedBox(
+      key: const ValueKey('bgm-unavailable-notice'),
+      width: 250,
+      child: IgnorePointer(
+        child: Semantics(
+          container: true,
+          liveRegion: true,
+          label: l10n.bgmUnavailableMessage,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 9, 8, 5),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.94),
+                TacticalPalette.background,
+              ),
+              border: Border.all(color: TacticalPalette.border),
+            ),
+            child: Text(
+              l10n.bgmUnavailableMessage,
+              style: TacticalTypography.of(
+                context,
+              ).body(fontSize: 10, color: TacticalPalette.muted, height: 1.35),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BgmRetryButton extends StatelessWidget {
+  const _BgmRetryButton({required this.label, required this.onRetry});
+
+  final String label;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: SizedBox.square(
+          dimension: 48,
+          child: IconButton(
+            key: const ValueKey('bgm-retry'),
+            onPressed: onRetry,
+            style: IconButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: TacticalPalette.foreground,
+              backgroundColor: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.78),
+                TacticalPalette.background,
+              ),
+              side: BorderSide(
+                color: TacticalPalette.seaDeep.withValues(alpha: 0.65),
+              ),
+              shape: const CircleBorder(),
+              elevation: 3,
+              shadowColor: TacticalPalette.seaDeep.withValues(alpha: 0.24),
+            ),
+            icon: const Icon(Icons.play_arrow_rounded, size: 24),
           ),
         ),
       ),
@@ -546,7 +736,7 @@ class _ResultPanel extends StatelessWidget {
               children: [
                 Text(
                   l10n.resultHeading,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: TacticalPalette.muted,
@@ -567,11 +757,9 @@ class _ResultPanel extends StatelessWidget {
                   liveRegion: true,
                   child: Text(
                     title,
-                    style: TacticalTypography.display(
-                      fontSize: 46,
-                      height: 1,
-                      letterSpacing: 0.9,
-                    ),
+                    style: TacticalTypography.of(
+                      context,
+                    ).display(fontSize: 46, height: 1, letterSpacing: 0.9),
                   ),
                 ),
                 if (result.xpAwarded > 0) ...[
@@ -617,9 +805,12 @@ class _RankProgressCard extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final rankLabel = Text(
-            l10n.rankDisplay(rank: progress.rank, title: progress.title),
+            l10n.rankDisplay(
+              rank: progress.rank,
+              title: progress.localizedTitle(l10n),
+            ),
             overflow: TextOverflow.ellipsis,
-            style: TacticalTypography.mono(
+            style: TacticalTypography.of(context).mono(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: TacticalPalette.foreground,
@@ -630,10 +821,9 @@ class _RankProgressCard extends StatelessWidget {
                 ? l10n.rankMax
                 : l10n.rankProgress(xp: progress.xpToNextRank),
             overflow: TextOverflow.ellipsis,
-            style: TacticalTypography.mono(
-              fontSize: 8,
-              color: TacticalPalette.muted,
-            ),
+            style: TacticalTypography.of(
+              context,
+            ).mono(fontSize: 8, color: TacticalPalette.muted),
           );
           final progressBar = SizedBox(
             width: 38,
@@ -716,7 +906,7 @@ class _RankAwardSummary extends StatelessWidget {
               Text(
                 l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
                 textAlign: TextAlign.center,
-                style: TacticalTypography.mono(
+                style: TacticalTypography.of(context).mono(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: TacticalPalette.foreground,
@@ -739,9 +929,12 @@ class _RankAwardSummary extends StatelessWidget {
               if (result.didRankUp) ...[
                 const SizedBox(height: 8),
                 Text(
-                  l10n.rankUp(rank: result.rankAfter!, title: after.title),
+                  l10n.rankUp(
+                    rank: result.rankAfter!,
+                    title: after.localizedTitle(l10n),
+                  ),
                   textAlign: TextAlign.center,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: TacticalPalette.player,
@@ -762,12 +955,16 @@ class _ConfigurationPanel extends StatelessWidget {
     required this.rankProgress,
     required this.onStart,
     required this.onTitle,
+    required this.bgmEnabled,
+    required this.onBgmChanged,
   });
 
   final GameState state;
   final RankProgress rankProgress;
   final VoidCallback? onStart;
   final VoidCallback onTitle;
+  final bool bgmEnabled;
+  final ValueChanged<bool> onBgmChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -779,238 +976,254 @@ class _ConfigurationPanel extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           const CustomPaint(painter: _SettingsDecorationPainter()),
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
-              child: Transform.translate(
-                offset: const Offset(0, 4),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 330),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.settingsStep,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: TacticalPalette.muted,
-                          height: 1.2,
-                          letterSpacing: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Semantics(
-                        header: true,
-                        child: Text(
-                          l10n.settingsTitle,
-                          style: TacticalTypography.display(
-                            fontSize: 40,
-                            height: 0.96,
-                            letterSpacing: -1.2,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final verticalPadding = constraints.maxHeight <= 500 ? 4.0 : 24.0;
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: verticalPadding,
+                  ),
+                  child: Transform.translate(
+                    offset: const Offset(0, 4),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 330),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            l10n.settingsStep,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: TacticalPalette.muted,
+                              height: 1.2,
+                              letterSpacing: 1.6,
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.settingsDescription,
-                        style: TacticalTypography.body(
-                          fontSize: 12,
-                          color: TacticalPalette.muted,
-                          height: 1.55,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      _RankProgressCard(progress: rankProgress),
-                      const SizedBox(height: 4),
-                      Text(
-                        l10n.islandCountLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index <
-                                GameConfiguration.allowedIslandCounts.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            Expanded(
-                              child: _IslandCountChoice(
-                                state: state,
-                                count: GameConfiguration
-                                    .allowedIslandCounts[index],
+                          const SizedBox(height: 10),
+                          Semantics(
+                            header: true,
+                            child: Text(
+                              l10n.settingsTitle,
+                              style: TacticalTypography.of(context).display(
+                                fontSize: 40,
+                                height: 0.96,
+                                letterSpacing: -1.2,
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        l10n.gameModeLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          for (final mode in GameMode.values) ...[
-                            if (mode != GameMode.values.first)
-                              const SizedBox(width: 7),
-                            Expanded(
-                              child: _GameModeChoice(state: state, mode: mode),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.settingsDescription,
+                            style: TacticalTypography.of(context).body(
+                              fontSize: 12,
+                              color: TacticalPalette.muted,
+                              height: 1.55,
                             ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        state.configuration.gameMode == GameMode.cpuVsCpu
-                            ? l10n.playerCpuDifficultyLabel
-                            : l10n.cpuDifficultyLabel,
-                        style: TacticalTypography.mono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (state.configuration.gameMode ==
-                          GameMode.cpuVsCpu) ...[
-                        Row(
-                          children: [
-                            for (
-                              var index = 0;
-                              index < CpuDifficulty.values.length;
-                              index++
-                            ) ...[
-                              if (index > 0) const SizedBox(width: 7),
-                              Expanded(
-                                child: _DifficultyChoice(
-                                  state: state,
-                                  difficulty: CpuDifficulty.values[index],
-                                  playerCpu: true,
-                                  keyPrefix: 'player-cpu-difficulty',
+                          ),
+                          const SizedBox(height: 4),
+                          _RankProgressCard(progress: rankProgress),
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.islandCountLabel,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index <
+                                    GameConfiguration
+                                        .allowedIslandCounts
+                                        .length;
+                                index++
+                              ) ...[
+                                if (index > 0) const SizedBox(width: 7),
+                                Expanded(
+                                  child: _IslandCountChoice(
+                                    state: state,
+                                    count: GameConfiguration
+                                        .allowedIslandCounts[index],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Text(
-                          l10n.opponentCpuDifficultyLabel,
-                          style: TacticalTypography.mono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.9,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                      ],
-                      Row(
-                        children: [
-                          for (
-                            var index = 0;
-                            index < CpuDifficulty.values.length;
-                            index++
-                          ) ...[
-                            if (index > 0) const SizedBox(width: 7),
-                            Expanded(
-                              child: _DifficultyChoice(
-                                state: state,
-                                difficulty: CpuDifficulty.values[index],
+                          const SizedBox(height: 16),
+                          Text(
+                            l10n.gameModeLabel,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              for (final mode in GameMode.values) ...[
+                                if (mode != GameMode.values.first)
+                                  const SizedBox(width: 7),
+                                Expanded(
+                                  child: _GameModeChoice(
+                                    state: state,
+                                    mode: mode,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            state.configuration.gameMode == GameMode.cpuVsCpu
+                                ? l10n.playerCpuDifficultyLabel
+                                : l10n.cpuDifficultyLabel,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          if (state.configuration.gameMode ==
+                              GameMode.cpuVsCpu) ...[
+                            Row(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < CpuDifficulty.values.length;
+                                  index++
+                                ) ...[
+                                  if (index > 0) const SizedBox(width: 7),
+                                  Expanded(
+                                    child: _DifficultyChoice(
+                                      state: state,
+                                      difficulty: CpuDifficulty.values[index],
+                                      playerCpu: true,
+                                      keyPrefix: 'player-cpu-difficulty',
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              l10n.opponentCpuDifficultyLabel,
+                              style: TacticalTypography.of(context).mono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.9,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          Row(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < CpuDifficulty.values.length;
+                                index++
+                              ) ...[
+                                if (index > 0) const SizedBox(width: 7),
+                                Expanded(
+                                  child: _DifficultyChoice(
+                                    state: state,
+                                    difficulty: CpuDifficulty.values[index],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          _BgmToggle(
+                            enabled: bgmEnabled,
+                            onChanged: onBgmChanged,
+                          ),
+                          Semantics(
+                            button: onStart != null,
+                            enabled: onStart != null,
+                            child: SizedBox(
+                              height: 46,
+                              child: ElevatedButton(
+                                key: const ValueKey('start-game'),
+                                onPressed: onStart,
+                                style: ElevatedButton.styleFrom(
+                                  elevation: 0,
+                                  backgroundColor: TacticalPalette.foreground,
+                                  foregroundColor: TacticalPalette.paper,
+                                  shape: const RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(2),
+                                    ),
+                                  ),
+                                ),
+                                child: Semantics(
+                                  excludeSemantics: true,
+                                  label: _startLabel(l10n, state.configuration),
+                                  child: Text(
+                                    l10n.startGame,
+                                    style: TacticalTypography.of(context).body(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: TacticalPalette.paper,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (onStart == null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              key: const ValueKey('map-unavailable-message'),
+                              l10n.mapUnavailableMessage,
+                              textAlign: TextAlign.center,
+                              style: TacticalTypography.of(context).body(
+                                fontSize: 12,
+                                color: TacticalPalette.muted,
+                                height: 1.5,
                               ),
                             ),
                           ],
+                          const SizedBox(height: 17),
+                          Text(
+                            _selectionSummary(l10n, state.configuration),
+                            textAlign: TextAlign.center,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 10,
+                              color: TacticalPalette.muted,
+                              height: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            key: const ValueKey('return-title'),
+                            onPressed: onTitle,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                              visualDensity: VisualDensity.standard,
+                              foregroundColor: TacticalPalette.muted,
+                            ),
+                            child: Text(
+                              l10n.returnTitle,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 29),
-                      Semantics(
-                        button: onStart != null,
-                        enabled: onStart != null,
-                        child: SizedBox(
-                          height: 46,
-                          child: ElevatedButton(
-                            key: const ValueKey('start-game'),
-                            onPressed: onStart,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              backgroundColor: TacticalPalette.foreground,
-                              foregroundColor: TacticalPalette.paper,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(2),
-                                ),
-                              ),
-                            ),
-                            child: Semantics(
-                              excludeSemantics: true,
-                              label: _startLabel(l10n, state.configuration),
-                              child: Text(
-                                l10n.startGame,
-                                style: TacticalTypography.body(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: TacticalPalette.paper,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (onStart == null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          key: const ValueKey('map-unavailable-message'),
-                          l10n.mapUnavailableMessage,
-                          textAlign: TextAlign.center,
-                          style: TacticalTypography.body(
-                            fontSize: 12,
-                            color: TacticalPalette.muted,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 17),
-                      Text(
-                        _selectionSummary(l10n, state.configuration),
-                        textAlign: TextAlign.center,
-                        style: TacticalTypography.mono(
-                          fontSize: 10,
-                          color: TacticalPalette.muted,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        key: const ValueKey('return-title'),
-                        onPressed: onTitle,
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          visualDensity: VisualDensity.standard,
-                          foregroundColor: TacticalPalette.muted,
-                        ),
-                        child: Text(
-                          l10n.returnTitle,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -1065,7 +1278,7 @@ class _IslandCountChoice extends StatelessWidget {
             TacticalPalette.surface.withValues(alpha: 0.62),
             TacticalPalette.background,
           ),
-          labelStyle: TacticalTypography.mono(
+          labelStyle: TacticalTypography.of(context).mono(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1149,7 +1362,7 @@ class _DifficultyChoice extends StatelessWidget {
           TacticalPalette.surface.withValues(alpha: 0.62),
           TacticalPalette.background,
         ),
-        labelStyle: TacticalTypography.body(
+        labelStyle: TacticalTypography.of(context).body(
           fontSize: 13,
           fontWeight: FontWeight.w700,
           color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1218,7 +1431,7 @@ class _GameModeChoice extends StatelessWidget {
           TacticalPalette.surface.withValues(alpha: 0.62),
           TacticalPalette.background,
         ),
-        labelStyle: TacticalTypography.body(
+        labelStyle: TacticalTypography.of(context).body(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1326,7 +1539,7 @@ class _CountdownOverlay extends StatelessWidget {
                     child: Center(
                       child: Text(
                         text,
-                        style: TacticalTypography.display(
+                        style: TacticalTypography.of(context).display(
                           fontSize: text == l10n.startWord ? 42 : 82,
                           height: 0.9,
                           letterSpacing: text == l10n.startWord ? 1 : -4.9,
@@ -1338,7 +1551,7 @@ class _CountdownOverlay extends StatelessWidget {
                 const SizedBox(height: 23),
                 Text(
                   l10n.prepareToDeploy,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.65,
@@ -1469,7 +1682,7 @@ class _PrimaryActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TacticalTypography.body(
+          style: TacticalTypography.of(context).body(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: TacticalPalette.paper,
@@ -1507,11 +1720,9 @@ class _SecondaryActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TacticalTypography.body(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
+          style: TacticalTypography.of(
+            context,
+          ).body(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5),
         ),
       ),
     );
@@ -1555,10 +1766,9 @@ class _InteractionFeedback extends StatelessWidget {
                 child: Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TacticalTypography.body(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TacticalTypography.of(
+                    context,
+                  ).body(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
               ),
             ),

@@ -34,7 +34,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get titleSound => 'サウンド';
 
   @override
-  String get titleSoundDescription => 'このゲームは現在、音楽・効果音なしでプレイできます。';
+  String get titleSoundDescription => 'BGMは対戦設定と一時停止メニューで切り替えられます。';
 
   @override
   String get titleClose => '閉じる';
@@ -67,6 +67,84 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String get rankTitleRecruit => '新兵';
+
+  @override
+  String get rankTitlePrivateFirstClass => '一等兵';
+
+  @override
+  String get rankTitleLanceCorporal => '上等兵';
+
+  @override
+  String get rankTitleCorporal => '伍長';
+
+  @override
+  String get rankTitleSergeant => '軍曹';
+
+  @override
+  String get rankTitleStaffSergeant => '二等軍曹';
+
+  @override
+  String get rankTitleGunnerySergeant => '一等軍曹';
+
+  @override
+  String get rankTitleMasterSergeant => '曹長';
+
+  @override
+  String get rankTitleFirstSergeant => '専任曹長';
+
+  @override
+  String get rankTitleMasterGunnerySergeant => '上級曹長';
+
+  @override
+  String get rankTitleSergeantMajor => '最先任上級曹長';
+
+  @override
+  String get rankTitleWarrantOfficerOne => '准尉';
+
+  @override
+  String get rankTitleChiefWarrantOfficerTwo => '准尉2級';
+
+  @override
+  String get rankTitleChiefWarrantOfficerThree => '准尉3級';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFour => '准尉4級';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFive => '准尉5級';
+
+  @override
+  String get rankTitleSecondLieutenant => '少尉';
+
+  @override
+  String get rankTitleFirstLieutenant => '中尉';
+
+  @override
+  String get rankTitleCaptain => '大尉';
+
+  @override
+  String get rankTitleMajor => '少佐';
+
+  @override
+  String get rankTitleLieutenantColonel => '中佐';
+
+  @override
+  String get rankTitleColonel => '大佐';
+
+  @override
+  String get rankTitleBrigadierGeneral => '准将';
+
+  @override
+  String get rankTitleMajorGeneral => '少将';
+
+  @override
+  String get rankTitleLieutenantGeneral => '中将';
+
+  @override
+  String get rankTitleGeneral => '大将';
+
+  @override
   String rankDisplay({required int rank, required String title}) {
     return 'ランク $rank・$title';
   }
@@ -93,6 +171,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get opponentCpuDifficultyLabel => '2P CPU難易度';
+
+  @override
+  String get bgmLabel => 'BGM';
+
+  @override
+  String get bgmOn => 'オン';
+
+  @override
+  String get bgmOff => 'オフ';
+
+  @override
+  String bgmToggleSemantics({required String state}) {
+    return 'BGM：$state';
+  }
 
   @override
   String get startGame => 'ゲーム開始';
@@ -336,4 +428,10 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get feedbackInvalidatedSource => '出兵できません。出兵元は自軍が所有し、兵力が2以上必要です。';
+
+  @override
+  String get bgmUnavailableMessage => 'BGMを再生できません。音なしで対戦を続けます。';
+
+  @override
+  String get bgmRetry => 'BGMを再生';
 }

@@ -80,6 +80,51 @@ jobs:
       - name: Copy Vercel headers into web output
         run: cp vercel.json build/web/vercel.json
 
+      - name: Measure release Web sizes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          sum_bytes() {
+            find "$1" -type f -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }'
+          }
+
+          sum_font_bytes() {
+            find "$1/assets/assets/fonts" -type f \( -name '*.ttf' -o -name '*.otf' \) \
+              -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }'
+          }
+
+          current_web_bytes="$(sum_bytes build/web)"
+          current_font_bytes="$(sum_font_bytes build/web)"
+          baseline_dir="$(mktemp -d)"
+          trap 'rm -rf "$baseline_dir"' EXIT
+
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git archive "$BASE_SHA" | tar -x -C "$baseline_dir"
+          (
+            cd "$baseline_dir"
+            fvm flutter pub get
+            fvm flutter build web --release --base-href /
+            cp vercel.json build/web/vercel.json
+          )
+
+          baseline_web_bytes="$(sum_bytes "$baseline_dir/build/web")"
+          baseline_font_bytes="$(sum_font_bytes "$baseline_dir/build/web")"
+          {
+            echo "## Release Web size comparison"
+            echo
+            echo "| Build | UI font assets | build/web total |"
+            echo "| --- | ---: | ---: |"
+            echo "| Base ${BASE_SHA:0:12} | ${baseline_font_bytes} bytes | ${baseline_web_bytes} bytes |"
+            echo "| PR ${HEAD_SHA:0:12} | ${current_font_bytes} bytes | ${current_web_bytes} bytes |"
+            echo
+            echo "UI font assets include the registered TTF/OTF files under assets/assets/fonts."
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Skip Vercel deploy
         if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
         run: echo "::notice::Vercel secrets are not configured; built build/web without deploying."

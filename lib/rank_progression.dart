@@ -2,175 +2,334 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'game/game_state.dart';
+import 'l10n/generated/app_localizations.dart';
 
-/// One row from the BF4 rank table. [requiredXp] is the XP for this stage.
+/// The localized name key shared by every rank in one BF4 title group.
+enum RankTitleKey {
+  recruit(0),
+  privateFirstClass(1),
+  lanceCorporal(6),
+  corporal(11),
+  sergeant(16),
+  staffSergeant(21),
+  gunnerySergeant(26),
+  masterSergeant(31),
+  firstSergeant(36),
+  masterGunnerySergeant(41),
+  sergeantMajor(46),
+  warrantOfficerOne(51),
+  chiefWarrantOfficerTwo(56),
+  chiefWarrantOfficerThree(61),
+  chiefWarrantOfficerFour(66),
+  chiefWarrantOfficerFive(71),
+  secondLieutenant(76),
+  firstLieutenant(81),
+  captain(86),
+  major(91),
+  lieutenantColonel(96, japaneseInitialNumeral: true),
+  colonel(100),
+  brigadierGeneral(110),
+  majorGeneral(120),
+  lieutenantGeneral(130),
+  general(140);
+
+  const RankTitleKey(this.firstRank, {this.japaneseInitialNumeral = false});
+
+  final int firstRank;
+
+  // The existing Japanese table includes 中佐Ⅰ at rank 96. Keep that
+  // established display while English follows the requested no-suffix rule.
+  final bool japaneseInitialNumeral;
+}
+
+/// One row from the language-independent BF4 rank table.
 final class RankTier {
-  const RankTier(this.rank, this.title, this.requiredXp);
+  const RankTier(this.rank, this.titleKey, this.requiredXp);
 
   final int rank;
-  final String title;
+  final RankTitleKey titleKey;
   final int requiredXp;
+
+  String localizedTitle(AppLocalizations l10n) {
+    final baseTitle = switch (titleKey) {
+      RankTitleKey.recruit => l10n.rankTitleRecruit,
+      RankTitleKey.privateFirstClass => l10n.rankTitlePrivateFirstClass,
+      RankTitleKey.lanceCorporal => l10n.rankTitleLanceCorporal,
+      RankTitleKey.corporal => l10n.rankTitleCorporal,
+      RankTitleKey.sergeant => l10n.rankTitleSergeant,
+      RankTitleKey.staffSergeant => l10n.rankTitleStaffSergeant,
+      RankTitleKey.gunnerySergeant => l10n.rankTitleGunnerySergeant,
+      RankTitleKey.masterSergeant => l10n.rankTitleMasterSergeant,
+      RankTitleKey.firstSergeant => l10n.rankTitleFirstSergeant,
+      RankTitleKey.masterGunnerySergeant => l10n.rankTitleMasterGunnerySergeant,
+      RankTitleKey.sergeantMajor => l10n.rankTitleSergeantMajor,
+      RankTitleKey.warrantOfficerOne => l10n.rankTitleWarrantOfficerOne,
+      RankTitleKey.chiefWarrantOfficerTwo =>
+        l10n.rankTitleChiefWarrantOfficerTwo,
+      RankTitleKey.chiefWarrantOfficerThree =>
+        l10n.rankTitleChiefWarrantOfficerThree,
+      RankTitleKey.chiefWarrantOfficerFour =>
+        l10n.rankTitleChiefWarrantOfficerFour,
+      RankTitleKey.chiefWarrantOfficerFive =>
+        l10n.rankTitleChiefWarrantOfficerFive,
+      RankTitleKey.secondLieutenant => l10n.rankTitleSecondLieutenant,
+      RankTitleKey.firstLieutenant => l10n.rankTitleFirstLieutenant,
+      RankTitleKey.captain => l10n.rankTitleCaptain,
+      RankTitleKey.major => l10n.rankTitleMajor,
+      RankTitleKey.lieutenantColonel => l10n.rankTitleLieutenantColonel,
+      RankTitleKey.colonel => l10n.rankTitleColonel,
+      RankTitleKey.brigadierGeneral => l10n.rankTitleBrigadierGeneral,
+      RankTitleKey.majorGeneral => l10n.rankTitleMajorGeneral,
+      RankTitleKey.lieutenantGeneral => l10n.rankTitleLieutenantGeneral,
+      RankTitleKey.general => l10n.rankTitleGeneral,
+    };
+    final stage = rank - titleKey.firstRank;
+    final isJapanese = l10n.localeName.toLowerCase().startsWith('ja');
+    if (isJapanese) {
+      final numeral = stage == 0
+          ? (titleKey.japaneseInitialNumeral ? 1 : 0)
+          : stage + 1;
+      return numeral == 0
+          ? baseTitle
+          : baseTitle + _japaneseRankNumerals[numeral];
+    }
+    if (stage == 0) return baseTitle;
+    return baseTitle + ' ' + _englishRankNumerals[stage + 1];
+  }
 
   @override
   bool operator ==(Object other) =>
       other is RankTier &&
       other.rank == rank &&
-      other.title == title &&
+      other.titleKey == titleKey &&
       other.requiredXp == requiredXp;
 
   @override
-  int get hashCode => Object.hash(rank, title, requiredXp);
+  int get hashCode => Object.hash(rank, titleKey, requiredXp);
 }
+
+const _japaneseRankNumerals = <String>[
+  '',
+  'Ⅰ',
+  'Ⅱ',
+  'Ⅲ',
+  'Ⅳ',
+  'Ⅴ',
+  'Ⅵ',
+  'Ⅶ',
+  'Ⅷ',
+  'Ⅸ',
+  'Ⅹ',
+];
+
+const _englishRankNumerals = <String>[
+  '',
+  'I',
+  'II',
+  'III',
+  'IV',
+  'V',
+  'VI',
+  'VII',
+  'VIII',
+  'IX',
+  'X',
+];
 
 /// The complete BF4 rank table used by Conquest.
 abstract final class RankCatalog {
-  static const tiers = <RankTier>[
-    RankTier(0, '新兵', 0),
-    RankTier(1, '一等兵', 3000),
-    RankTier(2, '一等兵Ⅱ', 8000),
-    RankTier(3, '一等兵Ⅲ', 11000),
-    RankTier(4, '一等兵Ⅳ', 13000),
-    RankTier(5, '一等兵Ⅴ', 17000),
-    RankTier(6, '上等兵', 18000),
-    RankTier(7, '上等兵Ⅱ', 21000),
-    RankTier(8, '上等兵Ⅲ', 24000),
-    RankTier(9, '上等兵Ⅳ', 25000),
-    RankTier(10, '上等兵Ⅴ', 28000),
-    RankTier(11, '伍長', 29000),
-    RankTier(12, '伍長Ⅱ', 32000),
-    RankTier(13, '伍長Ⅲ', 33000),
-    RankTier(14, '伍長Ⅳ', 35000),
-    RankTier(15, '伍長Ⅴ', 37000),
-    RankTier(16, '軍曹', 39000),
-    RankTier(17, '軍曹Ⅱ', 40000),
-    RankTier(18, '軍曹Ⅲ', 42000),
-    RankTier(19, '軍曹Ⅳ', 44000),
-    RankTier(20, '軍曹Ⅴ', 46000),
-    RankTier(21, '二等軍曹', 47000),
-    RankTier(22, '二等軍曹Ⅱ', 48000),
-    RankTier(23, '二等軍曹Ⅲ', 51000),
-    RankTier(24, '二等軍曹Ⅳ', 51000),
-    RankTier(25, '二等軍曹Ⅴ', 54000),
-    RankTier(26, '一等軍曹', 55000),
-    RankTier(27, '一等軍曹Ⅱ', 56000),
-    RankTier(28, '一等軍曹Ⅲ', 58000),
-    RankTier(29, '一等軍曹Ⅳ', 58000),
-    RankTier(30, '一等軍曹Ⅴ', 58000),
-    RankTier(31, '曹長', 69000),
-    RankTier(32, '曹長Ⅱ', 65000),
-    RankTier(33, '曹長Ⅲ', 65000),
-    RankTier(34, '曹長Ⅳ', 65000),
-    RankTier(35, '曹長Ⅴ', 65000),
-    RankTier(36, '専任曹長', 70000),
-    RankTier(37, '専任曹長Ⅱ', 70000),
-    RankTier(38, '専任曹長Ⅲ', 70000),
-    RankTier(39, '専任曹長Ⅳ', 70000),
-    RankTier(40, '専任曹長Ⅴ', 80000),
-    RankTier(41, '上級曹長', 80000),
-    RankTier(42, '上級曹長Ⅱ', 75000),
-    RankTier(43, '上級曹長Ⅲ', 75000),
-    RankTier(44, '上級曹長Ⅳ', 80000),
-    RankTier(45, '上級曹長Ⅴ', 80000),
-    RankTier(46, '最先任上級曹長', 80000),
-    RankTier(47, '最先任上級曹長Ⅱ', 90000),
-    RankTier(48, '最先任上級曹長Ⅲ', 80000),
-    RankTier(49, '最先任上級曹長Ⅳ', 90000),
-    RankTier(50, '最先任上級曹長Ⅴ', 90000),
-    RankTier(51, '准尉', 90000),
-    RankTier(52, '准尉Ⅱ', 100000),
-    RankTier(53, '准尉Ⅲ', 100000),
-    RankTier(54, '准尉Ⅳ', 90000),
-    RankTier(55, '准尉Ⅴ', 90000),
-    RankTier(56, '准尉2級', 90000),
-    RankTier(57, '准尉2級Ⅱ', 90000),
-    RankTier(58, '准尉2級Ⅲ', 100000),
-    RankTier(59, '准尉2級Ⅳ', 100000),
-    RankTier(60, '准尉2級Ⅴ', 90000),
-    RankTier(61, '准尉3級', 110000),
-    RankTier(62, '准尉3級Ⅱ', 100000),
-    RankTier(63, '准尉3級Ⅲ', 100000),
-    RankTier(64, '准尉3級Ⅳ', 110000),
-    RankTier(65, '准尉3級Ⅴ', 110000),
-    RankTier(66, '准尉4級', 90000),
-    RankTier(67, '准尉4級Ⅱ', 110000),
-    RankTier(68, '准尉4級Ⅲ', 110000),
-    RankTier(69, '准尉4級Ⅳ', 120000),
-    RankTier(70, '准尉4級Ⅴ', 120000),
-    RankTier(71, '准尉5級', 110000),
-    RankTier(72, '准尉5級Ⅱ', 110000),
-    RankTier(73, '准尉5級Ⅲ', 110000),
-    RankTier(74, '准尉5級Ⅳ', 110000),
-    RankTier(75, '准尉5級Ⅴ', 120000),
-    RankTier(76, '少尉', 120000),
-    RankTier(77, '少尉Ⅱ', 120000),
-    RankTier(78, '少尉Ⅲ', 120000),
-    RankTier(79, '少尉Ⅳ', 120000),
-    RankTier(80, '少尉Ⅴ', 120000),
-    RankTier(81, '中尉', 130000),
-    RankTier(82, '中尉Ⅱ', 120000),
-    RankTier(83, '中尉Ⅲ', 120000),
-    RankTier(84, '中尉Ⅳ', 130000),
-    RankTier(85, '中尉Ⅴ', 130000),
-    RankTier(86, '大尉', 130000),
-    RankTier(87, '大尉Ⅱ', 130000),
-    RankTier(88, '大尉Ⅲ', 120000),
-    RankTier(89, '大尉Ⅳ', 130000),
-    RankTier(90, '大尉Ⅴ', 130000),
-    RankTier(91, '少佐', 140000),
-    RankTier(92, '少佐Ⅱ', 130000),
-    RankTier(93, '少佐Ⅲ', 140000),
-    RankTier(94, '少佐Ⅳ', 130000),
-    RankTier(95, '少佐Ⅴ', 140000),
-    RankTier(96, '中佐Ⅰ', 150000),
-    RankTier(97, '中佐Ⅱ', 140000),
-    RankTier(98, '中佐Ⅲ', 140000),
-    RankTier(99, '中佐Ⅳ', 130000),
-    RankTier(100, '大佐', 140000),
-    RankTier(101, '大佐Ⅱ', 200000),
-    RankTier(102, '大佐Ⅲ', 200000),
-    RankTier(103, '大佐Ⅳ', 200000),
-    RankTier(104, '大佐Ⅴ', 200000),
-    RankTier(105, '大佐Ⅵ', 200000),
-    RankTier(106, '大佐Ⅶ', 200000),
-    RankTier(107, '大佐Ⅷ', 200000),
-    RankTier(108, '大佐Ⅸ', 200000),
-    RankTier(109, '大佐Ⅹ', 200000),
-    RankTier(110, '准将', 200000),
-    RankTier(111, '准将Ⅱ', 300000),
-    RankTier(112, '准将Ⅲ', 470000),
-    RankTier(113, '准将Ⅳ', 480000),
-    RankTier(114, '准将Ⅴ', 500000),
-    RankTier(115, '准将Ⅵ', 510000),
-    RankTier(116, '准将Ⅶ', 530000),
-    RankTier(117, '准将Ⅷ', 550000),
-    RankTier(118, '准将Ⅸ', 560000),
-    RankTier(119, '准将Ⅹ', 590000),
-    RankTier(120, '少将', 600000),
-    RankTier(121, '少将Ⅱ', 620000),
-    RankTier(122, '少将Ⅲ', 640000),
-    RankTier(123, '少将Ⅳ', 660000),
-    RankTier(124, '少将Ⅴ', 680000),
-    RankTier(125, '少将Ⅵ', 700000),
-    RankTier(126, '少将Ⅶ', 730000),
-    RankTier(127, '少将Ⅷ', 740000),
-    RankTier(128, '少将Ⅸ', 770000),
-    RankTier(129, '少将Ⅹ', 790000),
-    RankTier(130, '中将', 810000),
-    RankTier(131, '中将Ⅱ', 840000),
-    RankTier(132, '中将Ⅲ', 860000),
-    RankTier(133, '中将Ⅳ', 890000),
-    RankTier(134, '中将Ⅴ', 910000),
-    RankTier(135, '中将Ⅵ', 940000),
-    RankTier(136, '中将Ⅶ', 960000),
-    RankTier(137, '中将Ⅷ', 990000),
-    RankTier(138, '中将Ⅸ', 1020000),
-    RankTier(139, '中将Ⅹ', 1050000),
-    RankTier(140, '大将', 1070000),
+  static const _titleKeyRuns = <MapEntry<RankTitleKey, int>>[
+    MapEntry(RankTitleKey.recruit, 1),
+    MapEntry(RankTitleKey.privateFirstClass, 5),
+    MapEntry(RankTitleKey.lanceCorporal, 5),
+    MapEntry(RankTitleKey.corporal, 5),
+    MapEntry(RankTitleKey.sergeant, 5),
+    MapEntry(RankTitleKey.staffSergeant, 5),
+    MapEntry(RankTitleKey.gunnerySergeant, 5),
+    MapEntry(RankTitleKey.masterSergeant, 5),
+    MapEntry(RankTitleKey.firstSergeant, 5),
+    MapEntry(RankTitleKey.masterGunnerySergeant, 5),
+    MapEntry(RankTitleKey.sergeantMajor, 5),
+    MapEntry(RankTitleKey.warrantOfficerOne, 5),
+    MapEntry(RankTitleKey.chiefWarrantOfficerTwo, 5),
+    MapEntry(RankTitleKey.chiefWarrantOfficerThree, 5),
+    MapEntry(RankTitleKey.chiefWarrantOfficerFour, 5),
+    MapEntry(RankTitleKey.chiefWarrantOfficerFive, 5),
+    MapEntry(RankTitleKey.secondLieutenant, 5),
+    MapEntry(RankTitleKey.firstLieutenant, 5),
+    MapEntry(RankTitleKey.captain, 5),
+    MapEntry(RankTitleKey.major, 5),
+    MapEntry(RankTitleKey.lieutenantColonel, 4),
+    MapEntry(RankTitleKey.colonel, 10),
+    MapEntry(RankTitleKey.brigadierGeneral, 10),
+    MapEntry(RankTitleKey.majorGeneral, 10),
+    MapEntry(RankTitleKey.lieutenantGeneral, 10),
+    MapEntry(RankTitleKey.general, 1),
   ];
+
+  static const _requiredXp = <int>[
+    0,
+    3000,
+    8000,
+    11000,
+    13000,
+    17000,
+    18000,
+    21000,
+    24000,
+    25000,
+    28000,
+    29000,
+    32000,
+    33000,
+    35000,
+    37000,
+    39000,
+    40000,
+    42000,
+    44000,
+    46000,
+    47000,
+    48000,
+    51000,
+    51000,
+    54000,
+    55000,
+    56000,
+    58000,
+    58000,
+    58000,
+    69000,
+    65000,
+    65000,
+    65000,
+    65000,
+    70000,
+    70000,
+    70000,
+    70000,
+    80000,
+    80000,
+    75000,
+    75000,
+    80000,
+    80000,
+    80000,
+    90000,
+    80000,
+    90000,
+    90000,
+    90000,
+    100000,
+    100000,
+    90000,
+    90000,
+    90000,
+    90000,
+    100000,
+    100000,
+    90000,
+    110000,
+    100000,
+    100000,
+    110000,
+    110000,
+    90000,
+    110000,
+    110000,
+    120000,
+    120000,
+    110000,
+    110000,
+    110000,
+    110000,
+    120000,
+    120000,
+    120000,
+    120000,
+    120000,
+    120000,
+    130000,
+    120000,
+    120000,
+    130000,
+    130000,
+    130000,
+    130000,
+    120000,
+    130000,
+    130000,
+    140000,
+    130000,
+    140000,
+    130000,
+    140000,
+    150000,
+    140000,
+    140000,
+    130000,
+    140000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    200000,
+    300000,
+    470000,
+    480000,
+    500000,
+    510000,
+    530000,
+    550000,
+    560000,
+    590000,
+    600000,
+    620000,
+    640000,
+    660000,
+    680000,
+    700000,
+    730000,
+    740000,
+    770000,
+    790000,
+    810000,
+    840000,
+    860000,
+    890000,
+    910000,
+    940000,
+    960000,
+    990000,
+    1020000,
+    1050000,
+    1070000,
+  ];
+
+  static final tiers = _buildTiers();
 
   static const stageXpTotal = 32180000;
 
   static final cumulativeXp = _buildCumulativeXp();
+
+  static List<RankTier> _buildTiers() {
+    final titleKeys = <RankTitleKey>[];
+    for (final run in _titleKeyRuns) {
+      titleKeys.addAll(List<RankTitleKey>.filled(run.value, run.key));
+    }
+    if (titleKeys.length != _requiredXp.length) {
+      throw StateError('Rank title and XP tables must have the same length');
+    }
+    return List<RankTier>.unmodifiable([
+      for (var rank = 0; rank < _requiredXp.length; rank++)
+        RankTier(rank, titleKeys[rank], _requiredXp[rank]),
+    ]);
+  }
 
   static List<int> _buildCumulativeXp() {
     var total = 0;
@@ -192,7 +351,6 @@ final class RankProgress {
   const RankProgress({
     required this.totalXp,
     required this.rank,
-    required this.title,
     required this.currentRankXp,
     required this.nextRankXp,
     required this.xpToNextRank,
@@ -202,7 +360,6 @@ final class RankProgress {
   static const zero = RankProgress(
     totalXp: 0,
     rank: 0,
-    title: '新兵',
     currentRankXp: 0,
     nextRankXp: 3000,
     xpToNextRank: 3000,
@@ -227,7 +384,6 @@ final class RankProgress {
     return RankProgress(
       totalXp: safeTotalXp,
       rank: rank,
-      title: RankCatalog.tiers[rank].title,
       currentRankXp: currentRankXp,
       nextRankXp: nextRankXp,
       xpToNextRank: isMax ? 0 : nextRankXp! - currentRankXp,
@@ -237,11 +393,14 @@ final class RankProgress {
 
   final int totalXp;
   final int rank;
-  final String title;
   final int currentRankXp;
   final int? nextRankXp;
   final int xpToNextRank;
   final double progressRatio;
+
+  RankTier get tier => RankCatalog.tiers[rank];
+
+  String localizedTitle(AppLocalizations l10n) => tier.localizedTitle(l10n);
 
   bool get isMax => rank == RankCatalog.tiers.length - 1;
 
@@ -250,7 +409,6 @@ final class RankProgress {
       other is RankProgress &&
       other.totalXp == totalXp &&
       other.rank == rank &&
-      other.title == title &&
       other.currentRankXp == currentRankXp &&
       other.nextRankXp == nextRankXp &&
       other.xpToNextRank == xpToNextRank &&
@@ -260,7 +418,6 @@ final class RankProgress {
   int get hashCode => Object.hash(
     totalXp,
     rank,
-    title,
     currentRankXp,
     nextRankXp,
     xpToNextRank,

@@ -38,7 +38,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get titleSoundDescription =>
-      'This game currently plays without music or sound effects.';
+      'Background music can be controlled in match setup and while paused.';
 
   @override
   String get titleClose => 'Close';
@@ -72,6 +72,84 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String get rankTitleRecruit => 'Recruit';
+
+  @override
+  String get rankTitlePrivateFirstClass => 'Private First Class';
+
+  @override
+  String get rankTitleLanceCorporal => 'Lance Corporal';
+
+  @override
+  String get rankTitleCorporal => 'Corporal';
+
+  @override
+  String get rankTitleSergeant => 'Sergeant';
+
+  @override
+  String get rankTitleStaffSergeant => 'Staff Sergeant';
+
+  @override
+  String get rankTitleGunnerySergeant => 'Gunnery Sergeant';
+
+  @override
+  String get rankTitleMasterSergeant => 'Master Sergeant';
+
+  @override
+  String get rankTitleFirstSergeant => 'First Sergeant';
+
+  @override
+  String get rankTitleMasterGunnerySergeant => 'Master Gunnery Sergeant';
+
+  @override
+  String get rankTitleSergeantMajor => 'Sergeant Major';
+
+  @override
+  String get rankTitleWarrantOfficerOne => 'Warrant Officer One';
+
+  @override
+  String get rankTitleChiefWarrantOfficerTwo => 'Chief Warrant Officer Two';
+
+  @override
+  String get rankTitleChiefWarrantOfficerThree => 'Chief Warrant Officer Three';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFour => 'Chief Warrant Officer Four';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFive => 'Chief Warrant Officer Five';
+
+  @override
+  String get rankTitleSecondLieutenant => 'Second Lieutenant';
+
+  @override
+  String get rankTitleFirstLieutenant => 'First Lieutenant';
+
+  @override
+  String get rankTitleCaptain => 'Captain';
+
+  @override
+  String get rankTitleMajor => 'Major';
+
+  @override
+  String get rankTitleLieutenantColonel => 'Lieutenant Colonel';
+
+  @override
+  String get rankTitleColonel => 'Colonel';
+
+  @override
+  String get rankTitleBrigadierGeneral => 'Brigadier General';
+
+  @override
+  String get rankTitleMajorGeneral => 'Major General';
+
+  @override
+  String get rankTitleLieutenantGeneral => 'Lieutenant General';
+
+  @override
+  String get rankTitleGeneral => 'General';
+
+  @override
   String rankDisplay({required int rank, required String title}) {
     return 'Rank $rank · $title';
   }
@@ -98,6 +176,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get opponentCpuDifficultyLabel => '2P CPU Difficulty';
+
+  @override
+  String get bgmLabel => 'BGM';
+
+  @override
+  String get bgmOn => 'ON';
+
+  @override
+  String get bgmOff => 'OFF';
+
+  @override
+  String bgmToggleSemantics({required String state}) {
+    return 'Background music: $state';
+  }
 
   @override
   String get startGame => 'Start Game';
@@ -347,4 +439,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get feedbackInvalidatedSource =>
       'Dispatch unavailable: the source must be player-owned and have more than 1 force.';
+
+  @override
+  String get bgmUnavailableMessage =>
+      'BGM could not be played. The match continues without music.';
+
+  @override
+  String get bgmRetry => 'Play BGM';
 }
