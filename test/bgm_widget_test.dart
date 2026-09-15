@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:conquest/audio/bgm_player.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
+import 'package:conquest/game/game_state.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
@@ -30,7 +31,9 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Object? prepareError;
   Object? playError;
+  Object? pauseError;
   Object? resumeError;
+  Object? stopAndResetError;
 
   @override
   Future<void> prepare() async {
@@ -47,7 +50,11 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   }
 
   @override
-  Future<void> pause() async => calls.add('pause');
+  Future<void> pause() async {
+    calls.add('pause');
+    final error = pauseError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> resume() async {
@@ -57,7 +64,11 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   }
 
   @override
-  Future<void> stopAndReset() async => calls.add('stopAndReset');
+  Future<void> stopAndReset() async {
+    calls.add('stopAndReset');
+    final error = stopAndResetError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> dispose() async => calls.add('dispose');
@@ -145,6 +156,52 @@ void main() {
 
     expect(menu.calls, ['prepare', 'playFromStart', 'stopAndReset']);
     expect(battle.calls, ['prepare', 'playFromStart']);
+  });
+
+  testWidgets('shows a retry notice when result BGM cleanup fails', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await openMatchSetup(tester);
+
+    final islandFinder = find.byKey(const ValueKey('island-0'));
+    final container = ProviderScope.containerOf(tester.element(islandFinder));
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    battle.stopAndResetError = StateError('result stop failed');
+    battle.pauseError = StateError('result pause failed');
+    controller.finish(const GameResult.victory(elapsedMs: 1));
+    await tester.pump();
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(find.byKey(const ValueKey('result-sheet')), findsOneWidget);
+    expect(notice, findsOneWidget);
+
+    battle.stopAndResetError = null;
+    battle.pauseError = null;
+    await tester.tap(find.byKey(const ValueKey('bgm-retry')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(battle.calls.where((call) => call == 'stopAndReset'), hasLength(2));
+    expect(notice, findsNothing);
   });
 
   testWidgets('a dismissed menu failure reappears for a later battle failure', (

@@ -46,11 +46,13 @@ final class AppBgmController {
   var _disposed = false;
   var _requestSerial = 0;
   var _failureSerial = 0;
+  Object? _transitionError;
 
   AppBgmTrack get activeTrack => _activeTrack;
 
   AppBgmStatus get status {
     if (_disposed) return AppBgmStatus.disposed;
+    if (_transitionError != null) return AppBgmStatus.unavailable;
     final state = _stateFor(_desiredTrack);
     return state?.status ?? AppBgmStatus.idle;
   }
@@ -63,13 +65,14 @@ final class AppBgmController {
     final target = _desiredTrack;
     final state = _stateFor(target);
     return !_disposed &&
-        target != AppBgmTrack.none &&
         _enabled &&
         _appVisible &&
-        state?.lastError != null;
+        (_transitionError != null ||
+            (target != AppBgmTrack.none && state?.lastError != null));
   }
 
-  Object? get lastError => _stateFor(_desiredTrack)?.lastError;
+  Object? get lastError =>
+      _transitionError ?? _stateFor(_desiredTrack)?.lastError;
 
   /// Identifies each newly reported failure across the application.
   ///
@@ -163,6 +166,7 @@ final class AppBgmController {
   /// Retries the current target track using the same player instance.
   void retry() {
     if (!canRetry) return;
+    _transitionError = null;
     _clearError(_stateFor(_desiredTrack));
     _requestSerial++;
     _scheduleSync();
@@ -216,15 +220,17 @@ final class AppBgmController {
 
     if (target == AppBgmTrack.none) {
       if (_activeTrack != AppBgmTrack.none) {
-        await _resetTrack(_activeTrack);
+        final outgoingTrack = _activeTrack;
+        if (!await _resetTrack(outgoingTrack)) return;
         _activeTrack = AppBgmTrack.none;
+        _clearResetRequest(outgoingTrack);
       }
       if (_menuNeedsReset) {
-        await _resetTrack(AppBgmTrack.menu);
+        if (!await _resetTrack(AppBgmTrack.menu)) return;
         _menuNeedsReset = false;
       }
       if (_battleNeedsReset) {
-        await _resetTrack(AppBgmTrack.battle);
+        if (!await _resetTrack(AppBgmTrack.battle)) return;
         _battleNeedsReset = false;
       }
       return;
@@ -232,33 +238,47 @@ final class AppBgmController {
 
     if (_activeTrack != target) {
       if (_activeTrack != AppBgmTrack.none) {
-        await _resetTrack(_activeTrack);
+        final outgoingTrack = _activeTrack;
+        if (!await _resetTrack(outgoingTrack)) return;
         _activeTrack = AppBgmTrack.none;
+        _clearResetRequest(outgoingTrack);
       }
-      if (target == AppBgmTrack.menu && _menuNeedsReset) {
-        await _resetTrack(AppBgmTrack.menu);
+      if (target == AppBgmTrack.menu &&
+          (_menuNeedsReset || _menu.needsHardReset)) {
+        if (!await _resetTrack(AppBgmTrack.menu, requireHardReset: true)) {
+          return;
+        }
         _menuNeedsReset = false;
       }
-      if (target == AppBgmTrack.battle && _battleNeedsReset) {
-        await _resetTrack(AppBgmTrack.battle);
+      if (target == AppBgmTrack.battle &&
+          (_battleNeedsReset || _battle.needsHardReset)) {
+        if (!await _resetTrack(AppBgmTrack.battle, requireHardReset: true)) {
+          return;
+        }
         _battleNeedsReset = false;
       }
       if (target == AppBgmTrack.battle && _menuNeedsReset) {
-        await _resetTrack(AppBgmTrack.menu);
+        if (!await _resetTrack(AppBgmTrack.menu)) return;
         _menuNeedsReset = false;
       }
       _activeTrack = target;
     } else {
-      if (target == AppBgmTrack.menu && _menuNeedsReset) {
-        await _resetTrack(AppBgmTrack.menu);
+      if (target == AppBgmTrack.menu &&
+          (_menuNeedsReset || _menu.needsHardReset)) {
+        if (!await _resetTrack(AppBgmTrack.menu, requireHardReset: true)) {
+          return;
+        }
         _menuNeedsReset = false;
       }
-      if (target == AppBgmTrack.battle && _battleNeedsReset) {
-        await _resetTrack(AppBgmTrack.battle);
+      if (target == AppBgmTrack.battle &&
+          (_battleNeedsReset || _battle.needsHardReset)) {
+        if (!await _resetTrack(AppBgmTrack.battle, requireHardReset: true)) {
+          return;
+        }
         _battleNeedsReset = false;
       }
       if (target == AppBgmTrack.battle && _menuNeedsReset) {
-        await _resetTrack(AppBgmTrack.menu);
+        if (!await _resetTrack(AppBgmTrack.menu)) return;
         _menuNeedsReset = false;
       }
     }
@@ -272,7 +292,7 @@ final class AppBgmController {
     if (serial != _requestSerial || target != _desiredTrack) return;
 
     if (!_shouldPlay) {
-      if (state.isPlaying) await _pauseTrack(target, state);
+      if (state.isPlaying) await _pauseTrack(serial, target, state);
       return;
     }
     if (state.sourcePrepared && !state.isPlaying && state.lastError == null) {
@@ -336,33 +356,97 @@ final class AppBgmController {
     }
   }
 
-  Future<void> _pauseTrack(AppBgmTrack track, _TrackState state) async {
+  Future<void> _pauseTrack(
+    int serial,
+    AppBgmTrack track,
+    _TrackState state,
+  ) async {
     try {
       await _playerFor(track).pause();
       state.isPlaying = false;
       state.status = AppBgmStatus.paused;
       _notifyListeners();
     } catch (error, stackTrace) {
-      if (!_disposed) _recordError(state, error, stackTrace);
+      if (_isCurrentTrack(serial, track)) {
+        _recordError(state, error, stackTrace);
+      } else if (!_disposed) {
+        // A pause may finish after the user has turned BGM back on or moved
+        // to another surface. The old failure must not block that newer
+        // request from resuming its track.
+        _reportError(error, stackTrace);
+        state.isPlaying = false;
+        state.status = AppBgmStatus.paused;
+        _notifyListeners();
+      }
     }
   }
 
-  Future<void> _resetTrack(AppBgmTrack track) async {
+  /// Stops an outgoing track before another track is allowed to own the
+  /// application. A pause fallback is enough to guarantee silence when the
+  /// plugin's stop/reset call fails; if both calls fail, ownership stays with
+  /// the outgoing track until an explicit retry succeeds.
+  Future<bool> _resetTrack(
+    AppBgmTrack track, {
+    bool requireHardReset = false,
+  }) async {
     final state = _stateFor(track);
-    if (state == null) return;
+    if (state == null) return true;
     final shouldReset =
-        state.sourcePrepared || state.isPlaying || state.hasPlayed;
+        state.sourcePrepared ||
+        state.isPlaying ||
+        state.hasPlayed ||
+        state.needsHardReset;
+    if (!shouldReset) {
+      _clearTrackState(state);
+      return true;
+    }
+    try {
+      await _playerFor(track).stopAndReset();
+      _clearTrackState(state);
+      _transitionError = null;
+      return true;
+    } catch (error, stackTrace) {
+      _reportError(error, stackTrace);
+      try {
+        await _playerFor(track).pause();
+        state.isPlaying = false;
+        state.needsHardReset = true;
+        state.lastError = null;
+        state.status = AppBgmStatus.paused;
+        _notifyListeners();
+        _transitionError = null;
+        if (requireHardReset) {
+          _recordTransitionError(error, stackTrace);
+          return false;
+        }
+        return true;
+      } catch (pauseError, pauseStackTrace) {
+        state.status = AppBgmStatus.unavailable;
+        _notifyListeners();
+        _recordTransitionError(pauseError, pauseStackTrace);
+        return false;
+      }
+    }
+  }
+
+  void _clearTrackState(_TrackState state) {
     state.sourcePrepared = false;
     state.isPlaying = false;
     state.hasPlayed = false;
+    state.needsHardReset = false;
     state.lastError = null;
     state.status = AppBgmStatus.idle;
     _notifyListeners();
-    if (!shouldReset) return;
-    try {
-      await _playerFor(track).stopAndReset();
-    } catch (error, stackTrace) {
-      _reportError(error, stackTrace);
+  }
+
+  void _clearResetRequest(AppBgmTrack track) {
+    switch (track) {
+      case AppBgmTrack.menu:
+        _menuNeedsReset = false;
+      case AppBgmTrack.battle:
+        _battleNeedsReset = false;
+      case AppBgmTrack.none:
+        break;
     }
   }
 
@@ -390,6 +474,10 @@ final class AppBgmController {
         serial == _requestSerial &&
         track == _desiredTrack &&
         _shouldPlay;
+  }
+
+  bool _isCurrentTrack(int serial, AppBgmTrack track) {
+    return !_disposed && serial == _requestSerial && track == _desiredTrack;
   }
 
   BgmPlayer _playerFor(AppBgmTrack track) => switch (track) {
@@ -424,6 +512,13 @@ final class AppBgmController {
     state.lastError ??= error;
     state.isPlaying = false;
     state.status = AppBgmStatus.unavailable;
+    _notifyListeners();
+    _reportError(error, stackTrace);
+  }
+
+  void _recordTransitionError(Object error, StackTrace stackTrace) {
+    if (_transitionError == null) _failureSerial++;
+    _transitionError ??= error;
     _notifyListeners();
     _reportError(error, stackTrace);
   }
@@ -495,4 +590,5 @@ final class _TrackState {
   var sourcePrepared = false;
   var hasPlayed = false;
   var isPlaying = false;
+  var needsHardReset = false;
 }

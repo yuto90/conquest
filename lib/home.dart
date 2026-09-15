@@ -309,7 +309,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
                 ),
-              if (_appBgmController.canRetry && state.phase != GamePhase.result)
+              if (_appBgmController.canRetry)
                 Positioned(
                   top: IslandMapViewport.topRightControlReservedHeight + 8,
                   left: 12,

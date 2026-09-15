@@ -8,9 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 final class _FakeBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Completer<void>? playGate;
+  Completer<void>? pauseGate;
   final List<Object?> playErrors = <Object?>[];
+  final List<Object?> stopErrors = <Object?>[];
   Object? prepareError;
   Object? playError;
+  Object? pauseError;
+  Object? stopAndResetError;
 
   @override
   Future<void> prepare() async {
@@ -33,13 +37,27 @@ final class _FakeBgmPlayer implements BgmPlayer {
   }
 
   @override
-  Future<void> pause() async => calls.add('pause');
+  Future<void> pause() async {
+    calls.add('pause');
+    final gate = pauseGate;
+    if (gate != null) await gate.future;
+    final error = pauseError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> resume() async => calls.add('resume');
 
   @override
-  Future<void> stopAndReset() async => calls.add('stopAndReset');
+  Future<void> stopAndReset() async {
+    calls.add('stopAndReset');
+    if (stopErrors.isNotEmpty) {
+      final error = stopErrors.removeAt(0);
+      if (error != null) throw error;
+    }
+    final error = stopAndResetError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> dispose() async => calls.add('dispose');
@@ -81,6 +99,144 @@ void main() {
 
     await controller.dispose();
   });
+
+  test(
+    'stop failure with a working pause fallback still allows battle music',
+    () async {
+      final menu = _FakeBgmPlayer()
+        ..stopAndResetError = StateError('stop failed');
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await controller.settled;
+      controller.handleSurface(AppBgmSurface.game);
+      controller.handlePhase(GamePhase.startCountdown);
+      await controller.settled;
+
+      expect(menu.calls, ['prepare', 'playFromStart', 'stopAndReset', 'pause']);
+      expect(battle.calls, ['prepare']);
+      expect(controller.activeTrack, AppBgmTrack.battle);
+
+      controller.handlePhase(GamePhase.playing);
+      await controller.settled;
+      expect(battle.calls, ['prepare', 'playFromStart']);
+
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'a fallback-pause track is hard-reset before it owns music again',
+    () async {
+      final menu = _FakeBgmPlayer()
+        ..stopErrors.addAll([StateError('stop failed during handoff'), null]);
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await controller.settled;
+      controller.handleSurface(AppBgmSurface.game);
+      controller.handlePhase(GamePhase.startCountdown);
+      controller.handlePhase(GamePhase.playing);
+      await controller.settled;
+      expect(battle.calls, ['prepare', 'playFromStart']);
+
+      controller.handlePhase(GamePhase.result);
+      await controller.settled;
+      controller.handlePhase(GamePhase.configuration);
+      await controller.settled;
+
+      expect(menu.calls.where((call) => call == 'stopAndReset'), hasLength(2));
+      expect(menu.calls.last, 'playFromStart');
+      expect(menu.calls, isNot(contains('resume')));
+
+      await controller.dispose();
+    },
+  );
+
+  test('stop and pause failure blocks incoming battle ownership', () async {
+    final menu = _FakeBgmPlayer()
+      ..stopAndResetError = StateError('stop failed')
+      ..pauseError = StateError('pause failed');
+    final battle = _FakeBgmPlayer();
+    final errors = <Object>[];
+    final controller = AppBgmController(
+      menuPlayer: menu,
+      battlePlayer: battle,
+      onError: (error, _) => errors.add(error),
+    );
+
+    controller.handleSurface(AppBgmSurface.title);
+    await controller.settled;
+    controller.handleSurface(AppBgmSurface.game);
+    controller.handlePhase(GamePhase.startCountdown);
+    await controller.settled;
+
+    expect(menu.calls.take(4), [
+      'prepare',
+      'playFromStart',
+      'stopAndReset',
+      'pause',
+    ]);
+    expect(battle.calls, isEmpty);
+    expect(controller.activeTrack, AppBgmTrack.menu);
+    expect(controller.canRetry, isTrue);
+    expect(controller.lastError, isNotNull);
+    expect(errors.length, greaterThanOrEqualTo(2));
+
+    await controller.dispose();
+  });
+
+  test(
+    'a failed result handoff remains retryable until battle music stops',
+    () async {
+      final menu = _FakeBgmPlayer();
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.game);
+      controller.handlePhase(GamePhase.startCountdown);
+      controller.handlePhase(GamePhase.playing);
+      await controller.settled;
+
+      battle.stopAndResetError = StateError('result stop failed');
+      battle.pauseError = StateError('result pause failed');
+      controller.handlePhase(GamePhase.result);
+      await controller.settled;
+
+      expect(controller.activeTrack, AppBgmTrack.battle);
+      expect(controller.lastError, isNotNull);
+      expect(controller.canRetry, isTrue);
+
+      battle.stopAndResetError = null;
+      battle.pauseError = null;
+      controller.retry();
+      await controller.settled;
+
+      expect(battle.calls, [
+        'prepare',
+        'playFromStart',
+        'stopAndReset',
+        'pause',
+        'stopAndReset',
+      ]);
+      expect(controller.activeTrack, AppBgmTrack.none);
+      expect(controller.lastError, isNull);
+      expect(controller.canRetry, isFalse);
+
+      await controller.dispose();
+    },
+  );
 
   test(
     'result then configuration starts menu music from the beginning',
@@ -166,6 +322,37 @@ void main() {
       controller.handlePhase(GamePhase.playing);
       await controller.settled;
       expect(battle.calls, ['prepare', 'playFromStart', 'pause', 'resume']);
+
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'stale pause rejection does not block the current menu resume',
+    () async {
+      final menu = _FakeBgmPlayer();
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await controller.settled;
+      menu.pauseGate = Completer<void>();
+      menu.pauseError = StateError('stale pause rejection');
+
+      controller.setEnabled(false);
+      await Future<void>.delayed(Duration.zero);
+      expect(menu.calls, ['prepare', 'playFromStart', 'pause']);
+
+      controller.setEnabled(true);
+      menu.pauseGate!.complete();
+      await controller.settled;
+
+      expect(menu.calls, ['prepare', 'playFromStart', 'pause', 'resume']);
+      expect(controller.canRetry, isFalse);
+      expect(controller.lastError, isNull);
 
       await controller.dispose();
     },
