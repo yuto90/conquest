@@ -64,11 +64,9 @@ final class AppBgmController {
   bool get canRetry {
     final target = _desiredTrack;
     final state = _stateFor(target);
-    return !_disposed &&
-        _enabled &&
-        _appVisible &&
-        (_transitionError != null ||
-            (target != AppBgmTrack.none && state?.lastError != null));
+    if (_disposed || !_appVisible) return false;
+    if (_transitionError != null) return true;
+    return target != AppBgmTrack.none && _enabled && state?.lastError != null;
   }
 
   Object? get lastError =>
@@ -367,16 +365,34 @@ final class AppBgmController {
       state.status = AppBgmStatus.paused;
       _notifyListeners();
     } catch (error, stackTrace) {
-      if (_isCurrentTrack(serial, track)) {
-        _recordError(state, error, stackTrace);
-      } else if (!_disposed) {
+      if (!_isCurrentTrack(serial, track)) {
+        if (_disposed) return;
         // A pause may finish after the user has turned BGM back on or moved
-        // to another surface. The old failure must not block that newer
-        // request from resuming its track.
+        // to another surface. A newer playback request may normalize the
+        // state to paused so it can resume, but a newer non-play request must
+        // leave isPlaying true until a later reconciliation stops the player.
         _reportError(error, stackTrace);
-        state.isPlaying = false;
-        state.status = AppBgmStatus.paused;
-        _notifyListeners();
+        if (track == _desiredTrack && _shouldPlay) {
+          state.isPlaying = false;
+          state.status = AppBgmStatus.paused;
+          _notifyListeners();
+        }
+        return;
+      }
+
+      // A failed pause does not prove that the native player stopped. Try a
+      // hard stop before reporting the current request as unavailable.
+      _reportError(error, stackTrace);
+      try {
+        await _playerFor(track).stopAndReset();
+        _transitionError = null;
+        _clearTrackState(state);
+      } catch (stopError, stopStackTrace) {
+        // Keep ownership and isPlaying until a later retry confirms silence.
+        state.needsHardReset = true;
+        state.lastError = null;
+        state.status = AppBgmStatus.unavailable;
+        _recordTransitionError(stopError, stopStackTrace);
       }
     }
   }
@@ -421,8 +437,9 @@ final class AppBgmController {
         }
         return true;
       } catch (pauseError, pauseStackTrace) {
+        state.needsHardReset = true;
+        state.lastError = null;
         state.status = AppBgmStatus.unavailable;
-        _notifyListeners();
         _recordTransitionError(pauseError, pauseStackTrace);
         return false;
       }
