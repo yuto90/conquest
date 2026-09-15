@@ -137,10 +137,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('BGMを再生できません。音なしで対戦を続けます。'), findsOneWidget);
-    expect(
-      tester.getSemantics(notice).label,
-      'BGMを再生できません。音なしで対戦を続けます。',
-    );
+    expect(tester.getSemantics(notice).label, 'BGMを再生できません。音なしで対戦を続けます。');
     expect(
       tester.getSemantics(find.byKey(const ValueKey('bgm-retry'))).label,
       'BGMを再生',
