@@ -42,8 +42,6 @@ void main() {
         );
       }
 
-      expect(english['brandName'], 'CONQUEST');
-      expect(japanese['brandName'], 'CONQUEST');
       expect(english['appTitle'], 'CONQUEST ISLES');
       expect(japanese['appTitle'], 'CONQUEST ISLES');
       expect(english['startWord'], 'START');
@@ -62,7 +60,6 @@ void main() {
       }
 
       const stableValues = <String>{
-        'brandName',
         'appTitle',
         'startWord',
         'difficultyVeryEasy',

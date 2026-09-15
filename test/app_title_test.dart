@@ -44,11 +44,9 @@ void main() {
     ]);
   });
 
-  test('localized app titles and the HUD brand name remain distinct', () {
+  test('localized app titles remain stable', () {
     expect(AppLocalizationsEn().appTitle, _appTitle);
     expect(AppLocalizationsJa().appTitle, _appTitle);
-    expect(AppLocalizationsEn().brandName, 'CONQUEST');
-    expect(AppLocalizationsJa().brandName, 'CONQUEST');
 
     final english = _readArb('app_en.arb');
     final japanese = _readArb('app_ja.arb');

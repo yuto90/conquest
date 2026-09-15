@@ -84,21 +84,17 @@ void main() {
 
     loop.tickMany(60);
     await tester.pump();
-    expect(find.text('CONQUEST'), findsOne);
+    expect(find.text('CONQUEST'), findsNothing);
     expect(find.text('戦術海図 / 10島'), findsOne);
     expect(find.byKey(const ValueKey('pause-game')), findsOne);
+    expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
+    expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
 
     final cpuHeadquarters = tester.getRect(
       find.byKey(const ValueKey('island-button-1')),
     );
-    final playerHeadquarters = tester.getRect(
-      find.byKey(const ValueKey('island-button-0')),
-    );
     final playerHeadquartersCapacity = tester.getRect(
       find.byKey(const ValueKey('island-0-capacity')),
-    );
-    final boardStatusDetail = tester.getRect(
-      find.byKey(const ValueKey('board-status-detail')),
     );
     expect(
       cpuHeadquarters.overlaps(
@@ -106,14 +102,7 @@ void main() {
       ),
       isFalse,
     );
-    expect(
-      playerHeadquarters.overlaps(
-        tester.getRect(find.byKey(const ValueKey('board-status-label'))),
-      ),
-      isFalse,
-    );
-    expect(playerHeadquarters.overlaps(boardStatusDetail), isFalse);
-    expect(playerHeadquartersCapacity.overlaps(boardStatusDetail), isFalse);
+    expect(playerHeadquartersCapacity.bottom, lessThanOrEqualTo(844));
 
     await tester.tap(find.byKey(const ValueKey('island-button-0')));
     await tester.pump();
@@ -185,9 +174,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('keeps the headquarters capacity above the compact board hint', (
-    tester,
-  ) async {
+  testWidgets('keeps the compact unselected board clear', (tester) async {
     final loop = _ManualGameLoop();
     await _pumpApp(tester, loop: loop, size: const Size(280, 500));
 
@@ -202,12 +189,31 @@ void main() {
     final capacity = tester.getRect(
       find.byKey(const ValueKey('island-0-capacity')),
     );
-    final detail = tester.getRect(
-      find.byKey(const ValueKey('board-status-detail')),
-    );
-
     expect(current.height, greaterThan(capacity.height));
-    expect(capacity.bottom, lessThanOrEqualTo(detail.top - 12));
+    expect(find.text('CONQUEST'), findsNothing);
+    expect(find.text('戦術海図 / 10島'), findsOne);
+    expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
+    expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('hides unselected guidance in English', (tester) async {
+    final loop = _ManualGameLoop();
+    await _pumpApp(tester, loop: loop, locale: const Locale('en'));
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    loop.tickMany(60);
+    await tester.pump();
+
+    expect(find.text('Tactical Chart / 10 islands'), findsOne);
+    expect(find.text('CONQUEST'), findsNothing);
+    expect(find.text('Select one of your islands'), findsNothing);
+    expect(
+      find.text('Tap an island to select it\nRequires at least 2 forces'),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
+    expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

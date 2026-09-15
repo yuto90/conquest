@@ -120,6 +120,6 @@ void main() {
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.configuration, before.configuration);
     expect(find.text('戦術海図 / 10島'), findsOneWidget);
-    expect(find.text('CONQUEST'), findsOneWidget);
+    expect(find.text('CONQUEST'), findsNothing);
   });
 }
