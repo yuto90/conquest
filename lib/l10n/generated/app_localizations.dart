@@ -490,25 +490,25 @@ abstract class AppLocalizations {
   /// The elapsed game time in the player match summary.
   ///
   /// In en, this message translates to:
-  /// **'Match time {time}'**
+  /// **'Match Duration {time}'**
   String matchSummaryTime({required String time});
 
   /// The number of established player dispatches in the match summary.
   ///
   /// In en, this message translates to:
-  /// **'Dispatches {count}'**
+  /// **'Number of Troop Dispatches {count}'**
   String matchSummaryDispatches({required int count});
 
   /// The total forces sent by the player in the match summary.
   ///
   /// In en, this message translates to:
-  /// **'Forces sent {forces}'**
+  /// **'Troops Dispatched {forces}'**
   String matchSummaryForces({required int forces});
 
   /// The number of player ownership changes from neutral or CPU in the match summary.
   ///
   /// In en, this message translates to:
-  /// **'Islands captured {count}'**
+  /// **'Islands Captured {count}'**
   String matchSummaryCaptures({required int count});
 
   /// The complete accessible label for the player match summary.

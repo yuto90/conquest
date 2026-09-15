@@ -237,22 +237,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String matchSummaryTime({required String time}) {
-    return '試合時間 $time';
+    return '対戦時間 $time';
   }
 
   @override
   String matchSummaryDispatches({required int count}) {
-    return '成立出兵 $count回';
+    return '兵力派遣回数 $count回';
   }
 
   @override
   String matchSummaryForces({required int forces}) {
-    return '累計送兵数 $forces';
+    return '派遣兵力数 $forces';
   }
 
   @override
   String matchSummaryCaptures({required int count}) {
-    return '占領 $count回';
+    return '占領した島 $count';
   }
 
   @override

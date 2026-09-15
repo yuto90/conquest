@@ -244,22 +244,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String matchSummaryTime({required String time}) {
-    return 'Match time $time';
+    return 'Match Duration $time';
   }
 
   @override
   String matchSummaryDispatches({required int count}) {
-    return 'Dispatches $count';
+    return 'Number of Troop Dispatches $count';
   }
 
   @override
   String matchSummaryForces({required int forces}) {
-    return 'Forces sent $forces';
+    return 'Troops Dispatched $forces';
   }
 
   @override
   String matchSummaryCaptures({required int count}) {
-    return 'Islands captured $count';
+    return 'Islands Captured $count';
   }
 
   @override

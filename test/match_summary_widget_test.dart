@@ -65,18 +65,18 @@ void main() {
       expect(find.byKey(const ValueKey('match-summary')), findsOneWidget);
       expect(find.text('試合サマリー'), findsOneWidget);
       expect(find.text('10島 / CPU Normal'), findsOneWidget);
-      expect(find.text('試合時間 1:02:03'), findsOneWidget);
-      expect(find.text('成立出兵 2回'), findsOneWidget);
-      expect(find.text('累計送兵数 7'), findsOneWidget);
-      expect(find.text('占領 1回'), findsOneWidget);
+      expect(find.text('対戦時間 1:02:03'), findsOneWidget);
+      expect(find.text('兵力派遣回数 2回'), findsOneWidget);
+      expect(find.text('派遣兵力数 7'), findsOneWidget);
+      expect(find.text('占領した島 1'), findsOneWidget);
       expect(find.byKey(const ValueKey('replay-game')), findsOneWidget);
       expect(find.byKey(const ValueKey('return-settings')), findsOneWidget);
 
       final semantics = tester.getSemantics(
         find.byKey(const ValueKey('match-summary')),
       );
-      expect(semantics.label, contains('試合時間 1:02:03'));
-      expect(semantics.label, contains('成立出兵 2回'));
+      expect(semantics.label, contains('対戦時間 1:02:03'));
+      expect(semantics.label, contains('兵力派遣回数 2回'));
     }
     semanticsHandle.dispose();
   });
@@ -111,7 +111,10 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('replay-game')));
     await tester.ensureVisible(find.byKey(const ValueKey('return-settings')));
     expect(find.text('Match Summary'), findsOneWidget);
-    expect(find.text('Match time 1:01'), findsOneWidget);
+    expect(find.text('Match Duration 1:01'), findsOneWidget);
+    expect(find.text('Number of Troop Dispatches 0'), findsOneWidget);
+    expect(find.text('Troops Dispatched 0'), findsOneWidget);
+    expect(find.text('Islands Captured 0'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
