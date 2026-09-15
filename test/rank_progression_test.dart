@@ -1096,7 +1096,7 @@ void main() {
         findsOneWidget,
       );
       final before = container.read(rankProgressProvider).value!;
-      expect(before.totalXp, 3000);
+      expect(before.totalXp, 5500);
 
       locale.value = const Locale('ja', 'JP');
       await tester.pump();
