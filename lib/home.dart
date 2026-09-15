@@ -634,7 +634,10 @@ class _RankProgressCard extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final rankLabel = Text(
-            l10n.rankDisplay(rank: progress.rank, title: progress.title),
+            l10n.rankDisplay(
+              rank: progress.rank,
+              title: progress.localizedTitle(l10n),
+            ),
             overflow: TextOverflow.ellipsis,
             style: TacticalTypography.mono(
               fontSize: 11,
@@ -756,7 +759,10 @@ class _RankAwardSummary extends StatelessWidget {
               if (result.didRankUp) ...[
                 const SizedBox(height: 8),
                 Text(
-                  l10n.rankUp(rank: result.rankAfter!, title: after.title),
+                  l10n.rankUp(
+                    rank: result.rankAfter!,
+                    title: after.localizedTitle(l10n),
+                  ),
                   textAlign: TextAlign.center,
                   style: TacticalTypography.mono(
                     fontSize: 11,
