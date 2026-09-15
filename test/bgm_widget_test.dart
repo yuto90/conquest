@@ -1,9 +1,7 @@
 import 'dart:math';
 
 import 'package:conquest/audio/bgm_player.dart';
-import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
-import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
@@ -112,9 +110,7 @@ void main() {
     expect(player.calls, contains('playFromStart'));
   });
 
-  testWidgets('shows a non-modal retry action when BGM playback is rejected', (
-    tester,
-  ) async {
+  testWidgets('shows a temporary notice with a retry action', (tester) async {
     final loop = _ManualGameLoop();
     final player = _WidgetBgmPlayer()
       ..prepareError = StateError('autoplay rejected');
@@ -131,14 +127,29 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await _advanceToPlaying(tester, loop);
 
-    expect(find.byKey(const ValueKey('bgm-retry')), findsOneWidget);
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(notice, findsOneWidget);
+    expect(
+      find.descendant(
+        of: notice,
+        matching: find.byKey(const ValueKey('bgm-retry')),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('BGMを再生できません。音なしで対戦を続けます。'), findsOneWidget);
+    expect(
+      tester.getSemantics(notice).label,
+      'BGMを再生できません。音なしで対戦を続けます。',
+    );
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('bgm-retry'))).label,
+      'BGMを再生',
+    );
 
-    player.prepareError = null;
-    await tester.tap(find.byKey(const ValueKey('bgm-retry')));
-    await tester.pump();
-    await tester.pump();
-    expect(player.calls, contains('playFromStart'));
+    await tester.pump(const Duration(milliseconds: 2999));
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(notice, findsNothing);
   });
 
   testWidgets('retries a rejected prepared BGM from the retry action', (
@@ -169,9 +180,10 @@ void main() {
     await tester.pump();
 
     expect(player.calls.where((call) => call == 'playFromStart'), hasLength(2));
+    expect(find.byKey(const ValueKey('bgm-unavailable-notice')), findsNothing);
   });
 
-  testWidgets('BGM notice does not block an island behind its message', (
+  testWidgets('BGM notice is centered below the top controls on a phone', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -196,38 +208,76 @@ void main() {
     final noticeRect = tester.getRect(
       find.byKey(const ValueKey('bgm-unavailable-notice')),
     );
-    final headquartersRect = tester.getRect(
-      find.byKey(const ValueKey('island-button-0')),
-    );
     final retryRect = tester.getRect(find.byKey(const ValueKey('bgm-retry')));
-    final overlap = noticeRect.intersect(headquartersRect);
-    expect(overlap.width, greaterThan(0));
-    expect(overlap.height, greaterThan(0));
-    final reserved = IslandMapViewport.reference.topRightControlExclusion;
-    expect(retryRect.left, greaterThanOrEqualTo(reserved.left));
-    expect(retryRect.top, greaterThanOrEqualTo(reserved.top));
-    expect(retryRect.right, lessThanOrEqualTo(reserved.right));
-    expect(retryRect.bottom, lessThanOrEqualTo(reserved.bottom));
-    expect(retryRect.intersect(headquartersRect).isEmpty, isTrue);
+    final pauseRect = tester.getRect(find.byKey(const ValueKey('pause-game')));
+    expect(noticeRect.left, greaterThanOrEqualTo(12));
+    expect(noticeRect.right, lessThanOrEqualTo(390 - 12));
+    expect(noticeRect.top, greaterThanOrEqualTo(pauseRect.bottom));
+    expect(noticeRect.center.dx, closeTo(390 / 2, 1));
+    expect(retryRect.top, greaterThanOrEqualTo(noticeRect.top));
+    expect(retryRect.bottom, lessThanOrEqualTo(noticeRect.bottom));
+    expect(retryRect.intersect(pauseRect).isEmpty, isTrue);
+  });
 
-    Offset? tapPoint;
-    for (var x = overlap.left + 2; x < overlap.right; x += 4) {
-      for (var y = overlap.top + 2; y < overlap.bottom; y += 4) {
-        final candidate = Offset(x, y);
-        if (!retryRect.contains(candidate)) {
-          tapPoint = candidate;
-          break;
-        }
-      }
-      if (tapPoint != null) break;
-    }
-    expect(tapPoint, isNotNull);
-
-    final container = ProviderScope.containerOf(
-      tester.element(find.byKey(const ValueKey('island-button-0'))),
+  testWidgets('same BGM failure does not reset the notice timer on a tick', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final player = _WidgetBgmPlayer()
+      ..playError = StateError('autoplay rejected');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          bgmPlayerProvider.overrideWithValue(player),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
     );
-    await tester.tapAt(tapPoint!);
+    await openMatchSetup(tester);
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    await tester.pump(const Duration(milliseconds: 2500));
+    loop.tick();
     await tester.pump();
-    expect(container.read(gameControllerProvider).selectedIslandId, 0);
+    expect(notice, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(notice, findsNothing);
+  });
+
+  testWidgets('failed retry shows a fresh temporary notice', (tester) async {
+    final loop = _ManualGameLoop();
+    final player = _WidgetBgmPlayer()
+      ..playError = StateError('autoplay rejected');
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          bgmPlayerProvider.overrideWithValue(player),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await openMatchSetup(tester);
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2500));
+    await tester.tap(find.byKey(const ValueKey('bgm-retry')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(player.calls.where((call) => call == 'playFromStart'), hasLength(2));
+    expect(notice, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(notice, findsNothing);
   });
 }

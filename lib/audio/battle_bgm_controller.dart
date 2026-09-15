@@ -37,6 +37,7 @@ final class BattleBgmController {
   var _resetPending = false;
   var _matchSerial = 0;
   var _playRequestSerial = 0;
+  var _failureSerial = 0;
 
   BattleBgmStatus get status => _status;
 
@@ -52,6 +53,10 @@ final class BattleBgmController {
       _lastError != null;
 
   Object? get lastError => _lastError;
+
+  /// Identifies each new failure without exposing the error object to the UI.
+  /// Repeated notifications for the same unavailable state keep this value.
+  int get failureSerial => _failureSerial;
 
   /// Completes after all currently queued player calls have settled.  It is
   /// useful to deterministic tests and does not form part of game timing.
@@ -377,6 +382,9 @@ final class BattleBgmController {
   }
 
   void _recordError(Object error, StackTrace stackTrace) {
+    if (_lastError == null && _lastErrorStackTrace == null) {
+      _failureSerial++;
+    }
     _lastError ??= error;
     _lastErrorStackTrace ??= stackTrace;
     _isPlaying = false;

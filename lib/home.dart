@@ -281,21 +281,20 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onSettings: controller.returnToConfiguration,
                 ),
               if (state.phase == GamePhase.playing &&
-                  _battleBgmController.canRetry) ...[
+                  _battleBgmController.canRetry)
                 Positioned(
-                  right: 16,
-                  bottom: 56,
-                  child: const _BgmUnavailableNotice(),
-                ),
-                Positioned(
-                  top: 12,
-                  right: 68,
-                  child: _BgmRetryButton(
-                    label: l10n.bgmRetry,
-                    onRetry: _battleBgmController.retry,
+                  top: IslandMapViewport.topRightControlReservedHeight + 8,
+                  left: 12,
+                  right: 12,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: _BgmUnavailableNotice(
+                      key: const ValueKey('bgm-unavailable-notice-state'),
+                      failureSerial: _battleBgmController.failureSerial,
+                      onRetry: _battleBgmController.retry,
+                    ),
                   ),
                 ),
-              ],
               _CountdownOverlay(state: state),
             ],
           ),
@@ -596,36 +595,109 @@ class _BgmToggle extends StatelessWidget {
   }
 }
 
-class _BgmUnavailableNotice extends StatelessWidget {
-  const _BgmUnavailableNotice();
+class _BgmUnavailableNotice extends StatefulWidget {
+  const _BgmUnavailableNotice({
+    super.key,
+    required this.failureSerial,
+    required this.onRetry,
+  });
+
+  final int failureSerial;
+  final VoidCallback onRetry;
+
+  @override
+  State<_BgmUnavailableNotice> createState() => _BgmUnavailableNoticeState();
+}
+
+class _BgmUnavailableNoticeState extends State<_BgmUnavailableNotice> {
+  static const _displayDuration = Duration(seconds: 3);
+
+  Timer? _dismissTimer;
+  var _isVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDismissTimer();
+  }
+
+  @override
+  void dispose() {
+    _dismissTimer?.cancel();
+    super.dispose();
+  }
+
+  void _dismiss() {
+    if (mounted) setState(() => _isVisible = false);
+  }
+
+  @override
+  void didUpdateWidget(covariant _BgmUnavailableNotice oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.failureSerial != oldWidget.failureSerial) {
+      _dismissTimer?.cancel();
+      _isVisible = true;
+      _startDismissTimer();
+    }
+  }
+
+  void _startDismissTimer() {
+    _dismissTimer = Timer(_displayDuration, _dismiss);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isVisible) return const SizedBox.shrink();
+
     final l10n = _appLocalizations(context);
-    return SizedBox(
+    return ConstrainedBox(
       key: const ValueKey('bgm-unavailable-notice'),
-      width: 250,
-      child: IgnorePointer(
-        child: Semantics(
-          container: true,
-          liveRegion: true,
-          label: l10n.bgmUnavailableMessage,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 9, 8, 5),
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                TacticalPalette.surface.withValues(alpha: 0.94),
-                TacticalPalette.background,
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Semantics(
+        container: true,
+        liveRegion: true,
+        label: l10n.bgmUnavailableMessage,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Color.alphaBlend(
+                      TacticalPalette.surface.withValues(alpha: 0.94),
+                      TacticalPalette.background,
+                    ),
+                    border: Border.all(color: TacticalPalette.border),
+                  ),
+                ),
               ),
-              border: Border.all(color: TacticalPalette.border),
             ),
-            child: Text(
-              l10n.bgmUnavailableMessage,
-              style: TacticalTypography.of(
-                context,
-              ).body(fontSize: 10, color: TacticalPalette.muted, height: 1.35),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: IgnorePointer(
+                      child: Text(
+                        l10n.bgmUnavailableMessage,
+                        style: TacticalTypography.of(context).body(
+                          fontSize: 10,
+                          color: TacticalPalette.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  _BgmRetryButton(
+                    label: l10n.bgmRetry,
+                    onRetry: widget.onRetry,
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
