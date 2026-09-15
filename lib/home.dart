@@ -655,6 +655,7 @@ class _BgmUnavailableNoticeState extends State<_BgmUnavailableNotice> {
       constraints: const BoxConstraints(maxWidth: 360),
       child: Semantics(
         container: true,
+        explicitChildNodes: true,
         liveRegion: true,
         label: l10n.bgmUnavailableMessage,
         child: Stack(
