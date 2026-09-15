@@ -324,16 +324,16 @@ final class AppBgmController {
       } else {
         await player.playFromStart();
       }
-      if (!_isCurrentPlayback(serial, track)) {
-        await player.pause();
-        state.isPlaying = false;
-        state.status = AppBgmStatus.paused;
-        _notifyListeners();
-        return;
-      }
       state.hasPlayed = true;
       state.isPlaying = true;
       state.status = AppBgmStatus.playing;
+      if (!_isCurrentPlayback(serial, track)) {
+        // The player did start, but a newer request owns the state now. Do
+        // not let a failed stale cleanup escape through this operation's
+        // catch block without recording whether the player was silenced.
+        await _silenceTrack(track, state);
+        return;
+      }
       _notifyListeners();
     } catch (error, stackTrace) {
       if (!_disposed && _isCurrentPlayback(serial, track)) {
@@ -344,13 +344,7 @@ final class AppBgmController {
         // current track would prevent the newer reconciliation from playing.
         _reportError(error, stackTrace);
       }
-      if (!_disposed) {
-        try {
-          await player.pause();
-        } catch (pauseError, pauseStackTrace) {
-          _reportError(pauseError, pauseStackTrace);
-        }
-      }
+      if (!_disposed) await _silenceTrack(track, state);
     }
   }
 
@@ -382,19 +376,54 @@ final class AppBgmController {
 
       // A failed pause does not prove that the native player stopped. Try a
       // hard stop before reporting the current request as unavailable.
-      _reportError(error, stackTrace);
-      try {
-        await _playerFor(track).stopAndReset();
-        _transitionError = null;
-        _clearTrackState(state);
-      } catch (stopError, stopStackTrace) {
-        // Keep ownership and isPlaying until a later retry confirms silence.
-        state.needsHardReset = true;
-        state.lastError = null;
-        state.status = AppBgmStatus.unavailable;
-        _recordTransitionError(stopError, stopStackTrace);
-      }
+      await _recoverAfterPauseFailure(track, state, error, stackTrace);
     }
+  }
+
+  Future<void> _silenceTrack(AppBgmTrack track, _TrackState state) async {
+    try {
+      await _playerFor(track).pause();
+      state.isPlaying = false;
+      state.status = state.lastError == null
+          ? AppBgmStatus.paused
+          : AppBgmStatus.unavailable;
+      _notifyListeners();
+    } catch (error, stackTrace) {
+      await _recoverAfterPauseFailure(track, state, error, stackTrace);
+    }
+  }
+
+  Future<void> _recoverAfterPauseFailure(
+    AppBgmTrack track,
+    _TrackState state,
+    Object pauseError,
+    StackTrace pauseStackTrace,
+  ) async {
+    _reportError(pauseError, pauseStackTrace);
+    try {
+      await _playerFor(track).stopAndReset();
+      _transitionError = null;
+      if (state.lastError == null) {
+        _clearTrackState(state);
+      } else {
+        _markTrackStopped(state);
+      }
+    } catch (stopError, stopStackTrace) {
+      // Keep ownership and isPlaying until a later retry confirms silence.
+      state.isPlaying = true;
+      state.needsHardReset = true;
+      state.status = AppBgmStatus.unavailable;
+      _recordTransitionError(stopError, stopStackTrace);
+    }
+  }
+
+  void _markTrackStopped(_TrackState state) {
+    state.sourcePrepared = false;
+    state.isPlaying = false;
+    state.hasPlayed = false;
+    state.needsHardReset = false;
+    state.status = AppBgmStatus.unavailable;
+    _notifyListeners();
   }
 
   /// Stops an outgoing track before another track is allowed to own the

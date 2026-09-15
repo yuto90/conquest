@@ -519,6 +519,96 @@ void main() {
     },
   );
 
+  test(
+    'stale play cleanup failure remains retryable while BGM is OFF',
+    () async {
+      final menu = _FakeBgmPlayer()..playGate = Completer<void>();
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await Future<void>.delayed(Duration.zero);
+      controller.setEnabled(false);
+      menu.pauseError = StateError('stale cleanup pause failed');
+      menu.stopAndResetError = StateError('stale cleanup stop failed');
+      menu.playGate!.complete();
+      await controller.settled;
+
+      final firstPause = menu.calls.indexOf('pause');
+      expect(firstPause, greaterThanOrEqualTo(0));
+      expect(menu.calls[firstPause + 1], 'stopAndReset');
+      expect(controller.isPlaying, isTrue);
+      expect(controller.canRetry, isTrue);
+
+      final stopCountBeforeRetry = menu.calls
+          .where((call) => call == 'stopAndReset')
+          .length;
+      menu.pauseError = null;
+      menu.stopAndResetError = null;
+      controller.retry();
+      await controller.settled;
+
+      expect(
+        menu.calls.where((call) => call == 'stopAndReset'),
+        hasLength(stopCountBeforeRetry + 1),
+      );
+      expect(controller.isPlaying, isFalse);
+      expect(controller.lastError, isNull);
+      expect(controller.canRetry, isFalse);
+
+      await controller.dispose();
+    },
+  );
+
+  test(
+    'stale play cleanup failure is retryable after hidden app returns',
+    () async {
+      final menu = _FakeBgmPlayer()..playGate = Completer<void>();
+      final battle = _FakeBgmPlayer();
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await Future<void>.delayed(Duration.zero);
+      controller.setAppVisible(false);
+      menu.pauseError = StateError('stale cleanup pause failed');
+      menu.stopAndResetError = StateError('stale cleanup stop failed');
+      menu.playGate!.complete();
+      await controller.settled;
+
+      expect(menu.calls, containsAllInOrder(['pause', 'stopAndReset']));
+      expect(controller.isPlaying, isTrue);
+      expect(controller.canRetry, isFalse);
+
+      controller.setAppVisible(true);
+      await controller.settled;
+      expect(controller.canRetry, isTrue);
+
+      final stopCountBeforeRetry = menu.calls
+          .where((call) => call == 'stopAndReset')
+          .length;
+      menu.pauseError = null;
+      menu.stopAndResetError = null;
+      controller.retry();
+      await controller.settled;
+
+      expect(
+        menu.calls.where((call) => call == 'stopAndReset'),
+        hasLength(stopCountBeforeRetry + 1),
+      );
+      expect(controller.isPlaying, isTrue);
+      expect(controller.lastError, isNull);
+      expect(controller.canRetry, isFalse);
+
+      await controller.dispose();
+    },
+  );
+
   test('a rejected menu playback is non-fatal and can be retried', () async {
     final menu = _FakeBgmPlayer()..prepareError = StateError('missing asset');
     final battle = _FakeBgmPlayer();
