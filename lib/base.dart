@@ -111,7 +111,7 @@ class Base extends StatelessWidget {
                       ),
                       child: Text(
                         l10n.sourceBadge,
-                        style: TacticalTypography.mono(
+                        style: TacticalTypography.of(context).mono(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           color: TacticalPalette.playerDeep,
@@ -235,7 +235,7 @@ class _IslandStatusPanel extends StatelessWidget {
             ),
             child: Text(
               marker,
-              style: TacticalTypography.mono(
+              style: TacticalTypography.of(context).mono(
                 fontSize: markerFontSize,
                 fontWeight: FontWeight.w800,
                 color: TacticalPalette.paper,
@@ -257,7 +257,7 @@ class _IslandStatusPanel extends StatelessWidget {
               key: base.faction == Faction.neutral
                   ? ValueKey('island-${base.id}-value')
                   : ValueKey('island-${base.id}-current'),
-              style: TacticalTypography.display(
+              style: TacticalTypography.of(context).display(
                 fontSize: troopFontSize,
                 fontWeight: FontWeight.w800,
                 color: TacticalPalette.paper,
@@ -271,13 +271,14 @@ class _IslandStatusPanel extends StatelessWidget {
           Text(
             '/${base.capacity}',
             key: ValueKey('island-${base.id}-capacity'),
-            style:
-                TacticalTypography.mono(
+            style: TacticalTypography.of(context)
+                .mono(
                   fontSize: capacityFontSize,
                   fontWeight: FontWeight.w700,
                   color: TacticalPalette.paper,
                   height: 1,
-                ).copyWith(
+                )
+                .copyWith(
                   shadows: const <Shadow>[
                     Shadow(
                       color: Color(0xC0001116),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 abstract final class TacticalPalette {
   static const background = Color(0xFF84C9C6);
   static const surface = Color(0xFFA8DDD9);
@@ -23,22 +25,56 @@ abstract final class TacticalPalette {
   }
 }
 
-abstract final class TacticalTypography {
-  static const displayFamily = 'Avenir Next Condensed';
-  static const bodyFamily = 'Hiragino Sans';
-  static const monoFamily = 'SFMono-Regular';
-  static const fallbacks = <String>['Avenir Next', 'Yu Gothic', 'sans-serif'];
+final class TacticalTypography {
+  const TacticalTypography._({
+    required this.fontFamily,
+    required this.fontFamilyFallback,
+  });
 
-  static TextStyle display({
+  static const notoSansJpFamily = 'Noto Sans JP';
+  static const robotoFamily = 'Roboto';
+
+  static const english = TacticalTypography._(
+    fontFamily: robotoFamily,
+    fontFamilyFallback: <String>[notoSansJpFamily],
+  );
+  static const japanese = TacticalTypography._(
+    fontFamily: notoSansJpFamily,
+    fontFamilyFallback: <String>[robotoFamily],
+  );
+
+  final String fontFamily;
+  final List<String> fontFamilyFallback;
+
+  /// Returns typography for the locale resolved by [AppLocalizations].
+  ///
+  /// The localization delegate reduces regional locales to the supported
+  /// language locale, so this method intentionally reads [localeName] rather
+  /// than inspecting the device locale independently.
+  static TacticalTypography of(BuildContext context) {
+    final localizations = Localizations.of<AppLocalizations>(
+      context,
+      AppLocalizations,
+    );
+    return forLocaleName(localizations?.localeName ?? 'en');
+  }
+
+  static TacticalTypography forLocale(Locale locale) =>
+      forLocaleName(locale.languageCode);
+
+  static TacticalTypography forLocaleName(String localeName) {
+    final languageCode = localeName.split(RegExp('[-_]')).first.toLowerCase();
+    return languageCode == 'ja' ? japanese : english;
+  }
+
+  TextStyle display({
     double? fontSize,
     FontWeight fontWeight = FontWeight.w800,
     Color color = TacticalPalette.foreground,
     double? height,
     double? letterSpacing,
   }) {
-    return TextStyle(
-      fontFamily: displayFamily,
-      fontFamilyFallback: fallbacks,
+    return _style(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -47,16 +83,14 @@ abstract final class TacticalTypography {
     );
   }
 
-  static TextStyle body({
+  TextStyle body({
     double? fontSize,
     FontWeight? fontWeight,
     Color color = TacticalPalette.foreground,
     double? height,
     double? letterSpacing,
   }) {
-    return TextStyle(
-      fontFamily: bodyFamily,
-      fontFamilyFallback: fallbacks,
+    return _style(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -65,7 +99,23 @@ abstract final class TacticalTypography {
     );
   }
 
-  static TextStyle mono({
+  TextStyle mono({
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color color = TacticalPalette.foreground,
+    double? height,
+    double? letterSpacing,
+  }) {
+    return _style(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+      letterSpacing: letterSpacing,
+    );
+  }
+
+  TextStyle _style({
     double? fontSize,
     FontWeight? fontWeight,
     Color color = TacticalPalette.foreground,
@@ -73,8 +123,8 @@ abstract final class TacticalTypography {
     double? letterSpacing,
   }) {
     return TextStyle(
-      fontFamily: monoFamily,
-      fontFamilyFallback: const <String>['Menlo', 'monospace'],
+      fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -84,7 +134,9 @@ abstract final class TacticalTypography {
   }
 }
 
-ThemeData buildTacticalTheme() {
+ThemeData buildTacticalTheme({
+  TacticalTypography typography = TacticalTypography.english,
+}) {
   final colorScheme =
       ColorScheme.fromSeed(
         seedColor: TacticalPalette.accent,
@@ -106,8 +158,8 @@ ThemeData buildTacticalTheme() {
     useMaterial3: true,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: TacticalPalette.background,
-    fontFamily: TacticalTypography.bodyFamily,
-    fontFamilyFallback: TacticalTypography.fallbacks,
+    fontFamily: typography.fontFamily,
+    fontFamilyFallback: typography.fontFamilyFallback,
     textSelectionTheme: const TextSelectionThemeData(
       cursorColor: TacticalPalette.foreground,
       selectionColor: TacticalPalette.border,

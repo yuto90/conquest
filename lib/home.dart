@@ -46,35 +46,39 @@ class Home extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TacticalPalette.background,
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final window = Size(constraints.maxWidth, constraints.maxHeight);
-            final stage = letterboxToPortrait
-                ? fitPortraitStage(window)
-                : window;
-            final viewport = IslandMapViewport(
-              width: stage.width,
-              height: stage.height,
-            );
-            return Align(
-              alignment: Alignment.center,
-              child: SizedBox(
-                key: const ValueKey('playable-stage'),
+    final typography = TacticalTypography.of(context);
+    return Theme(
+      data: buildTacticalTheme(typography: typography),
+      child: Scaffold(
+        backgroundColor: TacticalPalette.background,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final window = Size(constraints.maxWidth, constraints.maxHeight);
+              final stage = letterboxToPortrait
+                  ? fitPortraitStage(window)
+                  : window;
+              final viewport = IslandMapViewport(
                 width: stage.width,
                 height: stage.height,
-                child: ProviderScope(
-                  overrides: [
-                    mapViewportProvider.overrideWithValue(viewport),
-                    gameControllerProvider.overrideWith(GameController.new),
-                  ],
-                  child: const _GameSurface(),
+              );
+              return Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  key: const ValueKey('playable-stage'),
+                  width: stage.width,
+                  height: stage.height,
+                  child: ProviderScope(
+                    overrides: [
+                      mapViewportProvider.overrideWithValue(viewport),
+                      gameControllerProvider.overrideWith(GameController.new),
+                    ],
+                    child: const _GameSurface(),
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -349,7 +353,7 @@ class _BoardChrome extends StatelessWidget {
                 children: [
                   Text(
                     l10n.brandName,
-                    style: TacticalTypography.mono(
+                    style: TacticalTypography.of(context).mono(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: TacticalPalette.seaDeep,
@@ -362,7 +366,7 @@ class _BoardChrome extends StatelessWidget {
                     l10n.boardTitle(
                       islandCount: state.configuration.totalIslandCount,
                     ),
-                    style: TacticalTypography.mono(
+                    style: TacticalTypography.of(context).mono(
                       fontSize: 9,
                       fontWeight: FontWeight.w600,
                       color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
@@ -395,7 +399,7 @@ class _BoardChrome extends StatelessWidget {
                           : selected
                           ? l10n.boardStatusSelected
                           : l10n.boardStatusUnselected,
-                      style: TacticalTypography.mono(
+                      style: TacticalTypography.of(context).mono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: TacticalPalette.foreground,
@@ -412,7 +416,7 @@ class _BoardChrome extends StatelessWidget {
                           ? l10n.boardStatusSelectedDetail
                           : l10n.boardStatusUnselectedDetail,
                       textAlign: TextAlign.right,
-                      style: TacticalTypography.body(
+                      style: TacticalTypography.of(context).body(
                         fontSize: 10,
                         color: TacticalPalette.seaDeep.withValues(alpha: 0.85),
                         height: 1.35,
@@ -514,7 +518,7 @@ class _PauseMenu extends StatelessWidget {
             children: [
               Text(
                 l10n.pauseHeading,
-                style: TacticalTypography.mono(
+                style: TacticalTypography.of(context).mono(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: TacticalPalette.muted,
@@ -525,19 +529,16 @@ class _PauseMenu extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 l10n.pauseTitle,
-                style: TacticalTypography.display(
-                  fontSize: 30,
-                  height: 1,
-                  letterSpacing: 0.6,
-                ),
+                style: TacticalTypography.of(
+                  context,
+                ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
               ),
               const SizedBox(height: 12),
               Text(
                 l10n.pauseDescription,
-                style: TacticalTypography.body(
-                  fontSize: 12,
-                  color: TacticalPalette.muted,
-                ),
+                style: TacticalTypography.of(
+                  context,
+                ).body(fontSize: 12, color: TacticalPalette.muted),
               ),
               const SizedBox(height: 14),
               _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
@@ -580,7 +581,7 @@ class _BgmToggle extends StatelessWidget {
           Expanded(
             child: Text(
               l10n.bgmLabel,
-              style: TacticalTypography.mono(
+              style: TacticalTypography.of(context).mono(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.9,
@@ -633,7 +634,7 @@ class _BgmUnavailableNotice extends StatelessWidget {
           children: [
             Text(
               l10n.bgmUnavailableMessage,
-              style: TacticalTypography.body(
+              style: TacticalTypography.of(context).body(
                 fontSize: 10,
                 color: TacticalPalette.muted,
                 height: 1.35,
@@ -723,7 +724,7 @@ class _ResultPanel extends StatelessWidget {
               children: [
                 Text(
                   l10n.resultHeading,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: TacticalPalette.muted,
@@ -744,11 +745,9 @@ class _ResultPanel extends StatelessWidget {
                   liveRegion: true,
                   child: Text(
                     title,
-                    style: TacticalTypography.display(
-                      fontSize: 46,
-                      height: 1,
-                      letterSpacing: 0.9,
-                    ),
+                    style: TacticalTypography.of(
+                      context,
+                    ).display(fontSize: 46, height: 1, letterSpacing: 0.9),
                   ),
                 ),
                 if (result.xpAwarded > 0) ...[
@@ -796,7 +795,7 @@ class _RankProgressCard extends StatelessWidget {
           final rankLabel = Text(
             l10n.rankDisplay(rank: progress.rank, title: progress.title),
             overflow: TextOverflow.ellipsis,
-            style: TacticalTypography.mono(
+            style: TacticalTypography.of(context).mono(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: TacticalPalette.foreground,
@@ -807,10 +806,9 @@ class _RankProgressCard extends StatelessWidget {
                 ? l10n.rankMax
                 : l10n.rankProgress(xp: progress.xpToNextRank),
             overflow: TextOverflow.ellipsis,
-            style: TacticalTypography.mono(
-              fontSize: 8,
-              color: TacticalPalette.muted,
-            ),
+            style: TacticalTypography.of(
+              context,
+            ).mono(fontSize: 8, color: TacticalPalette.muted),
           );
           final progressBar = SizedBox(
             width: 38,
@@ -893,7 +891,7 @@ class _RankAwardSummary extends StatelessWidget {
               Text(
                 l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
                 textAlign: TextAlign.center,
-                style: TacticalTypography.mono(
+                style: TacticalTypography.of(context).mono(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: TacticalPalette.foreground,
@@ -918,7 +916,7 @@ class _RankAwardSummary extends StatelessWidget {
                 Text(
                   l10n.rankUp(rank: result.rankAfter!, title: after.title),
                   textAlign: TextAlign.center,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: TacticalPalette.player,
@@ -979,7 +977,7 @@ class _ConfigurationPanel extends StatelessWidget {
                         children: [
                           Text(
                             l10n.settingsStep,
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: TacticalPalette.muted,
@@ -992,7 +990,7 @@ class _ConfigurationPanel extends StatelessWidget {
                             header: true,
                             child: Text(
                               l10n.settingsTitle,
-                              style: TacticalTypography.display(
+                              style: TacticalTypography.of(context).display(
                                 fontSize: 40,
                                 height: 0.96,
                                 letterSpacing: -1.2,
@@ -1002,7 +1000,7 @@ class _ConfigurationPanel extends StatelessWidget {
                           const SizedBox(height: 12),
                           Text(
                             l10n.settingsDescription,
-                            style: TacticalTypography.body(
+                            style: TacticalTypography.of(context).body(
                               fontSize: 12,
                               color: TacticalPalette.muted,
                               height: 1.55,
@@ -1013,7 +1011,7 @@ class _ConfigurationPanel extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             l10n.islandCountLabel,
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.9,
@@ -1044,7 +1042,7 @@ class _ConfigurationPanel extends StatelessWidget {
                           const SizedBox(height: 16),
                           Text(
                             l10n.gameModeLabel,
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.9,
@@ -1070,7 +1068,7 @@ class _ConfigurationPanel extends StatelessWidget {
                             state.configuration.gameMode == GameMode.cpuVsCpu
                                 ? l10n.playerCpuDifficultyLabel
                                 : l10n.cpuDifficultyLabel,
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.9,
@@ -1101,7 +1099,7 @@ class _ConfigurationPanel extends StatelessWidget {
                             const SizedBox(height: 18),
                             Text(
                               l10n.opponentCpuDifficultyLabel,
-                              style: TacticalTypography.mono(
+                              style: TacticalTypography.of(context).mono(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.9,
@@ -1153,7 +1151,7 @@ class _ConfigurationPanel extends StatelessWidget {
                                   label: _startLabel(l10n, state.configuration),
                                   child: Text(
                                     l10n.startGame,
-                                    style: TacticalTypography.body(
+                                    style: TacticalTypography.of(context).body(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: TacticalPalette.paper,
@@ -1170,7 +1168,7 @@ class _ConfigurationPanel extends StatelessWidget {
                               key: const ValueKey('map-unavailable-message'),
                               l10n.mapUnavailableMessage,
                               textAlign: TextAlign.center,
-                              style: TacticalTypography.body(
+                              style: TacticalTypography.of(context).body(
                                 fontSize: 12,
                                 color: TacticalPalette.muted,
                                 height: 1.5,
@@ -1181,7 +1179,7 @@ class _ConfigurationPanel extends StatelessWidget {
                           Text(
                             _selectionSummary(l10n, state.configuration),
                             textAlign: TextAlign.center,
-                            style: TacticalTypography.mono(
+                            style: TacticalTypography.of(context).mono(
                               fontSize: 10,
                               color: TacticalPalette.muted,
                               height: 1.5,
@@ -1262,7 +1260,7 @@ class _IslandCountChoice extends StatelessWidget {
             TacticalPalette.surface.withValues(alpha: 0.62),
             TacticalPalette.background,
           ),
-          labelStyle: TacticalTypography.mono(
+          labelStyle: TacticalTypography.of(context).mono(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1346,7 +1344,7 @@ class _DifficultyChoice extends StatelessWidget {
           TacticalPalette.surface.withValues(alpha: 0.62),
           TacticalPalette.background,
         ),
-        labelStyle: TacticalTypography.body(
+        labelStyle: TacticalTypography.of(context).body(
           fontSize: 13,
           fontWeight: FontWeight.w700,
           color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1415,7 +1413,7 @@ class _GameModeChoice extends StatelessWidget {
           TacticalPalette.surface.withValues(alpha: 0.62),
           TacticalPalette.background,
         ),
-        labelStyle: TacticalTypography.body(
+        labelStyle: TacticalTypography.of(context).body(
           fontSize: 12,
           fontWeight: FontWeight.w700,
           color: selected ? TacticalPalette.paper : TacticalPalette.muted,
@@ -1523,7 +1521,7 @@ class _CountdownOverlay extends StatelessWidget {
                     child: Center(
                       child: Text(
                         text,
-                        style: TacticalTypography.display(
+                        style: TacticalTypography.of(context).display(
                           fontSize: text == l10n.startWord ? 42 : 82,
                           height: 0.9,
                           letterSpacing: text == l10n.startWord ? 1 : -4.9,
@@ -1535,7 +1533,7 @@ class _CountdownOverlay extends StatelessWidget {
                 const SizedBox(height: 23),
                 Text(
                   l10n.prepareToDeploy,
-                  style: TacticalTypography.mono(
+                  style: TacticalTypography.of(context).mono(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.65,
@@ -1666,7 +1664,7 @@ class _PrimaryActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TacticalTypography.body(
+          style: TacticalTypography.of(context).body(
             fontSize: 13,
             fontWeight: FontWeight.w700,
             color: TacticalPalette.paper,
@@ -1704,11 +1702,9 @@ class _SecondaryActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TacticalTypography.body(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
+          style: TacticalTypography.of(
+            context,
+          ).body(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5),
         ),
       ),
     );
@@ -1752,10 +1748,9 @@ class _InteractionFeedback extends StatelessWidget {
                 child: Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TacticalTypography.body(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TacticalTypography.of(
+                    context,
+                  ).body(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
               ),
             ),

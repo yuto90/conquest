@@ -127,6 +127,24 @@ final class IslandMapRect {
   }
 }
 
+final class _IslandPlacementDefinition {
+  const _IslandPlacementDefinition({
+    required this.id,
+    required this.faction,
+    required this.size,
+    required this.currentForces,
+    required this.durability,
+    required this.capacity,
+  });
+
+  final int id;
+  final Faction faction;
+  final IslandSize size;
+  final int currentForces;
+  final int durability;
+  final int capacity;
+}
+
 /// Pure, deterministic game-state transitions.
 ///
 /// The class has no Riverpod, timer, or Flutter dependency.  Callers provide
@@ -157,14 +175,6 @@ final class GameRules {
   static const largeIslandWidgetSize = 80.0;
   static const movingForceWidgetSize = 30.0;
 
-  /// Insets the fixed headquarters from the HUD while preserving the map's
-  /// point symmetry. At the 390x844 Open Design reference viewport these
-  /// anchors place the CPU headquarters at (66, 98) and the player
-  /// headquarters at (324, 746), the closest point-symmetric match to the
-  /// prototype's (62, 104) and (320, 752) centers.
-  static const _headquartersAlignmentX = 129 / 145;
-  static const _headquartersAlignmentY = 27 / 31;
-
   /// A layout-independent fallback for state creation before Flutter layout
   /// constraints are available.  Callers with a real viewport should pass it
   /// to [generateIslands] so collision and safe-area checks use exact pixels.
@@ -174,8 +184,8 @@ final class GameRules {
   /// The default retry budget for a complete map generation attempt.
   static const defaultMapGenerationAttempts = 1024;
 
-  /// The retry budget for placing one symmetric pair during a map attempt.
-  static const defaultPairPlacementAttempts = 128;
+  /// The retry budget for placing one island during a map attempt.
+  static const defaultIslandPlacementAttempts = 128;
 
   static double islandWidgetSize(IslandSize size) {
     return switch (size) {
@@ -217,8 +227,8 @@ final class GameRules {
     IslandMapViewport viewport = defaultMapViewport,
     int maxAttempts = defaultMapGenerationAttempts,
     int? maxRetries,
-    int maxPairAttempts = defaultPairPlacementAttempts,
-    int? maxPairRetries,
+    int maxIslandAttempts = defaultIslandPlacementAttempts,
+    int? maxIslandRetries,
   }) {
     final islands = tryGenerateIslands(
       configuration: configuration,
@@ -226,8 +236,8 @@ final class GameRules {
       viewport: viewport,
       maxAttempts: maxAttempts,
       maxRetries: maxRetries,
-      maxPairAttempts: maxPairAttempts,
-      maxPairRetries: maxPairRetries,
+      maxIslandAttempts: maxIslandAttempts,
+      maxIslandRetries: maxIslandRetries,
     );
     if (islands == null) {
       return null;
@@ -266,8 +276,8 @@ final class GameRules {
     IslandMapViewport viewport = defaultMapViewport,
     int maxAttempts = defaultMapGenerationAttempts,
     int? maxRetries,
-    int maxPairAttempts = defaultPairPlacementAttempts,
-    int? maxPairRetries,
+    int maxIslandAttempts = defaultIslandPlacementAttempts,
+    int? maxIslandRetries,
   }) {
     final islands = tryGenerateIslands(
       configuration: configuration,
@@ -275,15 +285,15 @@ final class GameRules {
       viewport: viewport,
       maxAttempts: maxAttempts,
       maxRetries: maxRetries,
-      maxPairAttempts: maxPairAttempts,
-      maxPairRetries: maxPairRetries,
+      maxIslandAttempts: maxIslandAttempts,
+      maxIslandRetries: maxIslandRetries,
     );
     if (islands == null) {
       final attempts = maxRetries ?? maxAttempts;
-      final pairAttempts = maxPairRetries ?? maxPairAttempts;
+      final islandAttempts = maxIslandRetries ?? maxIslandAttempts;
       throw StateError(
         'Unable to generate a valid map after $attempts map attempts '
-        'and $pairAttempts pair attempts',
+        'and $islandAttempts island attempts',
       );
     }
     return islands;
@@ -291,21 +301,21 @@ final class GameRules {
 
   /// Attempts to generate a valid map without ever retrying indefinitely.
   ///
-  /// The two headquarters are fixed at opposing point-symmetric anchors.
-  /// Every neutral island is generated as a pair so its counterpart is the
-  /// exact point reflection around the screen center. A null result means the
-  /// supplied retry budget could not produce a non-overlapping placement.
+  /// Every island is independently sampled until its display rectangle fits
+  /// inside the viewport, avoids the pause control, and avoids islands already
+  /// placed in this map attempt. A null result means the supplied retry budget
+  /// could not produce a non-overlapping placement.
   List<IslandState>? tryGenerateIslands({
     GameConfiguration configuration = GameConfiguration.initial,
     math.Random? random,
     IslandMapViewport viewport = defaultMapViewport,
     int maxAttempts = defaultMapGenerationAttempts,
     int? maxRetries,
-    int maxPairAttempts = defaultPairPlacementAttempts,
-    int? maxPairRetries,
+    int maxIslandAttempts = defaultIslandPlacementAttempts,
+    int? maxIslandRetries,
   }) {
     final attempts = maxRetries ?? maxAttempts;
-    final pairAttempts = maxPairRetries ?? maxPairAttempts;
+    final islandAttempts = maxIslandRetries ?? maxIslandAttempts;
     if (attempts < 0) {
       throw ArgumentError.value(
         attempts,
@@ -313,14 +323,14 @@ final class GameRules {
         'must not be negative',
       );
     }
-    if (pairAttempts < 0) {
+    if (islandAttempts < 0) {
       throw ArgumentError.value(
-        pairAttempts,
-        'maxPairAttempts',
+        islandAttempts,
+        'maxIslandAttempts',
         'must not be negative',
       );
     }
-    if (attempts == 0 || pairAttempts == 0) {
+    if (attempts == 0 || islandAttempts == 0) {
       return null;
     }
     if (!viewport.isValid) {
@@ -330,36 +340,42 @@ final class GameRules {
         'must have positive dimensions',
       );
     }
-    final headquarters = _headquartersFor(viewport);
-    final playerHeadquartersRect = viewport.rectFor(headquarters.$1);
-    final cpuHeadquartersRect = viewport.rectFor(headquarters.$2);
-    if (!playerHeadquartersRect.isWithin(viewport) ||
-        !cpuHeadquartersRect.isWithin(viewport) ||
-        playerHeadquartersRect.overlaps(cpuHeadquartersRect)) {
+    final definitions = _islandDefinitions(configuration.totalIslandCount);
+    if (definitions.any(
+      (definition) =>
+          GameRules.islandWidgetSize(definition.size) > viewport.width ||
+          GameRules.islandWidgetSize(definition.size) > viewport.height,
+    )) {
       return null;
     }
 
     final source = random ?? math.Random();
-    final neutralSizes = _neutralSizes(configuration.totalIslandCount);
+    final placementOrder = definitions.toList()
+      ..sort((first, second) {
+        final sizeOrder = islandWidgetSize(
+          second.size,
+        ).compareTo(islandWidgetSize(first.size));
+        return sizeOrder != 0 ? sizeOrder : first.id.compareTo(second.id);
+      });
     for (var mapAttempt = 0; mapAttempt < attempts; mapAttempt++) {
-      final islands = <IslandState>[headquarters.$1, headquarters.$2];
+      final islands = <IslandState>[];
       var generated = true;
-      for (var pairIndex = 0; pairIndex < neutralSizes.length; pairIndex += 2) {
-        final pair = _tryPlaceNeutralPair(
-          firstId: pairIndex + 2,
-          size: neutralSizes[pairIndex],
+      for (final definition in placementOrder) {
+        final island = _tryPlaceIsland(
+          definition: definition,
           existing: islands,
           random: source,
           viewport: viewport,
-          maxAttempts: pairAttempts,
+          maxAttempts: islandAttempts,
         );
-        if (pair == null) {
+        if (island == null) {
           generated = false;
           break;
         }
-        islands.addAll(pair);
+        islands.add(island);
       }
       if (generated) {
+        islands.sort((first, second) => first.id.compareTo(second.id));
         return List<IslandState>.unmodifiable(islands);
       }
     }
@@ -820,109 +836,97 @@ final class GameRules {
     );
   }
 
-  static (IslandState, IslandState) _headquartersFor(
-    IslandMapViewport viewport,
+  static List<_IslandPlacementDefinition> _islandDefinitions(
+    int totalIslandCount,
   ) {
-    // The 320x320 stress-test envelope needs the original corner anchors to
-    // leave enough room for twelve islands. Portrait game surfaces use the
-    // Open Design HUD-safe anchors.
-    final isPortrait = viewport.height > viewport.width;
-    final x = isPortrait ? _headquartersAlignmentX : 1.0;
-    final y = isPortrait ? _headquartersAlignmentY : 1.0;
-    return (
-      IslandState(
+    final neutralSizes = _neutralSizes(totalIslandCount);
+    return [
+      const _IslandPlacementDefinition(
         id: 0,
-        position: IslandPosition(x: x, y: y),
         faction: Faction.player,
         size: IslandSize.headquarters,
         currentForces: 100,
         durability: 0,
         capacity: 200,
       ),
-      IslandState(
+      const _IslandPlacementDefinition(
         id: 1,
-        position: IslandPosition(x: -x, y: -y),
         faction: Faction.cpu,
         size: IslandSize.headquarters,
         currentForces: 100,
         durability: 0,
         capacity: 200,
       ),
-    );
+      for (var index = 0; index < neutralSizes.length; index++)
+        _IslandPlacementDefinition(
+          id: index + 2,
+          faction: Faction.neutral,
+          size: neutralSizes[index],
+          currentForces: 0,
+          durability: neutralSizes[index].neutralDurability ?? 0,
+          capacity: neutralSizes[index].capacity,
+        ),
+    ];
   }
 
-  static List<IslandState>? _tryPlaceNeutralPair({
-    required int firstId,
-    required IslandSize size,
+  static IslandState? _tryPlaceIsland({
+    required _IslandPlacementDefinition definition,
     required List<IslandState> existing,
     required math.Random random,
     required IslandMapViewport viewport,
     required int maxAttempts,
   }) {
-    // Align itself keeps any child inside the viewport for every alignment in
-    // [-1, 1], so the normalized map bounds are also the safe-area bounds.
-    final minX = mapMinCoordinate;
-    final maxX = mapMaxCoordinate;
-    final minY = mapMinCoordinate;
-    final maxY = mapMaxCoordinate;
-    final xRange = maxX - minX;
-    final yRange = maxY - minY;
-    if (xRange < 0 || yRange < 0) {
-      return null;
-    }
+    const minX = mapMinCoordinate;
+    const minY = mapMinCoordinate;
+    const xRange = mapMaxCoordinate - mapMinCoordinate;
+    const yRange = mapMaxCoordinate - mapMinCoordinate;
 
     for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      final firstPosition = IslandPosition(
-        x: minX + random.nextDouble() * xRange,
-        y: minY + random.nextDouble() * yRange,
+      final candidate = _islandFromDefinition(
+        definition,
+        position: IslandPosition(
+          x: minX + random.nextDouble() * xRange,
+          y: minY + random.nextDouble() * yRange,
+        ),
       );
-      final secondPosition = IslandPosition(
-        x: -firstPosition.x,
-        y: -firstPosition.y,
-      );
-      final first = _neutralIsland(
-        id: firstId,
-        size: size,
-        position: firstPosition,
-      );
-      final second = _neutralIsland(
-        id: firstId + 1,
-        size: size,
-        position: secondPosition,
-      );
-
-      if (_islandPairSeparated(first, second, existing, viewport)) {
-        return [first, second];
+      if (_isValidIslandPlacement(candidate, existing, viewport)) {
+        return candidate;
       }
     }
     return null;
   }
 
-  static bool _islandPairSeparated(
-    IslandState first,
-    IslandState second,
+  static bool _isValidIslandPlacement(
+    IslandState candidate,
     List<IslandState> existing,
     IslandMapViewport viewport,
   ) {
-    if (islandRectanglesOverlap(first, second, viewport) ||
-        _islandOverlapsTopRightControl(first, viewport) ||
-        _islandOverlapsTopRightControl(second, viewport)) {
+    final candidateRect = viewport.rectFor(candidate);
+    if (!candidateRect.isWithin(viewport) ||
+        candidateRect.overlaps(viewport.topRightControlExclusion)) {
       return false;
     }
     for (final island in existing) {
-      if (islandRectanglesOverlap(first, island, viewport) ||
-          islandRectanglesOverlap(second, island, viewport)) {
+      if (candidateRect.overlaps(viewport.rectFor(island))) {
         return false;
       }
     }
     return true;
   }
 
-  static bool _islandOverlapsTopRightControl(
-    IslandState island,
-    IslandMapViewport viewport,
-  ) {
-    return viewport.rectFor(island).overlaps(viewport.topRightControlExclusion);
+  static IslandState _islandFromDefinition(
+    _IslandPlacementDefinition definition, {
+    required IslandPosition position,
+  }) {
+    return IslandState(
+      id: definition.id,
+      position: position,
+      faction: definition.faction,
+      size: definition.size,
+      currentForces: definition.currentForces,
+      durability: definition.durability,
+      capacity: definition.capacity,
+    );
   }
 
   static bool islandRectanglesOverlap(
@@ -931,22 +935,6 @@ final class GameRules {
     IslandMapViewport viewport,
   ) {
     return viewport.rectFor(first).overlaps(viewport.rectFor(second));
-  }
-
-  static IslandState _neutralIsland({
-    required int id,
-    required IslandSize size,
-    required IslandPosition position,
-  }) {
-    return IslandState(
-      id: id,
-      position: position,
-      faction: Faction.neutral,
-      size: size,
-      currentForces: 0,
-      durability: size.neutralDurability ?? 0,
-      capacity: size.capacity,
-    );
   }
 
   static GameState _initialState({
