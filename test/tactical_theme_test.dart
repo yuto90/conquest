@@ -65,8 +65,9 @@ void main() {
 
       final title = find.byKey(const ValueKey('title-view'));
       final theme = Theme.of(tester.element(title));
-      expect(theme.fontFamily, testCase.$2);
-      expect(theme.fontFamilyFallback, <String>[
+      final bodyStyle = theme.textTheme.bodyMedium!;
+      expect(bodyStyle.fontFamily, testCase.$2);
+      expect(bodyStyle.fontFamilyFallback, <String>[
         testCase.$2 == TacticalTypography.notoSansJpFamily
             ? TacticalTypography.robotoFamily
             : TacticalTypography.notoSansJpFamily,
