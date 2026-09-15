@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'game_state.dart';
 import 'movement_timing.dart';
+import 'match_summary.dart';
 
 /// The pixel viewport used to translate normalized [IslandPosition] values
 /// into the same alignment centers as the renderer.
@@ -497,6 +498,9 @@ final class GameRules {
     final endMs = startMs + deltaMs;
     var currentMs = startMs;
     var islands = [...state.islands];
+    var matchSummary = state.matchSummary;
+    final tracksPlayerSummary =
+        state.configuration.gameMode == GameMode.playerVsCpu;
     final remainingForces = [...state.movingForces];
 
     // Validate an existing selection before applying resource ticks.  A
@@ -536,12 +540,22 @@ final class GameRules {
       final group = arrivalsByTime[arrivalTime]!;
       final groupIds = group.map((force) => force.id).toSet();
       remainingForces.removeWhere((force) => groupIds.contains(force.id));
-      islands = _resolveArrivalGroup(islands, group);
+      final resolved = _resolveArrivalGroup(
+        islands,
+        group,
+        matchSummary: matchSummary,
+        tracksPlayerSummary: tracksPlayerSummary,
+      );
+      islands = resolved.islands;
+      matchSummary = resolved.matchSummary;
 
       final eventState = _stateAtTime(
         stateAtCurrentTime,
         elapsedMs: currentMs,
         islands: islands,
+        matchSummary: tracksPlayerSummary
+            ? matchSummary.withElapsedMs(currentMs)
+            : matchSummary,
         movingForces: _updateMovingForcePositions(
           remainingForces,
           islands,
@@ -565,6 +579,9 @@ final class GameRules {
       stateAtCurrentTime,
       elapsedMs: endMs,
       islands: islands,
+      matchSummary: tracksPlayerSummary
+          ? matchSummary.withElapsedMs(endMs)
+          : matchSummary,
       movingForces: _updateMovingForcePositions(
         remainingForces,
         islands,
@@ -632,10 +649,12 @@ final class GameRules {
     return island.copyWith(currentForces: defense - strength);
   }
 
-  List<IslandState> _resolveArrivalGroup(
+  ({List<IslandState> islands, MatchSummary matchSummary}) _resolveArrivalGroup(
     List<IslandState> islands,
-    List<MovingForce> group,
-  ) {
+    List<MovingForce> group, {
+    required MatchSummary matchSummary,
+    required bool tracksPlayerSummary,
+  }) {
     final arrivalsByTarget = <int, Map<Faction, int>>{};
     for (final force in group) {
       if (force.strength <= 0 || force.faction == Faction.neutral) {
@@ -650,6 +669,7 @@ final class GameRules {
     }
 
     final nextIslands = [...islands];
+    var nextSummary = matchSummary;
     for (final entry in arrivalsByTarget.entries) {
       final targetIndex = nextIslands.indexWhere(
         (island) => island.id == entry.key,
@@ -668,13 +688,16 @@ final class GameRules {
       final strength = playerStrength > cpuStrength
           ? playerStrength - cpuStrength
           : cpuStrength - playerStrength;
-      nextIslands[targetIndex] = resolveArrival(
-        nextIslands[targetIndex],
-        faction,
-        strength,
-      );
+      final before = nextIslands[targetIndex];
+      final after = resolveArrival(before, faction, strength);
+      if (tracksPlayerSummary &&
+          before.faction != Faction.player &&
+          after.faction == Faction.player) {
+        nextSummary = nextSummary.recordPlayerCapture();
+      }
+      nextIslands[targetIndex] = after;
     }
-    return nextIslands;
+    return (islands: nextIslands, matchSummary: nextSummary);
   }
 
   List<IslandState> _applyGrowth(
@@ -744,12 +767,14 @@ final class GameRules {
     GameState state, {
     required int elapsedMs,
     required List<IslandState> islands,
+    required MatchSummary matchSummary,
     required List<MovingForce> movingForces,
     required bool selectionInvalidAtStart,
   }) {
     final nextState = state.copyWith(
       elapsedMs: elapsedMs,
       islands: islands,
+      matchSummary: matchSummary,
       movingForces: movingForces,
     );
 

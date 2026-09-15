@@ -634,6 +634,57 @@ abstract class AppLocalizations {
   /// **'Draw'**
   String get draw;
 
+  /// The heading for the non-persistent player match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Match Summary'**
+  String get matchSummaryHeading;
+
+  /// The island count and CPU difficulty in the player match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'{islandCount} islands / {difficulty} CPU'**
+  String matchSummarySettings({
+    required int islandCount,
+    required String difficulty,
+  });
+
+  /// The elapsed game time in the player match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Match Duration {time}'**
+  String matchSummaryTime({required String time});
+
+  /// The number of established player dispatches in the match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Number of Troop Dispatches {count}'**
+  String matchSummaryDispatches({required int count});
+
+  /// The total forces sent by the player in the match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Troops Dispatched {forces}'**
+  String matchSummaryForces({required int forces});
+
+  /// The number of player ownership changes from neutral or CPU in the match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Islands Captured {count}'**
+  String matchSummaryCaptures({required int count});
+
+  /// The complete accessible label for the player match summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Match summary. {settings}. {time}. {dispatches}. {forces}. {captures}.'**
+  String matchSummarySemantics({
+    required String settings,
+    required String time,
+    required String dispatches,
+    required String forces,
+    required String captures,
+  });
+
   /// The XP earned in the result screen.
   ///
   /// In en, this message translates to:

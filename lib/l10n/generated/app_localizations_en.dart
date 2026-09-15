@@ -314,6 +314,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get draw => 'Draw';
 
   @override
+  String get matchSummaryHeading => 'Match Summary';
+
+  @override
+  String matchSummarySettings({
+    required int islandCount,
+    required String difficulty,
+  }) {
+    return '$islandCount islands / $difficulty CPU';
+  }
+
+  @override
+  String matchSummaryTime({required String time}) {
+    return 'Match Duration $time';
+  }
+
+  @override
+  String matchSummaryDispatches({required int count}) {
+    return 'Number of Troop Dispatches $count';
+  }
+
+  @override
+  String matchSummaryForces({required int forces}) {
+    return 'Troops Dispatched $forces';
+  }
+
+  @override
+  String matchSummaryCaptures({required int count}) {
+    return 'Islands Captured $count';
+  }
+
+  @override
+  String matchSummarySemantics({
+    required String settings,
+    required String time,
+    required String dispatches,
+    required String forces,
+    required String captures,
+  }) {
+    return 'Match summary. $settings. $time. $dispatches. $forces. $captures.';
+  }
+
+  @override
   String xpEarned({required int xp}) {
     return '+$xp XP';
   }

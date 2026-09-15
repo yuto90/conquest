@@ -495,7 +495,11 @@ class GameController extends _$GameController {
     movingForces.add(nextForce);
 
     state = state
-        .copyWith(islands: islands, movingForces: movingForces)
+        .copyWith(
+          islands: islands,
+          movingForces: movingForces,
+          matchSummary: state.matchSummary.recordDispatch(strength),
+        )
         .clearSelection()
         .clearInteractionFeedback();
   }
