@@ -15,6 +15,29 @@ final class FixedClock extends GameClock {
   int nowMs() => value;
 }
 
+final class _SequenceRandom implements Random {
+  _SequenceRandom(this.values);
+
+  final List<double> values;
+  var _index = 0;
+
+  int get consumed => _index;
+
+  @override
+  bool nextBool() => false;
+
+  @override
+  double nextDouble() {
+    if (_index >= values.length) {
+      throw StateError('sequence random exhausted');
+    }
+    return values[_index++];
+  }
+
+  @override
+  int nextInt(int max) => 0;
+}
+
 void main() {
   const rules = GameRules();
 
@@ -235,7 +258,7 @@ void main() {
     },
   );
 
-  test('generated maps keep fixed headquarters and pair neutral islands', () {
+  test('generated maps preserve every island state contract', () {
     const expectedSizes = <int, Map<IslandSize, int>>{
       6: {IslandSize.small: 2, IslandSize.medium: 2},
       8: {IslandSize.small: 2, IslandSize.medium: 2, IslandSize.large: 2},
@@ -249,47 +272,88 @@ void main() {
         random: Random(entry.key),
       );
       expect(islands, hasLength(entry.key));
-      expect(islands[0].position, const IslandPosition(x: 1, y: 1));
+      expect(islands.map((island) => island.id), [
+        for (var id = 0; id < entry.key; id++) id,
+      ]);
       expect(islands[0].faction, Faction.player);
+      expect(islands[0].size, IslandSize.headquarters);
       expect(islands[0].currentForces, 100);
       expect(islands[0].capacity, 200);
-      expect(islands[1].position, const IslandPosition(x: -1, y: -1));
       expect(islands[1].faction, Faction.cpu);
+      expect(islands[1].size, IslandSize.headquarters);
       expect(islands[1].currentForces, 100);
       expect(islands[1].capacity, 200);
 
       final counts = <IslandSize, int>{};
-      for (var index = 2; index < islands.length; index += 2) {
-        final first = islands[index];
-        final second = islands[index + 1];
-        counts[first.size] = (counts[first.size] ?? 0) + 2;
-        expect(second.size, first.size);
-        expect(second.position.x, closeTo(-first.position.x, 1e-12));
-        expect(second.position.y, closeTo(-first.position.y, 1e-12));
-        expect(second.durability, first.durability);
-        expect(second.capacity, first.capacity);
+      for (final island in islands.skip(2)) {
+        counts[island.size] = (counts[island.size] ?? 0) + 1;
+        expect(island.faction, Faction.neutral);
+        expect(island.currentForces, 0);
+        expect(island.durability, island.size.neutralDurability);
+        expect(island.capacity, island.size.capacity);
       }
       expect(counts, entry.value);
     }
   });
 
-  test('headquarters match the tactical chart HUD-safe anchors', () {
-    final islands = rules.generateIslands(
-      configuration: GameConfiguration(totalIslandCount: 10),
-      random: Random(1),
-      viewport: GameRules.referenceMapViewport,
-    );
+  test(
+    'samples each island x/y independently from the injected random source',
+    () {
+      final random = _SequenceRandom([
+        0.1, 0.1, // player headquarters
+        0.8, 0.8, // CPU headquarters
+        0.3, 0.3, // first medium island
+        0.6, 0.6, // second medium island
+        0.2, 0.7, // first small island
+        0.7, 0.2, // second small island
+      ]);
+      final islands = rules.generateIslands(
+        configuration: GameConfiguration(totalIslandCount: 6),
+        random: random,
+        viewport: const IslandMapViewport(width: 1000, height: 1000),
+      );
 
-    final playerRect = GameRules.referenceMapViewport.rectFor(islands[0]);
-    final cpuRect = GameRules.referenceMapViewport.rectFor(islands[1]);
+      expect(random.consumed, 12);
+      expect(islands[0].x, closeTo(-0.8, 1e-12));
+      expect(islands[0].y, closeTo(-0.8, 1e-12));
+      expect(islands[1].x, closeTo(0.6, 1e-12));
+      expect(islands[1].y, closeTo(0.6, 1e-12));
+      expect(islands[2].x, closeTo(-0.6, 1e-12));
+      expect(islands[2].y, closeTo(0.4, 1e-12));
+      expect(islands[3].x, closeTo(0.4, 1e-12));
+      expect(islands[3].y, closeTo(-0.6, 1e-12));
+      expect(islands[4].x, closeTo(-0.4, 1e-12));
+      expect(islands[4].y, closeTo(-0.4, 1e-12));
+      expect(islands[5].x, closeTo(0.2, 1e-12));
+      expect(islands[5].y, closeTo(0.2, 1e-12));
+    },
+  );
 
-    expect(cpuRect.left, closeTo(16, 1e-9));
-    expect(cpuRect.top, closeTo(48, 1e-9));
-    expect(playerRect.right, closeTo(374, 1e-9));
-    expect(playerRect.bottom, closeTo(796, 1e-9));
-    expect(islands[0].x, closeTo(-islands[1].x, 1e-12));
-    expect(islands[0].y, closeTo(-islands[1].y, 1e-12));
-  });
+  test(
+    'retries only a rejected island and consumes both candidate coordinates',
+    () {
+      final random = _SequenceRandom([
+        0.1, 0.1, // player headquarters
+        0.1, 0.1, // rejected CPU headquarters candidate
+        0.8, 0.8, // accepted CPU headquarters candidate
+        0.3, 0.3, // first medium island
+        0.6, 0.6, // second medium island
+        0.2, 0.7, // first small island
+        0.7, 0.2, // second small island
+      ]);
+      final islands = rules.generateIslands(
+        configuration: GameConfiguration(totalIslandCount: 6),
+        random: random,
+        viewport: const IslandMapViewport(width: 1000, height: 1000),
+        maxAttempts: 1,
+        maxIslandAttempts: 2,
+      );
+
+      expect(random.consumed, 14);
+      expect(islands[1].x, closeTo(0.6, 1e-12));
+      expect(islands[1].y, closeTo(0.6, 1e-12));
+    },
+  );
 
   test('generated maps stay in viewport bounds and do not overlap', () {
     const viewports = <IslandMapViewport>[
@@ -392,10 +456,6 @@ void main() {
             reason: 'seed $seed island ${island.id} overlaps pause control',
           );
         }
-        for (var index = 2; index < islands.length; index += 2) {
-          expect(islands[index + 1].x, closeTo(-islands[index].x, 1e-12));
-          expect(islands[index + 1].y, closeTo(-islands[index].y, 1e-12));
-        }
       }
     }
   });
@@ -438,7 +498,7 @@ void main() {
     },
   );
 
-  test('default envelope rejects the short-screen symmetric overlap case', () {
+  test('default envelope detects a short-screen island overlap', () {
     const viewport = GameRules.defaultMapViewport;
     const first = IslandState(
       id: 2,
@@ -512,6 +572,30 @@ void main() {
       );
     },
   );
+
+  test('uses the island placement retry contract', () {
+    expect(GameRules.defaultIslandPlacementAttempts, 128);
+    expect(
+      rules.tryGenerateIslands(random: Random(1), maxIslandAttempts: 0),
+      isNull,
+    );
+    expect(
+      () => rules.generateIslands(random: Random(1), maxIslandAttempts: 0),
+      throwsA(
+        predicate<StateError>(
+          (error) => error.message.contains('0 island attempts'),
+        ),
+      ),
+    );
+    expect(
+      () => rules.tryGenerateIslands(random: Random(1), maxIslandAttempts: -1),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => rules.tryGenerateIslands(random: Random(1), maxIslandRetries: -1),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
 
   test('state holds multiple typed moving forces immutably', () {
     const forces = [
@@ -624,7 +708,7 @@ void main() {
   });
 
   test(
-    'returns a bounded failure when fixed headquarters cannot be separated',
+    'returns a bounded failure when the viewport cannot fit headquarters',
     () {
       const viewport = IslandMapViewport(width: 180, height: 180);
 
