@@ -651,9 +651,9 @@ class _BgmUnavailableNoticeState extends State<_BgmUnavailableNotice> {
 
     final l10n = _appLocalizations(context);
     return ConstrainedBox(
-      key: const ValueKey('bgm-unavailable-notice'),
       constraints: const BoxConstraints(maxWidth: 360),
       child: Semantics(
+        key: const ValueKey('bgm-unavailable-notice'),
         container: true,
         explicitChildNodes: true,
         liveRegion: true,
