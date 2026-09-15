@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:conquest/audio/bgm_player.dart';
+import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
