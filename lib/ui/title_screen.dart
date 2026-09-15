@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
 import '../l10n/generated/app_localizations_en.dart';
+import 'tactical_theme.dart';
 
 const _ink = Color(0xFF002C36);
 const _paper = Color(0xFFF6F8F7);
@@ -251,27 +252,37 @@ class _Tagline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
-    child: FittedBox(
-      child: Row(
-        children: [
-          const SizedBox(width: 80, child: Divider(color: _ink, thickness: 2)),
-          const SizedBox(width: 26),
-          Text(
-            'A STRATEGY FOR A WIDER WORLD',
-            textScaler: TextScaler.noScaling,
-            style: TextStyle(
-              fontFamily: 'Libre Baskerville',
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 3.5,
-              color: _ink.withValues(alpha: 0.85),
-              height: 1.2,
-            ),
+    child: Builder(
+      builder: (context) {
+        final typography = TacticalTypography.of(context);
+        return FittedBox(
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 80,
+                child: Divider(color: _ink, thickness: 2),
+              ),
+              const SizedBox(width: 26),
+              Text(
+                'A STRATEGY FOR A WIDER WORLD',
+                textScaler: TextScaler.noScaling,
+                style: typography.display(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 3.5,
+                  color: _ink.withValues(alpha: 0.85),
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(width: 26),
+              const SizedBox(
+                width: 80,
+                child: Divider(color: _ink, thickness: 2),
+              ),
+            ],
           ),
-          const SizedBox(width: 26),
-          const SizedBox(width: 80, child: Divider(color: _ink, thickness: 2)),
-        ],
-      ),
+        );
+      },
     ),
   );
 }
@@ -297,6 +308,7 @@ class _TitleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final typography = TacticalTypography.of(context);
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -312,8 +324,7 @@ class _TitleButton extends StatelessWidget {
             child: Text(
               label,
               semanticsLabel: semanticLabel,
-              style: TextStyle(
-                fontFamily: primary ? 'Barlow' : 'Libre Baskerville',
+              style: typography.display(
                 fontSize: math.max(
                   primary ? 20 : 12,
                   (primary ? 50 : 26) * scale,

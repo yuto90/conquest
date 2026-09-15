@@ -5,4 +5,4 @@
 
 ボタン、操作ラベル、アイコン、読み上げ、ダイアログはFlutterの部品で実装しています。画面内の英語表記は元画像に合わせ、操作の読み上げと説明文は日本語・英語に対応します。
 
-同梱フォントは[Google Fonts](https://github.com/google/fonts)のLibre BaskervilleとBarlow SemiBoldです。ライセンス原文は `assets/fonts/` に収録しています。
+画面の文字は、[Google Fonts](https://github.com/google/fonts)のNoto Sans JP / Robotoをlocale別に使用します。取得元・ウェイト・ハッシュ・ライセンスは [`assets/fonts/README.md`](../fonts/README.md) に記録しています。
