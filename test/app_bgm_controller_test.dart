@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 final class _FakeBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Completer<void>? playGate;
+  final List<Object?> playErrors = <Object?>[];
   Object? prepareError;
   Object? playError;
 
@@ -23,6 +24,10 @@ final class _FakeBgmPlayer implements BgmPlayer {
     calls.add('playFromStart');
     final gate = playGate;
     if (gate != null) await gate.future;
+    if (playErrors.isNotEmpty) {
+      final error = playErrors.removeAt(0);
+      if (error != null) throw error;
+    }
     final error = playError;
     if (error != null) throw error;
   }
@@ -184,6 +189,33 @@ void main() {
     await controller.dispose();
   });
 
+  test(
+    'failure serial stays monotonic when the failed track changes',
+    () async {
+      final menu = _FakeBgmPlayer()
+        ..prepareError = StateError('missing menu asset');
+      final battle = _FakeBgmPlayer()..playError = StateError('missing battle');
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await controller.settled;
+      expect(controller.failureSerial, 1);
+
+      controller.handleSurface(AppBgmSurface.game);
+      controller.handlePhase(GamePhase.startCountdown);
+      controller.handlePhase(GamePhase.playing);
+      await controller.settled;
+
+      expect(controller.failureSerial, 2);
+      expect(controller.canRetry, isTrue);
+
+      await controller.dispose();
+    },
+  );
+
   test('stale playback is paused before a match can take ownership', () async {
     final menu = _FakeBgmPlayer()..playGate = Completer<void>();
     final battle = _FakeBgmPlayer();
@@ -201,4 +233,39 @@ void main() {
 
     await controller.dispose();
   });
+
+  test(
+    'stale menu rejection does not block the current menu reconciliation',
+    () async {
+      final menu = _FakeBgmPlayer()
+        ..playGate = Completer<void>()
+        ..playErrors.add(StateError('stale autoplay rejection'))
+        ..playErrors.add(null);
+      final battle = _FakeBgmPlayer();
+      final errors = <Object>[];
+      final controller = AppBgmController(
+        menuPlayer: menu,
+        battlePlayer: battle,
+        onError: (error, _) => errors.add(error),
+      );
+
+      controller.handleSurface(AppBgmSurface.title);
+      await Future<void>.delayed(Duration.zero);
+      controller.handleSurface(AppBgmSurface.game);
+      menu.playGate!.complete();
+      await controller.settled;
+
+      expect(menu.calls, [
+        'prepare',
+        'playFromStart',
+        'pause',
+        'playFromStart',
+      ]);
+      expect(controller.canRetry, isFalse);
+      expect(controller.lastError, isNull);
+      expect(errors, hasLength(1));
+
+      await controller.dispose();
+    },
+  );
 }

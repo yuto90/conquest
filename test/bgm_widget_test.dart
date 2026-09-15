@@ -30,6 +30,7 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Object? prepareError;
   Object? playError;
+  Object? resumeError;
 
   @override
   Future<void> prepare() async {
@@ -49,7 +50,11 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   Future<void> pause() async => calls.add('pause');
 
   @override
-  Future<void> resume() async => calls.add('resume');
+  Future<void> resume() async {
+    calls.add('resume');
+    final error = resumeError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> stopAndReset() async => calls.add('stopAndReset');
@@ -140,6 +145,48 @@ void main() {
 
     expect(menu.calls, ['prepare', 'playFromStart', 'stopAndReset']);
     expect(battle.calls, ['prepare', 'playFromStart']);
+  });
+
+  testWidgets('a dismissed menu failure reappears for a later battle failure', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.pump();
+    await openMatchSetup(tester);
+
+    menu.resumeError = StateError('menu autoplay rejected');
+    final toggle = find.byKey(const ValueKey('bgm-toggle'));
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.pump();
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(notice, findsNothing);
+
+    menu.resumeError = null;
+    battle.playError = StateError('battle autoplay rejected');
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(notice, findsOneWidget);
   });
 
   testWidgets('shows a temporary notice with a retry action', (tester) async {

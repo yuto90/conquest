@@ -45,6 +45,7 @@ final class AppBgmController {
   var _syncRequested = false;
   var _disposed = false;
   var _requestSerial = 0;
+  var _failureSerial = 0;
 
   AppBgmTrack get activeTrack => _activeTrack;
 
@@ -70,8 +71,12 @@ final class AppBgmController {
 
   Object? get lastError => _stateFor(_desiredTrack)?.lastError;
 
-  /// Identifies each new failure for the current target track.
-  int get failureSerial => _stateFor(_desiredTrack)?.failureSerial ?? 0;
+  /// Identifies each newly reported failure across the application.
+  ///
+  /// The value is application-wide rather than track-local so a notice that
+  /// remains mounted across a menu-to-battle transition still restarts when
+  /// the next track fails.
+  int get failureSerial => _failureSerial;
 
   /// Completes after all currently queued player calls and reconciliations have
   /// settled. It is intended for deterministic tests, not game timing.
@@ -313,8 +318,15 @@ final class AppBgmController {
       state.status = AppBgmStatus.playing;
       _notifyListeners();
     } catch (error, stackTrace) {
-      if (!_disposed) {
+      if (!_disposed && _isCurrentPlayback(serial, track)) {
         _recordError(state, error, stackTrace);
+      } else if (!_disposed) {
+        // The request may have been rejected after the surface, phase, or
+        // lifecycle changed. It is diagnostic only: recording it against the
+        // current track would prevent the newer reconciliation from playing.
+        _reportError(error, stackTrace);
+      }
+      if (!_disposed) {
         try {
           await player.pause();
         } catch (pauseError, pauseStackTrace) {
@@ -408,7 +420,7 @@ final class AppBgmController {
   }
 
   void _recordError(_TrackState state, Object error, StackTrace stackTrace) {
-    if (state.lastError == null) state.failureSerial++;
+    if (state.lastError == null) _failureSerial++;
     state.lastError ??= error;
     state.isPlaying = false;
     state.status = AppBgmStatus.unavailable;
@@ -483,5 +495,4 @@ final class _TrackState {
   var sourcePrepared = false;
   var hasPlayed = false;
   var isPlaying = false;
-  var failureSerial = 0;
 }
