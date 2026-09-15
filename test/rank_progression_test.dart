@@ -6,6 +6,8 @@ import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/main.dart';
+import 'package:conquest/l10n/generated/app_localizations_en.dart';
+import 'package:conquest/l10n/generated/app_localizations_ja.dart';
 import 'package:conquest/rank_progression.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,148 +15,465 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/match_setup.dart';
 
-const _expectedBf4Tiers = <RankTier>[
-  RankTier(0, '新兵', 0),
-  RankTier(1, "一等兵", 3000),
-  RankTier(2, "一等兵Ⅱ", 8000),
-  RankTier(3, "一等兵Ⅲ", 11000),
-  RankTier(4, "一等兵Ⅳ", 13000),
-  RankTier(5, "一等兵Ⅴ", 17000),
-  RankTier(6, "上等兵", 18000),
-  RankTier(7, "上等兵Ⅱ", 21000),
-  RankTier(8, "上等兵Ⅲ", 24000),
-  RankTier(9, "上等兵Ⅳ", 25000),
-  RankTier(10, "上等兵Ⅴ", 28000),
-  RankTier(11, "伍長", 29000),
-  RankTier(12, "伍長Ⅱ", 32000),
-  RankTier(13, "伍長Ⅲ", 33000),
-  RankTier(14, "伍長Ⅳ", 35000),
-  RankTier(15, "伍長Ⅴ", 37000),
-  RankTier(16, "軍曹", 39000),
-  RankTier(17, "軍曹Ⅱ", 40000),
-  RankTier(18, "軍曹Ⅲ", 42000),
-  RankTier(19, "軍曹Ⅳ", 44000),
-  RankTier(20, "軍曹Ⅴ", 46000),
-  RankTier(21, "二等軍曹", 47000),
-  RankTier(22, "二等軍曹Ⅱ", 48000),
-  RankTier(23, "二等軍曹Ⅲ", 51000),
-  RankTier(24, "二等軍曹Ⅳ", 51000),
-  RankTier(25, "二等軍曹Ⅴ", 54000),
-  RankTier(26, "一等軍曹", 55000),
-  RankTier(27, "一等軍曹Ⅱ", 56000),
-  RankTier(28, "一等軍曹Ⅲ", 58000),
-  RankTier(29, "一等軍曹Ⅳ", 58000),
-  RankTier(30, "一等軍曹Ⅴ", 58000),
-  RankTier(31, "曹長", 69000),
-  RankTier(32, "曹長Ⅱ", 65000),
-  RankTier(33, "曹長Ⅲ", 65000),
-  RankTier(34, "曹長Ⅳ", 65000),
-  RankTier(35, "曹長Ⅴ", 65000),
-  RankTier(36, "専任曹長", 70000),
-  RankTier(37, "専任曹長Ⅱ", 70000),
-  RankTier(38, "専任曹長Ⅲ", 70000),
-  RankTier(39, "専任曹長Ⅳ", 70000),
-  RankTier(40, "専任曹長Ⅴ", 80000),
-  RankTier(41, "上級曹長", 80000),
-  RankTier(42, "上級曹長Ⅱ", 75000),
-  RankTier(43, "上級曹長Ⅲ", 75000),
-  RankTier(44, "上級曹長Ⅳ", 80000),
-  RankTier(45, "上級曹長Ⅴ", 80000),
-  RankTier(46, "最先任上級曹長", 80000),
-  RankTier(47, "最先任上級曹長Ⅱ", 90000),
-  RankTier(48, "最先任上級曹長Ⅲ", 80000),
-  RankTier(49, "最先任上級曹長Ⅳ", 90000),
-  RankTier(50, "最先任上級曹長Ⅴ", 90000),
-  RankTier(51, "准尉", 90000),
-  RankTier(52, "准尉Ⅱ", 100000),
-  RankTier(53, "准尉Ⅲ", 100000),
-  RankTier(54, "准尉Ⅳ", 90000),
-  RankTier(55, "准尉Ⅴ", 90000),
-  RankTier(56, "准尉2級", 90000),
-  RankTier(57, "准尉2級Ⅱ", 90000),
-  RankTier(58, "准尉2級Ⅲ", 100000),
-  RankTier(59, "准尉2級Ⅳ", 100000),
-  RankTier(60, "准尉2級Ⅴ", 90000),
-  RankTier(61, "准尉3級", 110000),
-  RankTier(62, "准尉3級Ⅱ", 100000),
-  RankTier(63, "准尉3級Ⅲ", 100000),
-  RankTier(64, "准尉3級Ⅳ", 110000),
-  RankTier(65, "准尉3級Ⅴ", 110000),
-  RankTier(66, "准尉4級", 90000),
-  RankTier(67, "准尉4級Ⅱ", 110000),
-  RankTier(68, "准尉4級Ⅲ", 110000),
-  RankTier(69, "准尉4級Ⅳ", 120000),
-  RankTier(70, "准尉4級Ⅴ", 120000),
-  RankTier(71, "准尉5級", 110000),
-  RankTier(72, "准尉5級Ⅱ", 110000),
-  RankTier(73, "准尉5級Ⅲ", 110000),
-  RankTier(74, "准尉5級Ⅳ", 110000),
-  RankTier(75, "准尉5級Ⅴ", 120000),
-  RankTier(76, "少尉", 120000),
-  RankTier(77, "少尉Ⅱ", 120000),
-  RankTier(78, "少尉Ⅲ", 120000),
-  RankTier(79, "少尉Ⅳ", 120000),
-  RankTier(80, "少尉Ⅴ", 120000),
-  RankTier(81, "中尉", 130000),
-  RankTier(82, "中尉Ⅱ", 120000),
-  RankTier(83, "中尉Ⅲ", 120000),
-  RankTier(84, "中尉Ⅳ", 130000),
-  RankTier(85, "中尉Ⅴ", 130000),
-  RankTier(86, "大尉", 130000),
-  RankTier(87, "大尉Ⅱ", 130000),
-  RankTier(88, "大尉Ⅲ", 120000),
-  RankTier(89, "大尉Ⅳ", 130000),
-  RankTier(90, "大尉Ⅴ", 130000),
-  RankTier(91, "少佐", 140000),
-  RankTier(92, "少佐Ⅱ", 130000),
-  RankTier(93, "少佐Ⅲ", 140000),
-  RankTier(94, "少佐Ⅳ", 130000),
-  RankTier(95, "少佐Ⅴ", 140000),
-  RankTier(96, "中佐Ⅰ", 150000),
-  RankTier(97, "中佐Ⅱ", 140000),
-  RankTier(98, "中佐Ⅲ", 140000),
-  RankTier(99, "中佐Ⅳ", 130000),
-  RankTier(100, "大佐", 140000),
-  RankTier(101, "大佐Ⅱ", 200000),
-  RankTier(102, "大佐Ⅲ", 200000),
-  RankTier(103, "大佐Ⅳ", 200000),
-  RankTier(104, "大佐Ⅴ", 200000),
-  RankTier(105, "大佐Ⅵ", 200000),
-  RankTier(106, "大佐Ⅶ", 200000),
-  RankTier(107, "大佐Ⅷ", 200000),
-  RankTier(108, "大佐Ⅸ", 200000),
-  RankTier(109, "大佐Ⅹ", 200000),
-  RankTier(110, "准将", 200000),
-  RankTier(111, "准将Ⅱ", 300000),
-  RankTier(112, "准将Ⅲ", 470000),
-  RankTier(113, "准将Ⅳ", 480000),
-  RankTier(114, "准将Ⅴ", 500000),
-  RankTier(115, "准将Ⅵ", 510000),
-  RankTier(116, "准将Ⅶ", 530000),
-  RankTier(117, "准将Ⅷ", 550000),
-  RankTier(118, "准将Ⅸ", 560000),
-  RankTier(119, "准将Ⅹ", 590000),
-  RankTier(120, "少将", 600000),
-  RankTier(121, "少将Ⅱ", 620000),
-  RankTier(122, "少将Ⅲ", 640000),
-  RankTier(123, "少将Ⅳ", 660000),
-  RankTier(124, "少将Ⅴ", 680000),
-  RankTier(125, "少将Ⅵ", 700000),
-  RankTier(126, "少将Ⅶ", 730000),
-  RankTier(127, "少将Ⅷ", 740000),
-  RankTier(128, "少将Ⅸ", 770000),
-  RankTier(129, "少将Ⅹ", 790000),
-  RankTier(130, "中将", 810000),
-  RankTier(131, "中将Ⅱ", 840000),
-  RankTier(132, "中将Ⅲ", 860000),
-  RankTier(133, "中将Ⅳ", 890000),
-  RankTier(134, "中将Ⅴ", 910000),
-  RankTier(135, "中将Ⅵ", 940000),
-  RankTier(136, "中将Ⅶ", 960000),
-  RankTier(137, "中将Ⅷ", 990000),
-  RankTier(138, "中将Ⅸ", 1020000),
-  RankTier(139, "中将Ⅹ", 1050000),
-  RankTier(140, "大将", 1070000),
+const _expectedRequiredXp = <int>[
+  0,
+  3000,
+  8000,
+  11000,
+  13000,
+  17000,
+  18000,
+  21000,
+  24000,
+  25000,
+  28000,
+  29000,
+  32000,
+  33000,
+  35000,
+  37000,
+  39000,
+  40000,
+  42000,
+  44000,
+  46000,
+  47000,
+  48000,
+  51000,
+  51000,
+  54000,
+  55000,
+  56000,
+  58000,
+  58000,
+  58000,
+  69000,
+  65000,
+  65000,
+  65000,
+  65000,
+  70000,
+  70000,
+  70000,
+  70000,
+  80000,
+  80000,
+  75000,
+  75000,
+  80000,
+  80000,
+  80000,
+  90000,
+  80000,
+  90000,
+  90000,
+  90000,
+  100000,
+  100000,
+  90000,
+  90000,
+  90000,
+  90000,
+  100000,
+  100000,
+  90000,
+  110000,
+  100000,
+  100000,
+  110000,
+  110000,
+  90000,
+  110000,
+  110000,
+  120000,
+  120000,
+  110000,
+  110000,
+  110000,
+  110000,
+  120000,
+  120000,
+  120000,
+  120000,
+  120000,
+  120000,
+  130000,
+  120000,
+  120000,
+  130000,
+  130000,
+  130000,
+  130000,
+  120000,
+  130000,
+  130000,
+  140000,
+  130000,
+  140000,
+  130000,
+  140000,
+  150000,
+  140000,
+  140000,
+  130000,
+  140000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  200000,
+  300000,
+  470000,
+  480000,
+  500000,
+  510000,
+  530000,
+  550000,
+  560000,
+  590000,
+  600000,
+  620000,
+  640000,
+  660000,
+  680000,
+  700000,
+  730000,
+  740000,
+  770000,
+  790000,
+  810000,
+  840000,
+  860000,
+  890000,
+  910000,
+  940000,
+  960000,
+  990000,
+  1020000,
+  1050000,
+  1070000,
+];
+
+final _expectedTitleKeys = <RankTitleKey>[
+  RankTitleKey.recruit,
+  ...List.filled(5, RankTitleKey.privateFirstClass),
+  ...List.filled(5, RankTitleKey.lanceCorporal),
+  ...List.filled(5, RankTitleKey.corporal),
+  ...List.filled(5, RankTitleKey.sergeant),
+  ...List.filled(5, RankTitleKey.staffSergeant),
+  ...List.filled(5, RankTitleKey.gunnerySergeant),
+  ...List.filled(5, RankTitleKey.masterSergeant),
+  ...List.filled(5, RankTitleKey.firstSergeant),
+  ...List.filled(5, RankTitleKey.masterGunnerySergeant),
+  ...List.filled(5, RankTitleKey.sergeantMajor),
+  ...List.filled(5, RankTitleKey.warrantOfficerOne),
+  ...List.filled(5, RankTitleKey.chiefWarrantOfficerTwo),
+  ...List.filled(5, RankTitleKey.chiefWarrantOfficerThree),
+  ...List.filled(5, RankTitleKey.chiefWarrantOfficerFour),
+  ...List.filled(5, RankTitleKey.chiefWarrantOfficerFive),
+  ...List.filled(5, RankTitleKey.secondLieutenant),
+  ...List.filled(5, RankTitleKey.firstLieutenant),
+  ...List.filled(5, RankTitleKey.captain),
+  ...List.filled(5, RankTitleKey.major),
+  ...List.filled(4, RankTitleKey.lieutenantColonel),
+  ...List.filled(10, RankTitleKey.colonel),
+  ...List.filled(10, RankTitleKey.brigadierGeneral),
+  ...List.filled(10, RankTitleKey.majorGeneral),
+  ...List.filled(10, RankTitleKey.lieutenantGeneral),
+  ...List.filled(1, RankTitleKey.general),
+];
+
+const _expectedEnglishTitles = <String>[
+  "Recruit",
+  "Private First Class",
+  "Private First Class II",
+  "Private First Class III",
+  "Private First Class IV",
+  "Private First Class V",
+  "Lance Corporal",
+  "Lance Corporal II",
+  "Lance Corporal III",
+  "Lance Corporal IV",
+  "Lance Corporal V",
+  "Corporal",
+  "Corporal II",
+  "Corporal III",
+  "Corporal IV",
+  "Corporal V",
+  "Sergeant",
+  "Sergeant II",
+  "Sergeant III",
+  "Sergeant IV",
+  "Sergeant V",
+  "Staff Sergeant",
+  "Staff Sergeant II",
+  "Staff Sergeant III",
+  "Staff Sergeant IV",
+  "Staff Sergeant V",
+  "Gunnery Sergeant",
+  "Gunnery Sergeant II",
+  "Gunnery Sergeant III",
+  "Gunnery Sergeant IV",
+  "Gunnery Sergeant V",
+  "Master Sergeant",
+  "Master Sergeant II",
+  "Master Sergeant III",
+  "Master Sergeant IV",
+  "Master Sergeant V",
+  "First Sergeant",
+  "First Sergeant II",
+  "First Sergeant III",
+  "First Sergeant IV",
+  "First Sergeant V",
+  "Master Gunnery Sergeant",
+  "Master Gunnery Sergeant II",
+  "Master Gunnery Sergeant III",
+  "Master Gunnery Sergeant IV",
+  "Master Gunnery Sergeant V",
+  "Sergeant Major",
+  "Sergeant Major II",
+  "Sergeant Major III",
+  "Sergeant Major IV",
+  "Sergeant Major V",
+  "Warrant Officer One",
+  "Warrant Officer One II",
+  "Warrant Officer One III",
+  "Warrant Officer One IV",
+  "Warrant Officer One V",
+  "Chief Warrant Officer Two",
+  "Chief Warrant Officer Two II",
+  "Chief Warrant Officer Two III",
+  "Chief Warrant Officer Two IV",
+  "Chief Warrant Officer Two V",
+  "Chief Warrant Officer Three",
+  "Chief Warrant Officer Three II",
+  "Chief Warrant Officer Three III",
+  "Chief Warrant Officer Three IV",
+  "Chief Warrant Officer Three V",
+  "Chief Warrant Officer Four",
+  "Chief Warrant Officer Four II",
+  "Chief Warrant Officer Four III",
+  "Chief Warrant Officer Four IV",
+  "Chief Warrant Officer Four V",
+  "Chief Warrant Officer Five",
+  "Chief Warrant Officer Five II",
+  "Chief Warrant Officer Five III",
+  "Chief Warrant Officer Five IV",
+  "Chief Warrant Officer Five V",
+  "Second Lieutenant",
+  "Second Lieutenant II",
+  "Second Lieutenant III",
+  "Second Lieutenant IV",
+  "Second Lieutenant V",
+  "First Lieutenant",
+  "First Lieutenant II",
+  "First Lieutenant III",
+  "First Lieutenant IV",
+  "First Lieutenant V",
+  "Captain",
+  "Captain II",
+  "Captain III",
+  "Captain IV",
+  "Captain V",
+  "Major",
+  "Major II",
+  "Major III",
+  "Major IV",
+  "Major V",
+  "Lieutenant Colonel",
+  "Lieutenant Colonel II",
+  "Lieutenant Colonel III",
+  "Lieutenant Colonel IV",
+  "Colonel",
+  "Colonel II",
+  "Colonel III",
+  "Colonel IV",
+  "Colonel V",
+  "Colonel VI",
+  "Colonel VII",
+  "Colonel VIII",
+  "Colonel IX",
+  "Colonel X",
+  "Brigadier General",
+  "Brigadier General II",
+  "Brigadier General III",
+  "Brigadier General IV",
+  "Brigadier General V",
+  "Brigadier General VI",
+  "Brigadier General VII",
+  "Brigadier General VIII",
+  "Brigadier General IX",
+  "Brigadier General X",
+  "Major General",
+  "Major General II",
+  "Major General III",
+  "Major General IV",
+  "Major General V",
+  "Major General VI",
+  "Major General VII",
+  "Major General VIII",
+  "Major General IX",
+  "Major General X",
+  "Lieutenant General",
+  "Lieutenant General II",
+  "Lieutenant General III",
+  "Lieutenant General IV",
+  "Lieutenant General V",
+  "Lieutenant General VI",
+  "Lieutenant General VII",
+  "Lieutenant General VIII",
+  "Lieutenant General IX",
+  "Lieutenant General X",
+  "General",
+];
+
+const _expectedJapaneseTitles = <String>[
+  "新兵",
+  "一等兵",
+  "一等兵Ⅱ",
+  "一等兵Ⅲ",
+  "一等兵Ⅳ",
+  "一等兵Ⅴ",
+  "上等兵",
+  "上等兵Ⅱ",
+  "上等兵Ⅲ",
+  "上等兵Ⅳ",
+  "上等兵Ⅴ",
+  "伍長",
+  "伍長Ⅱ",
+  "伍長Ⅲ",
+  "伍長Ⅳ",
+  "伍長Ⅴ",
+  "軍曹",
+  "軍曹Ⅱ",
+  "軍曹Ⅲ",
+  "軍曹Ⅳ",
+  "軍曹Ⅴ",
+  "二等軍曹",
+  "二等軍曹Ⅱ",
+  "二等軍曹Ⅲ",
+  "二等軍曹Ⅳ",
+  "二等軍曹Ⅴ",
+  "一等軍曹",
+  "一等軍曹Ⅱ",
+  "一等軍曹Ⅲ",
+  "一等軍曹Ⅳ",
+  "一等軍曹Ⅴ",
+  "曹長",
+  "曹長Ⅱ",
+  "曹長Ⅲ",
+  "曹長Ⅳ",
+  "曹長Ⅴ",
+  "専任曹長",
+  "専任曹長Ⅱ",
+  "専任曹長Ⅲ",
+  "専任曹長Ⅳ",
+  "専任曹長Ⅴ",
+  "上級曹長",
+  "上級曹長Ⅱ",
+  "上級曹長Ⅲ",
+  "上級曹長Ⅳ",
+  "上級曹長Ⅴ",
+  "最先任上級曹長",
+  "最先任上級曹長Ⅱ",
+  "最先任上級曹長Ⅲ",
+  "最先任上級曹長Ⅳ",
+  "最先任上級曹長Ⅴ",
+  "准尉",
+  "准尉Ⅱ",
+  "准尉Ⅲ",
+  "准尉Ⅳ",
+  "准尉Ⅴ",
+  "准尉2級",
+  "准尉2級Ⅱ",
+  "准尉2級Ⅲ",
+  "准尉2級Ⅳ",
+  "准尉2級Ⅴ",
+  "准尉3級",
+  "准尉3級Ⅱ",
+  "准尉3級Ⅲ",
+  "准尉3級Ⅳ",
+  "准尉3級Ⅴ",
+  "准尉4級",
+  "准尉4級Ⅱ",
+  "准尉4級Ⅲ",
+  "准尉4級Ⅳ",
+  "准尉4級Ⅴ",
+  "准尉5級",
+  "准尉5級Ⅱ",
+  "准尉5級Ⅲ",
+  "准尉5級Ⅳ",
+  "准尉5級Ⅴ",
+  "少尉",
+  "少尉Ⅱ",
+  "少尉Ⅲ",
+  "少尉Ⅳ",
+  "少尉Ⅴ",
+  "中尉",
+  "中尉Ⅱ",
+  "中尉Ⅲ",
+  "中尉Ⅳ",
+  "中尉Ⅴ",
+  "大尉",
+  "大尉Ⅱ",
+  "大尉Ⅲ",
+  "大尉Ⅳ",
+  "大尉Ⅴ",
+  "少佐",
+  "少佐Ⅱ",
+  "少佐Ⅲ",
+  "少佐Ⅳ",
+  "少佐Ⅴ",
+  "中佐Ⅰ",
+  "中佐Ⅱ",
+  "中佐Ⅲ",
+  "中佐Ⅳ",
+  "大佐",
+  "大佐Ⅱ",
+  "大佐Ⅲ",
+  "大佐Ⅳ",
+  "大佐Ⅴ",
+  "大佐Ⅵ",
+  "大佐Ⅶ",
+  "大佐Ⅷ",
+  "大佐Ⅸ",
+  "大佐Ⅹ",
+  "准将",
+  "准将Ⅱ",
+  "准将Ⅲ",
+  "准将Ⅳ",
+  "准将Ⅴ",
+  "准将Ⅵ",
+  "准将Ⅶ",
+  "准将Ⅷ",
+  "准将Ⅸ",
+  "准将Ⅹ",
+  "少将",
+  "少将Ⅱ",
+  "少将Ⅲ",
+  "少将Ⅳ",
+  "少将Ⅴ",
+  "少将Ⅵ",
+  "少将Ⅶ",
+  "少将Ⅷ",
+  "少将Ⅸ",
+  "少将Ⅹ",
+  "中将",
+  "中将Ⅱ",
+  "中将Ⅲ",
+  "中将Ⅳ",
+  "中将Ⅴ",
+  "中将Ⅵ",
+  "中将Ⅶ",
+  "中将Ⅷ",
+  "中将Ⅸ",
+  "中将Ⅹ",
+  "大将",
 ];
 
 class _FakeRankStore implements RankProgressStore {
@@ -226,16 +545,66 @@ void main() {
   group('BF4 rank table', () {
     test('contains every rank and the source total', () {
       expect(RankCatalog.tiers, hasLength(141));
-      expect(RankCatalog.tiers, orderedEquals(_expectedBf4Tiers));
-      expect(RankCatalog.tiers.first, const RankTier(0, '新兵', 0));
-      expect(RankCatalog.tiers[1], const RankTier(1, '一等兵', 3000));
-      expect(RankCatalog.tiers[31], const RankTier(31, '曹長', 69000));
-      expect(RankCatalog.tiers[140], const RankTier(140, '大将', 1070000));
+      expect([
+        for (final tier in RankCatalog.tiers) tier.requiredXp,
+      ], orderedEquals(_expectedRequiredXp));
+      expect([
+        for (final tier in RankCatalog.tiers) tier.titleKey,
+      ], orderedEquals(_expectedTitleKeys));
+      expect(
+        RankCatalog.tiers.first,
+        const RankTier(0, RankTitleKey.recruit, 0),
+      );
+      expect(
+        RankCatalog.tiers[1],
+        const RankTier(1, RankTitleKey.privateFirstClass, 3000),
+      );
+      expect(
+        RankCatalog.tiers[31],
+        const RankTier(31, RankTitleKey.masterSergeant, 69000),
+      );
+      expect(
+        RankCatalog.tiers[140],
+        const RankTier(140, RankTitleKey.general, 1070000),
+      );
       expect(RankCatalog.stageXpTotal, 32180000);
       expect([
         for (var rank = 0; rank < RankCatalog.tiers.length; rank++)
           RankCatalog.tiers[rank].rank,
       ], orderedEquals(List<int>.generate(141, (rank) => rank)));
+    });
+
+    test('localizes every rank title without changing the rank data', () {
+      final english = AppLocalizationsEn();
+      final japanese = AppLocalizationsJa();
+
+      expect([
+        for (final tier in RankCatalog.tiers) tier.localizedTitle(english),
+      ], orderedEquals(_expectedEnglishTitles));
+      expect([
+        for (final tier in RankCatalog.tiers) tier.localizedTitle(japanese),
+      ], orderedEquals(_expectedJapaneseTitles));
+      expect([
+        for (final tier in RankCatalog.tiers) tier.requiredXp,
+      ], orderedEquals(_expectedRequiredXp));
+    });
+
+    test('uses the resolved language for regional and fallback locales', () {
+      final tier = RankCatalog.tiers[42];
+
+      expect(
+        tier.localizedTitle(AppLocalizationsEn('en_US')),
+        'Master Gunnery Sergeant II',
+      );
+      expect(
+        tier.localizedTitle(AppLocalizationsEn('en_GB')),
+        'Master Gunnery Sergeant II',
+      );
+      expect(tier.localizedTitle(AppLocalizationsJa('ja_JP')), '上級曹長Ⅱ');
+      expect(
+        tier.localizedTitle(AppLocalizationsEn('fr_FR')),
+        'Master Gunnery Sergeant II',
+      );
     });
 
     test('maps every cumulative threshold to the matching rank', () {
@@ -249,14 +618,19 @@ void main() {
     test('carries overflow and caps the displayed rank at MAX', () {
       final rankOne = RankProgress.fromTotalXp(3500);
       expect(rankOne.rank, 1);
-      expect(rankOne.title, '一等兵');
+      expect(rankOne.localizedTitle(AppLocalizationsJa()), '一等兵');
+      expect(
+        rankOne.localizedTitle(AppLocalizationsEn()),
+        'Private First Class',
+      );
       expect(rankOne.currentRankXp, 500);
       expect(rankOne.nextRankXp, 8000);
       expect(rankOne.xpToNextRank, 7500);
 
       final max = RankProgress.fromTotalXp(RankCatalog.stageXpTotal + 1234);
       expect(max.rank, 140);
-      expect(max.title, '大将');
+      expect(max.localizedTitle(AppLocalizationsJa()), '大将');
+      expect(max.localizedTitle(AppLocalizationsEn()), 'General');
       expect(max.totalXp, RankCatalog.stageXpTotal + 1234);
       expect(max.isMax, isTrue);
       expect(max.nextRankXp, isNull);
@@ -678,6 +1052,81 @@ void main() {
     await openMatchSetup(tester);
     expect(find.text('ランク 0・新兵'), findsOneWidget);
     expect(find.text('次の昇級まで 500 XP'), findsOneWidget);
+  });
+
+  testWidgets(
+    'updates rank names in settings and results when locale changes',
+    (tester) async {
+      final locale = ValueNotifier(const Locale('en', 'US'));
+      addTearDown(locale.dispose);
+      final store = _FakeRankStore(value: 2500);
+      final loop = _ManualRankGameLoop();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            rankProgressStoreProvider.overrideWithValue(store),
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+            cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+          ],
+          child: ValueListenableBuilder<Locale>(
+            valueListenable: locale,
+            builder: (context, value, child) => MyApp(locale: value),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await openMatchSetup(tester);
+      expect(find.text('Rank 0 · Recruit'), findsOneWidget);
+
+      final rankElement = tester.element(
+        find.byKey(const ValueKey('rank-progress-card')),
+      );
+      final container = ProviderScope.containerOf(rankElement);
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
+      controller.startGame();
+      loop.tickMany(60);
+      controller.finish(const GameResult.victory(elapsedMs: 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+
+      expect(
+        find.text('Rank Up! Rank 1 · Private First Class'),
+        findsOneWidget,
+      );
+      final before = container.read(rankProgressProvider).value!;
+      expect(before.totalXp, 5500);
+
+      locale.value = const Locale('ja', 'JP');
+      await tester.pump();
+
+      expect(find.text('昇級！ ランク 1・一等兵'), findsOneWidget);
+      expect(container.read(rankProgressProvider).value, before);
+    },
+  );
+
+  testWidgets('fits a long English rank title in the compact settings layout', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(280, 500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final store = _FakeRankStore(value: RankCatalog.cumulativeXp[42]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [rankProgressStoreProvider.overrideWithValue(store)],
+        child: const MyApp(locale: Locale('en', 'US')),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await openMatchSetup(tester);
+    expect(find.text('Rank 42 · Master Gunnery Sergeant II'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('rank-progress-card'))).width,
+      lessThanOrEqualTo(280),
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('shows animated XP and rank-up emphasis in the result sheet', (

@@ -75,6 +75,84 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String get rankTitleRecruit => 'Recruit';
+
+  @override
+  String get rankTitlePrivateFirstClass => 'Private First Class';
+
+  @override
+  String get rankTitleLanceCorporal => 'Lance Corporal';
+
+  @override
+  String get rankTitleCorporal => 'Corporal';
+
+  @override
+  String get rankTitleSergeant => 'Sergeant';
+
+  @override
+  String get rankTitleStaffSergeant => 'Staff Sergeant';
+
+  @override
+  String get rankTitleGunnerySergeant => 'Gunnery Sergeant';
+
+  @override
+  String get rankTitleMasterSergeant => 'Master Sergeant';
+
+  @override
+  String get rankTitleFirstSergeant => 'First Sergeant';
+
+  @override
+  String get rankTitleMasterGunnerySergeant => 'Master Gunnery Sergeant';
+
+  @override
+  String get rankTitleSergeantMajor => 'Sergeant Major';
+
+  @override
+  String get rankTitleWarrantOfficerOne => 'Warrant Officer One';
+
+  @override
+  String get rankTitleChiefWarrantOfficerTwo => 'Chief Warrant Officer Two';
+
+  @override
+  String get rankTitleChiefWarrantOfficerThree => 'Chief Warrant Officer Three';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFour => 'Chief Warrant Officer Four';
+
+  @override
+  String get rankTitleChiefWarrantOfficerFive => 'Chief Warrant Officer Five';
+
+  @override
+  String get rankTitleSecondLieutenant => 'Second Lieutenant';
+
+  @override
+  String get rankTitleFirstLieutenant => 'First Lieutenant';
+
+  @override
+  String get rankTitleCaptain => 'Captain';
+
+  @override
+  String get rankTitleMajor => 'Major';
+
+  @override
+  String get rankTitleLieutenantColonel => 'Lieutenant Colonel';
+
+  @override
+  String get rankTitleColonel => 'Colonel';
+
+  @override
+  String get rankTitleBrigadierGeneral => 'Brigadier General';
+
+  @override
+  String get rankTitleMajorGeneral => 'Major General';
+
+  @override
+  String get rankTitleLieutenantGeneral => 'Lieutenant General';
+
+  @override
+  String get rankTitleGeneral => 'General';
+
+  @override
   String rankDisplay({required int rank, required String title}) {
     return 'Rank $rank · $title';
   }
