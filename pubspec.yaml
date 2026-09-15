@@ -62,14 +62,26 @@ flutter:
     - assets/islands/neutral/
 
   fonts:
-    - family: Libre Baskerville
+    - family: Noto Sans JP
       fonts:
-        - asset: assets/fonts/LibreBaskerville.ttf
-          weight: 700
-    - family: Barlow
-      fonts:
-        - asset: assets/fonts/Barlow-SemiBold.ttf
+        - asset: assets/fonts/NotoSansJP-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansJP-SemiBold.ttf
           weight: 600
+        - asset: assets/fonts/NotoSansJP-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSansJP-ExtraBold.ttf
+          weight: 800
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Roboto-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Roboto-ExtraBold.ttf
+          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:
