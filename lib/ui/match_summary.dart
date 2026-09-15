@@ -64,7 +64,8 @@ class MatchSummaryPanel extends StatelessWidget {
               Text(
                 l10n.matchSummaryHeading,
                 textAlign: TextAlign.center,
-                style: TacticalTypography.mono(
+                style: _summaryTextStyle(
+                  context,
                   fontSize: 10,
                   fontWeight: FontWeight.w800,
                   color: TacticalPalette.muted,
@@ -97,7 +98,8 @@ class _SummaryLine extends StatelessWidget {
       child: Text(
         label,
         textAlign: TextAlign.center,
-        style: TacticalTypography.mono(
+        style: _summaryTextStyle(
+          context,
           fontSize: 10,
           fontWeight: FontWeight.w700,
           color: TacticalPalette.foreground,
@@ -106,6 +108,23 @@ class _SummaryLine extends StatelessWidget {
       ),
     );
   }
+}
+
+TextStyle _summaryTextStyle(
+  BuildContext context, {
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+  double? letterSpacing,
+}) {
+  return Theme.of(context).textTheme.bodySmall!.copyWith(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    height: height,
+    letterSpacing: letterSpacing,
+  );
 }
 
 String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
