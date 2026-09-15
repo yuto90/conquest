@@ -281,14 +281,21 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onSettings: controller.returnToConfiguration,
                 ),
               if (state.phase == GamePhase.playing &&
-                  _battleBgmController.canRetry)
+                  _battleBgmController.canRetry) ...[
                 Positioned(
                   right: 16,
                   bottom: 56,
-                  child: _BgmUnavailableNotice(
+                  child: const _BgmUnavailableNotice(),
+                ),
+                Positioned(
+                  top: 12,
+                  right: 68,
+                  child: _BgmRetryButton(
+                    label: l10n.bgmRetry,
                     onRetry: _battleBgmController.retry,
                   ),
                 ),
+              ],
               _CountdownOverlay(state: state),
             ],
           ),
@@ -607,51 +614,75 @@ class _BgmToggle extends StatelessWidget {
 }
 
 class _BgmUnavailableNotice extends StatelessWidget {
-  const _BgmUnavailableNotice({required this.onRetry});
-
-  final VoidCallback onRetry;
+  const _BgmUnavailableNotice();
 
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
-    return Semantics(
-      container: true,
-      liveRegion: true,
-      label: l10n.bgmUnavailableMessage,
-      child: Container(
-        width: 250,
-        padding: const EdgeInsets.fromLTRB(12, 9, 8, 5),
-        decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            TacticalPalette.surface.withValues(alpha: 0.94),
-            TacticalPalette.background,
-          ),
-          border: Border.all(color: TacticalPalette.border),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
+    return SizedBox(
+      key: const ValueKey('bgm-unavailable-notice'),
+      width: 250,
+      child: IgnorePointer(
+        child: Semantics(
+          container: true,
+          liveRegion: true,
+          label: l10n.bgmUnavailableMessage,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(12, 9, 8, 5),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.94),
+                TacticalPalette.background,
+              ),
+              border: Border.all(color: TacticalPalette.border),
+            ),
+            child: Text(
               l10n.bgmUnavailableMessage,
               style: TacticalTypography.of(
                 context,
               ).body(fontSize: 10, color: TacticalPalette.muted, height: 1.35),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                key: const ValueKey('bgm-retry'),
-                onPressed: onRetry,
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  foregroundColor: TacticalPalette.foreground,
-                ),
-                child: Text(l10n.bgmRetry),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BgmRetryButton extends StatelessWidget {
+  const _BgmRetryButton({required this.label, required this.onRetry});
+
+  final String label;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: SizedBox.square(
+          dimension: 48,
+          child: IconButton(
+            key: const ValueKey('bgm-retry'),
+            onPressed: onRetry,
+            style: IconButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: TacticalPalette.foreground,
+              backgroundColor: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.78),
+                TacticalPalette.background,
               ),
+              side: BorderSide(
+                color: TacticalPalette.seaDeep.withValues(alpha: 0.65),
+              ),
+              shape: const CircleBorder(),
+              elevation: 3,
+              shadowColor: TacticalPalette.seaDeep.withValues(alpha: 0.24),
             ),
-          ],
+            icon: const Icon(Icons.play_arrow_rounded, size: 24),
+          ),
         ),
       ),
     );
