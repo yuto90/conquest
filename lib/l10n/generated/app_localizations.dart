@@ -152,10 +152,10 @@ abstract class AppLocalizations {
   /// **'Sound'**
   String get titleSound;
 
-  /// Explains current audio availability without implying a working mute toggle.
+  /// Explains where the in-match background music setting is available.
   ///
   /// In en, this message translates to:
-  /// **'This game currently plays without music or sound effects.'**
+  /// **'Background music can be controlled in match setup and while paused.'**
   String get titleSoundDescription;
 
   /// Close action for title information dialogs.
@@ -265,6 +265,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'2P CPU Difficulty'**
   String get opponentCpuDifficultyLabel;
+
+  /// The background music setting label.
+  ///
+  /// In en, this message translates to:
+  /// **'BGM'**
+  String get bgmLabel;
+
+  /// The enabled state of the background music setting.
+  ///
+  /// In en, this message translates to:
+  /// **'ON'**
+  String get bgmOn;
+
+  /// The disabled state of the background music setting.
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get bgmOff;
+
+  /// The background music toggle accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Background music: {state}'**
+  String bgmToggleSemantics({required String state});
 
   /// The start game button text.
   ///
@@ -674,6 +698,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dispatch unavailable: the source must be player-owned and have more than 1 force.'**
   String get feedbackInvalidatedSource;
+
+  /// Non-modal explanation shown when background music preparation or playback fails.
+  ///
+  /// In en, this message translates to:
+  /// **'BGM could not be played. The match continues without music.'**
+  String get bgmUnavailableMessage;
+
+  /// Explicit retry action for a rejected or unavailable background music playback.
+  ///
+  /// In en, this message translates to:
+  /// **'Play BGM'**
+  String get bgmRetry;
 }
 
 class _AppLocalizationsDelegate

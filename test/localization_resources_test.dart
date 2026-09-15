@@ -74,6 +74,7 @@ void main() {
         'factionPlayerTwo',
         'rankMax',
         'xpEarned',
+        'bgmLabel',
       };
       final identicalValues = englishMessages
           .where((key) => english[key] == japanese[key])
@@ -82,7 +83,7 @@ void main() {
         identicalValues,
         stableValues,
         reason:
-            'Only explicitly stable app title, brand, start, CPU, numeric, and difficulty values may remain identical.',
+            'Only explicitly stable app title, brand, start, CPU, numeric, difficulty, and BGM label values may remain identical.',
       );
     },
   );
