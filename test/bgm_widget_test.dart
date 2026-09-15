@@ -74,11 +74,13 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -111,14 +113,45 @@ void main() {
     expect(player.calls, contains('playFromStart'));
   });
 
+  testWidgets('menu BGM starts on the title and yields to battle BGM', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.pump();
+
+    expect(menu.calls, ['prepare', 'playFromStart']);
+    await openMatchSetup(tester);
+    expect(menu.calls, ['prepare', 'playFromStart']);
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    expect(menu.calls, ['prepare', 'playFromStart', 'stopAndReset']);
+    expect(battle.calls, ['prepare', 'playFromStart']);
+  });
+
   testWidgets('shows a temporary notice with a retry action', (tester) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..prepareError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -154,12 +187,14 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -187,6 +222,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
@@ -194,6 +230,7 @@ void main() {
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(0)),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -221,12 +258,14 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -248,12 +287,14 @@ void main() {
 
   testWidgets('failed retry shows a fresh temporary notice', (tester) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
