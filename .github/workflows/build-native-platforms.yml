@@ -56,7 +56,7 @@ jobs:
         run: fvm flutter build apk --release
 
   ios-simulator:
-    name: Build iOS Simulator release app
+    name: Build iOS Simulator debug app
     runs-on: macos-15
     timeout-minutes: 30
     env:
@@ -94,5 +94,5 @@ jobs:
           export PATH="$HOME/.pub-cache/bin:$PATH"
           fvm flutter pub get
 
-      - name: Build iOS Simulator release app
-        run: fvm flutter build ios --simulator --release --no-codesign
+      - name: Build iOS Simulator debug app
+        run: fvm flutter build ios --simulator --debug --no-codesign
