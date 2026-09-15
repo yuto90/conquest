@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 final class _FakeBgmAudioPlayer implements BgmAudioPlayer {
   final List<String> calls = <String>[];
   Duration currentPosition = const Duration(seconds: 12);
+  double? volume;
   Object? resumeError;
 
   @override
@@ -21,6 +22,7 @@ final class _FakeBgmAudioPlayer implements BgmAudioPlayer {
   @override
   Future<void> setVolume(double volume) async {
     calls.add('setVolume');
+    this.volume = volume;
   }
 
   @override
@@ -58,6 +60,22 @@ final class _FakeBgmAudioPlayer implements BgmAudioPlayer {
 }
 
 void main() {
+  test('menu player uses the supplied menu asset and volume', () async {
+    final audio = _FakeBgmAudioPlayer();
+    final player = AudioPlayersBgmPlayer(
+      player: audio,
+      assetPath: menuBgmAssetPath,
+      volume: menuBgmVolume,
+      targetPlatform: TargetPlatform.iOS,
+    );
+
+    await player.prepare();
+
+    expect(audio.calls, contains('setSource:audio/metropolis_destruction.mp3'));
+    expect(audio.volume, menuBgmVolume);
+    await player.dispose();
+  });
+
   test(
     'prepared playback retries with resume without waiting for a seek',
     () async {
