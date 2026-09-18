@@ -76,6 +76,22 @@ final class _DelayedGateway implements VeryHardCpuGateway {
   }
 }
 
+final class _DelayedFailureGateway implements VeryHardCpuGateway {
+  var decisionCalls = 0;
+  final failure = Completer<VeryHardDecisionResponse>();
+
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) async {
+    return const VeryHardPreflightResult.available();
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(VeryHardDecisionRequest request) {
+    decisionCalls++;
+    return failure.future;
+  }
+}
+
 void _completeCountdown(ManualGameLoop loop) {
   for (var index = 0; index < 60; index++) {
     loop.tick();
@@ -222,6 +238,82 @@ void main() {
     );
     expect(after.movingForces.single.strength, 20);
   });
+
+  test(
+    'recomputes a Hard fallback from the latest state after Jev waits',
+    () async {
+      final loop = ManualGameLoop();
+      final gateway = _DelayedFailureGateway();
+      final strategy = CpuStrategy(
+        timingRandom: _ZeroRandom(),
+        qualityRandom: _ZeroRandom(),
+        viewport: GameRules.defaultMapViewport,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          cpuStrategyProvider.overrideWithValue(strategy),
+          veryHardCpuGatewayProvider.overrideWithValue(gateway),
+        ],
+      );
+      final subscription = container.listen(gameControllerProvider, (_, __) {});
+      addTearDown(container.dispose);
+      addTearDown(subscription.close);
+
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.veryHard);
+      await controller.startGame();
+      _completeCountdown(loop);
+      controller.state = container
+          .read(gameControllerProvider)
+          .copyWith(
+            islands: [
+              for (final island
+                  in container.read(gameControllerProvider).islands)
+                island.id == 0
+                    ? island.copyWith(
+                        faction: Faction.cpu,
+                        currentForces: 40,
+                        durability: 0,
+                      )
+                    : island.id == 1
+                    ? island.copyWith(
+                        faction: Faction.player,
+                        currentForces: 40,
+                        durability: 0,
+                      )
+                    : island,
+            ],
+          );
+
+      for (var index = 0; index < 30; index++) {
+        loop.tick();
+      }
+      await Future<void>.delayed(Duration.zero);
+      expect(gateway.decisionCalls, 1);
+
+      // The board changes while Jev is pending. A fallback generated from the
+      // request snapshot would still use strength 20 and be rejected as stale;
+      // the current board should produce and apply strength 40.
+      controller.state = controller.state.copyWith(
+        islands: [
+          for (final island in controller.state.islands)
+            island.id == 0 ? island.copyWith(currentForces: 80) : island,
+        ],
+      );
+      gateway.failure.completeError(StateError('offline'));
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final after = container.read(gameControllerProvider);
+      expect(
+        after.movingForces.where((force) => force.faction == Faction.cpu),
+        hasLength(1),
+      );
+      expect(after.movingForces.single.strength, 40);
+    },
+  );
 
   test(
     'holds a mixed spectator batch until the Very Hard response resolves',

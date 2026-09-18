@@ -901,7 +901,7 @@ class GameController extends _$GameController {
           matchId: matchId,
           factions: veryHardFactions,
           fallback: (faction) => _cpuStrategies[faction]!.decide(
-            snapshot,
+            state,
             difficulty: CpuDifficulty.hard,
           ),
         );
