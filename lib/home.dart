@@ -30,6 +30,18 @@ AppLocalizations _appLocalizations(BuildContext context) {
       AppLocalizationsEn();
 }
 
+const _veryHardAccent = Color(0xFFA970FF);
+
+/// Keeps the Very Hard fallback notice out of production UI even if a state
+/// is restored or injected with a fallback feedback value.
+bool shouldShowInteractionFeedback(
+  InteractionFeedbackType type, {
+  bool? debugMode,
+}) {
+  return type != InteractionFeedbackType.veryHardFallback ||
+      (debugMode ?? kDebugMode);
+}
+
 final webVisibilitySourceProvider = Provider<WebVisibilitySource>(
   (_) => createWebVisibilitySource(),
 );
@@ -210,6 +222,9 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         state.phase == GamePhase.playing &&
         state.configuration.gameMode == GameMode.playerVsCpu;
     final showBoardChrome = state.phase != GamePhase.configuration;
+    final isVeryHardPreflightChecking =
+        state.requiresVeryHardPreflight &&
+        state.veryHardPreflightStatus == VeryHardPreflightStatus.checking;
 
     return PopScope<void>(
       canPop: state.phase != GamePhase.configuration,
@@ -284,7 +299,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                       ? controller.pauseGame
                       : null,
                 ),
-              if (state.hasInteractionFeedback)
+              if (state.hasInteractionFeedback &&
+                  shouldShowInteractionFeedback(state.interactionFeedback!))
                 _InteractionFeedback(type: state.interactionFeedback!),
               if (state.phase == GamePhase.configuration)
                 _ConfigurationPanel(
@@ -296,7 +312,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onStart:
                       state.islands.length ==
                               state.configuration.totalIslandCount &&
-                          canRenderCurrentMap
+                          canRenderCurrentMap &&
+                          !isVeryHardPreflightChecking
                       ? controller.startGame
                       : null,
                 ),
@@ -1190,6 +1207,12 @@ class _ConfigurationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    final mapReady =
+        state.islands.length == state.configuration.totalIslandCount;
+    final selectedVeryHard = state.configuration.gameMode == GameMode.cpuVsCpu
+        ? state.configuration.playerCpuDifficulty == CpuDifficulty.veryHard ||
+              state.configuration.cpuDifficulty == CpuDifficulty.veryHard
+        : state.configuration.cpuDifficulty == CpuDifficulty.veryHard;
     return ColoredBox(
       key: const ValueKey('settings-view'),
       color: TacticalPalette.background,
@@ -1363,6 +1386,20 @@ class _ConfigurationPanel extends StatelessWidget {
                               ],
                             ],
                           ),
+                          if (selectedVeryHard) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              key: const ValueKey('very-hard-online-helper'),
+                              l10n.veryHardJevOnline,
+                              textAlign: TextAlign.center,
+                              style: TacticalTypography.of(context).mono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: _veryHardAccent,
+                                letterSpacing: 0.4,
+                              ),
+                            ),
+                          ],
                           _BgmToggle(
                             enabled: bgmEnabled,
                             onChanged: onBgmChanged,
@@ -1401,11 +1438,47 @@ class _ConfigurationPanel extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (onStart == null) ...[
+                          if (!mapReady) ...[
                             const SizedBox(height: 12),
                             Text(
                               key: const ValueKey('map-unavailable-message'),
                               l10n.mapUnavailableMessage,
+                              textAlign: TextAlign.center,
+                              style: TacticalTypography.of(context).body(
+                                fontSize: 12,
+                                color: TacticalPalette.muted,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                          if (mapReady &&
+                              state.requiresVeryHardPreflight &&
+                              state.veryHardPreflightStatus ==
+                                  VeryHardPreflightStatus.checking) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              key: const ValueKey(
+                                'very-hard-preflight-checking',
+                              ),
+                              l10n.veryHardPreflightChecking,
+                              textAlign: TextAlign.center,
+                              style: TacticalTypography.of(context).body(
+                                fontSize: 12,
+                                color: TacticalPalette.muted,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                          if (mapReady &&
+                              state.requiresVeryHardPreflight &&
+                              state.veryHardPreflightStatus ==
+                                  VeryHardPreflightStatus.unavailable) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              key: const ValueKey(
+                                'very-hard-preflight-unavailable',
+                              ),
+                              l10n.veryHardPreflightUnavailable,
                               textAlign: TextAlign.center,
                               style: TacticalTypography.of(context).body(
                                 fontSize: 12,
@@ -1538,6 +1611,7 @@ class _DifficultyChoice extends StatelessWidget {
             : state.configuration.cpuDifficulty) ==
         difficulty;
     final label = _difficultyLabel(l10n, difficulty);
+    final isVeryHard = difficulty == CpuDifficulty.veryHard;
     final owner = playerCpu
         ? '1P '
         : state.configuration.gameMode == GameMode.cpuVsCpu
@@ -1576,9 +1650,13 @@ class _DifficultyChoice extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(1)),
         ),
         side: BorderSide(
-          color: selected ? TacticalPalette.foreground : TacticalPalette.border,
+          color: selected
+              ? (isVeryHard ? _veryHardAccent : TacticalPalette.foreground)
+              : (isVeryHard ? _veryHardAccent : TacticalPalette.border),
         ),
-        selectedColor: TacticalPalette.foreground,
+        selectedColor: isVeryHard
+            ? _veryHardAccent
+            : TacticalPalette.foreground,
         backgroundColor: Color.alphaBlend(
           TacticalPalette.surface.withValues(alpha: 0.62),
           TacticalPalette.background,
@@ -1586,7 +1664,9 @@ class _DifficultyChoice extends StatelessWidget {
         labelStyle: TacticalTypography.of(context).body(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: selected ? TacticalPalette.paper : TacticalPalette.muted,
+          color: selected
+              ? TacticalPalette.paper
+              : (isVeryHard ? _veryHardAccent : TacticalPalette.muted),
         ),
       ),
     );
@@ -1730,6 +1810,7 @@ String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
       CpuDifficulty.easy => l10n.difficultyEasy,
       CpuDifficulty.normal => l10n.difficultyNormal,
       CpuDifficulty.hard => l10n.difficultyHard,
+      CpuDifficulty.veryHard => l10n.difficultyVeryHard,
     };
 
 class _CountdownOverlay extends StatelessWidget {
@@ -1963,6 +2044,7 @@ class _InteractionFeedback extends StatelessWidget {
         l10n.feedbackUnavailableSource,
       InteractionFeedbackType.invalidatedSource =>
         l10n.feedbackInvalidatedSource,
+      InteractionFeedbackType.veryHardFallback => l10n.feedbackVeryHardFallback,
     };
     return IgnorePointer(
       child: Align(

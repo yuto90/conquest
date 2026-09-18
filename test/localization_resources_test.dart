@@ -51,6 +51,7 @@ void main() {
         'difficultyEasy',
         'difficultyNormal',
         'difficultyHard',
+        'difficultyVeryHard',
       ]) {
         expect(
           japanese[key],
@@ -66,6 +67,7 @@ void main() {
         'difficultyEasy',
         'difficultyNormal',
         'difficultyHard',
+        'difficultyVeryHard',
         'factionCpu',
         'factionPlayerOne',
         'factionPlayerTwo',

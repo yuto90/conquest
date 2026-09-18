@@ -194,6 +194,12 @@ abstract class AppLocalizations {
   /// **'Hard'**
   String get difficultyHard;
 
+  /// The Very Hard CPU difficulty name.
+  ///
+  /// In en, this message translates to:
+  /// **'Very Hard'**
+  String get difficultyVeryHard;
+
   /// The configuration step marker.
   ///
   /// In en, this message translates to:
@@ -212,157 +218,157 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
-  /// The English and Japanese base title for rank 0.
+  /// The English title for rank 0.
   ///
   /// In en, this message translates to:
   /// **'Recruit'**
   String get rankTitleRecruit;
 
-  /// The English and Japanese base title for ranks 1 through 5.
+  /// The English title for ranks 1 through 5.
   ///
   /// In en, this message translates to:
   /// **'Private First Class'**
   String get rankTitlePrivateFirstClass;
 
-  /// The English and Japanese base title for ranks 6 through 10.
+  /// The English title for ranks 6 through 10.
   ///
   /// In en, this message translates to:
   /// **'Lance Corporal'**
   String get rankTitleLanceCorporal;
 
-  /// The English and Japanese base title for ranks 11 through 15.
+  /// The English title for ranks 11 through 15.
   ///
   /// In en, this message translates to:
   /// **'Corporal'**
   String get rankTitleCorporal;
 
-  /// The English and Japanese base title for ranks 16 through 20.
+  /// The English title for ranks 16 through 20.
   ///
   /// In en, this message translates to:
   /// **'Sergeant'**
   String get rankTitleSergeant;
 
-  /// The English and Japanese base title for ranks 21 through 25.
+  /// The English title for ranks 21 through 25.
   ///
   /// In en, this message translates to:
   /// **'Staff Sergeant'**
   String get rankTitleStaffSergeant;
 
-  /// The English and Japanese base title for ranks 26 through 30.
+  /// The English title for ranks 26 through 30.
   ///
   /// In en, this message translates to:
   /// **'Gunnery Sergeant'**
   String get rankTitleGunnerySergeant;
 
-  /// The English and Japanese base title for ranks 31 through 35.
+  /// The English title for ranks 31 through 35.
   ///
   /// In en, this message translates to:
   /// **'Master Sergeant'**
   String get rankTitleMasterSergeant;
 
-  /// The English and Japanese base title for ranks 36 through 40.
+  /// The English title for ranks 36 through 40.
   ///
   /// In en, this message translates to:
   /// **'First Sergeant'**
   String get rankTitleFirstSergeant;
 
-  /// The English and Japanese base title for ranks 41 through 45.
+  /// The English title for ranks 41 through 45.
   ///
   /// In en, this message translates to:
   /// **'Master Gunnery Sergeant'**
   String get rankTitleMasterGunnerySergeant;
 
-  /// The English and Japanese base title for ranks 46 through 50.
+  /// The English title for ranks 46 through 50.
   ///
   /// In en, this message translates to:
   /// **'Sergeant Major'**
   String get rankTitleSergeantMajor;
 
-  /// The English and Japanese base title for ranks 51 through 55.
+  /// The English title for ranks 51 through 55.
   ///
   /// In en, this message translates to:
   /// **'Warrant Officer One'**
   String get rankTitleWarrantOfficerOne;
 
-  /// The English and Japanese base title for ranks 56 through 60.
+  /// The English title for ranks 56 through 60.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Two'**
   String get rankTitleChiefWarrantOfficerTwo;
 
-  /// The English and Japanese base title for ranks 61 through 65.
+  /// The English title for ranks 61 through 65.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Three'**
   String get rankTitleChiefWarrantOfficerThree;
 
-  /// The English and Japanese base title for ranks 66 through 70.
+  /// The English title for ranks 66 through 70.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Four'**
   String get rankTitleChiefWarrantOfficerFour;
 
-  /// The English and Japanese base title for ranks 71 through 75.
+  /// The English title for ranks 71 through 75.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Five'**
   String get rankTitleChiefWarrantOfficerFive;
 
-  /// The English and Japanese base title for ranks 76 through 80.
+  /// The English title for ranks 76 through 80.
   ///
   /// In en, this message translates to:
   /// **'Second Lieutenant'**
   String get rankTitleSecondLieutenant;
 
-  /// The English and Japanese base title for ranks 81 through 85.
+  /// The English title for ranks 81 through 85.
   ///
   /// In en, this message translates to:
   /// **'First Lieutenant'**
   String get rankTitleFirstLieutenant;
 
-  /// The English and Japanese base title for ranks 86 through 90.
+  /// The English title for ranks 86 through 90.
   ///
   /// In en, this message translates to:
   /// **'Captain'**
   String get rankTitleCaptain;
 
-  /// The English and Japanese base title for ranks 91 through 95.
+  /// The English title for ranks 91 through 95.
   ///
   /// In en, this message translates to:
   /// **'Major'**
   String get rankTitleMajor;
 
-  /// The English and Japanese base title for ranks 96 through 99.
+  /// The English title for ranks 96 through 99.
   ///
   /// In en, this message translates to:
   /// **'Lieutenant Colonel'**
   String get rankTitleLieutenantColonel;
 
-  /// The English and Japanese base title for ranks 100 through 109.
+  /// The English title for ranks 100 through 109.
   ///
   /// In en, this message translates to:
   /// **'Colonel'**
   String get rankTitleColonel;
 
-  /// The English and Japanese base title for ranks 110 through 119.
+  /// The English title for ranks 110 through 119.
   ///
   /// In en, this message translates to:
   /// **'Brigadier General'**
   String get rankTitleBrigadierGeneral;
 
-  /// The English and Japanese base title for ranks 120 through 129.
+  /// The English title for ranks 120 through 129.
   ///
   /// In en, this message translates to:
   /// **'Major General'**
   String get rankTitleMajorGeneral;
 
-  /// The English and Japanese base title for ranks 130 through 139.
+  /// The English title for ranks 130 through 139.
   ///
   /// In en, this message translates to:
   /// **'Lieutenant General'**
   String get rankTitleLieutenantGeneral;
 
-  /// The English and Japanese base title for rank 140.
+  /// The English title for rank 140.
   ///
   /// In en, this message translates to:
   /// **'General'**
@@ -415,6 +421,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'2P CPU Difficulty'**
   String get opponentCpuDifficultyLabel;
+
+  /// The Very Hard helper text identifying the Jev online decision service.
+  ///
+  /// In en, this message translates to:
+  /// **'Jev · Online'**
+  String get veryHardJevOnline;
 
   /// The background music setting label.
   ///
@@ -469,6 +481,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The current map is ready. Tap Resume to continue the match.'**
   String get viewportReadyDescription;
+
+  /// Inline status while the Very Hard start-time preflight is running.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking Jev availability…'**
+  String get veryHardPreflightChecking;
+
+  /// Inline status after a failed Very Hard preflight; the same start action retries.
+  ///
+  /// In en, this message translates to:
+  /// **'Very Hard CPU is unavailable. Tap Start Game to retry.'**
+  String get veryHardPreflightUnavailable;
 
   /// The selected standard match summary.
   ///
@@ -905,6 +929,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dispatch unavailable: the source must be player-owned and have more than 1 force.'**
   String get feedbackInvalidatedSource;
+
+  /// Short debug-only notice when a Very Hard request uses the Hard fallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Very Hard fallback: continuing with Hard CPU.'**
+  String get feedbackVeryHardFallback;
 
   /// Non-modal explanation shown when background music preparation or playback fails.
   ///

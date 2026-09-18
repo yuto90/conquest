@@ -118,6 +118,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('labels Very Hard in the player match summary', (tester) async {
+    final loop = _ManualGameLoop();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+        ],
+        child: const MyApp(locale: Locale('en')),
+      ),
+    );
+    await openMatchSetup(tester);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectCpuDifficulty(CpuDifficulty.veryHard);
+    await tester.pump();
+    controller.state = controller.state.finishWithResult(
+      const GameResult.defeat(elapsedMs: 1_000),
+    );
+    await tester.pump();
+
+    expect(find.text('10 islands / Very Hard CPU'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byKey(const ValueKey('match-summary'))).label,
+      contains('10 islands / Very Hard CPU'),
+    );
+  });
+
   testWidgets('does not show a human summary for spectator results', (
     tester,
   ) async {

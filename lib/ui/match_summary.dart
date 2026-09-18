@@ -133,4 +133,5 @@ String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
       CpuDifficulty.easy => l10n.difficultyEasy,
       CpuDifficulty.normal => l10n.difficultyNormal,
       CpuDifficulty.hard => l10n.difficultyHard,
+      CpuDifficulty.veryHard => l10n.difficultyVeryHard,
     };
