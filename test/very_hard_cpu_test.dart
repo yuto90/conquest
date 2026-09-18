@@ -217,8 +217,18 @@ void main() {
 
     expect(outcome.usedFallback, isTrue);
     expect(outcome.decisions, containsPair(Faction.cpu, null));
-    expect(coordinator.hasInFlightRequest, isFalse);
+    expect(coordinator.hasInFlightRequest, isTrue);
+    final skipped = await coordinator.decide(
+      state: state,
+      matchId: 'match-1',
+      factions: const [Faction.cpu],
+      fallback: (faction) => null,
+    );
+    expect(skipped.skipped, isTrue);
+    expect(coordinator.hasInFlightRequest, isTrue);
     request.completeError(StateError('late response'));
+    await Future<void>.delayed(Duration.zero);
+    expect(coordinator.hasInFlightRequest, isFalse);
   });
 
   test(

@@ -515,7 +515,7 @@ final class VeryHardCpuCoordinator {
   final VeryHardCpuGateway gateway;
   VeryHardCandidateGenerator candidateGenerator;
   final Duration timeout;
-  Future<VeryHardDecisionOutcome>? _inFlight;
+  Future<void>? _inFlight;
 
   bool get hasInFlightRequest => _inFlight != null;
 
@@ -544,26 +544,39 @@ final class VeryHardCpuCoordinator {
       factions: factions,
       viewport: candidateGenerator.viewport,
     );
-    final operation = _perform(
+    // Keep the gate attached to the transport itself. Future.timeout returns
+    // a fallback to the caller, but it cannot cancel an arbitrary gateway
+    // implementation. Holding the gate until that transport settles prevents
+    // a late request from overlapping the next request for this match.
+    final transport = Future<VeryHardDecisionResponse>.sync(
+      () => gateway.decide(request),
+    );
+    late final Future<void> tracked;
+    void clearGate() {
+      if (identical(_inFlight, tracked)) _inFlight = null;
+    }
+
+    tracked = transport.then<void>(
+      (_) => clearGate(),
+      onError: (Object error, StackTrace stackTrace) => clearGate(),
+    );
+    _inFlight = tracked;
+    return _perform(
       request: request,
+      transport: transport,
       factions: request.subjects.map((subject) => subject.faction),
       fallback: fallback,
     );
-    late final Future<VeryHardDecisionOutcome> tracked;
-    tracked = operation.whenComplete(() {
-      if (identical(_inFlight, tracked)) _inFlight = null;
-    });
-    _inFlight = tracked;
-    return tracked;
   }
 
   Future<VeryHardDecisionOutcome> _perform({
     required VeryHardDecisionRequest request,
+    required Future<VeryHardDecisionResponse> transport,
     required Iterable<Faction> factions,
     required CpuDecision? Function(Faction faction) fallback,
   }) async {
     try {
-      final response = await gateway.decide(request).timeout(timeout);
+      final response = await transport.timeout(timeout);
       final decisions = <Faction, CpuDecision?>{};
       for (final faction in factions) {
         final candidateId = response.candidateIdsByFaction[faction];
