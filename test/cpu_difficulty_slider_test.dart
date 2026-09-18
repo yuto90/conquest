@@ -122,6 +122,108 @@ void main() {
     expect(_testValue, CpuDifficulty.veryEasy);
   });
 
+  testWidgets('maps taps around visual tick midpoints to the nearest tick', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Harness(width: 320));
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderRect = tester.getRect(slider);
+    const tickInset = 40.0;
+    final tickRange = sliderRect.width - tickInset * 2;
+    final tickStep = tickRange / (CpuDifficulty.values.length - 1);
+    final tickCenters = <double>[
+      for (var index = 0; index < CpuDifficulty.values.length; index++)
+        sliderRect.left + tickInset + index * tickStep,
+    ];
+    final cases = <({double x, CpuDifficulty expected})>[
+      (x: sliderRect.left + 1, expected: CpuDifficulty.veryEasy),
+      (
+        x: (tickCenters[0] + tickCenters[1]) / 2 - 1,
+        expected: CpuDifficulty.veryEasy,
+      ),
+      (
+        x: (tickCenters[0] + tickCenters[1]) / 2 + 1,
+        expected: CpuDifficulty.easy,
+      ),
+      (
+        x: (tickCenters[1] + tickCenters[2]) / 2 - 1,
+        expected: CpuDifficulty.easy,
+      ),
+      (
+        x: (tickCenters[1] + tickCenters[2]) / 2 + 1,
+        expected: CpuDifficulty.normal,
+      ),
+      (
+        x: (tickCenters[2] + tickCenters[3]) / 2 - 1,
+        expected: CpuDifficulty.normal,
+      ),
+      (
+        x: (tickCenters[2] + tickCenters[3]) / 2 + 1,
+        expected: CpuDifficulty.hard,
+      ),
+      (x: sliderRect.right - 1, expected: CpuDifficulty.hard),
+    ];
+
+    for (final testCase in cases) {
+      await tester.tapAt(Offset(testCase.x, sliderRect.center.dy));
+      await tester.pump();
+      expect(_testValue, testCase.expected, reason: 'tap at ${testCase.x}');
+    }
+  });
+
+  testWidgets('maps drags around visual tick midpoints to the nearest tick', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Harness(width: 320));
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderRect = tester.getRect(slider);
+    const tickInset = 40.0;
+    final tickRange = sliderRect.width - tickInset * 2;
+    final tickStep = tickRange / (CpuDifficulty.values.length - 1);
+    final tickCenters = <double>[
+      for (var index = 0; index < CpuDifficulty.values.length; index++)
+        sliderRect.left + tickInset + index * tickStep,
+    ];
+    final cases = <({double x, CpuDifficulty expected})>[
+      (x: sliderRect.left + 1, expected: CpuDifficulty.veryEasy),
+      (
+        x: (tickCenters[0] + tickCenters[1]) / 2 - 1,
+        expected: CpuDifficulty.veryEasy,
+      ),
+      (
+        x: (tickCenters[0] + tickCenters[1]) / 2 + 1,
+        expected: CpuDifficulty.easy,
+      ),
+      (
+        x: (tickCenters[1] + tickCenters[2]) / 2 - 1,
+        expected: CpuDifficulty.easy,
+      ),
+      (
+        x: (tickCenters[1] + tickCenters[2]) / 2 + 1,
+        expected: CpuDifficulty.normal,
+      ),
+      (
+        x: (tickCenters[2] + tickCenters[3]) / 2 - 1,
+        expected: CpuDifficulty.normal,
+      ),
+      (
+        x: (tickCenters[2] + tickCenters[3]) / 2 + 1,
+        expected: CpuDifficulty.hard,
+      ),
+      (x: sliderRect.right - 1, expected: CpuDifficulty.hard),
+    ];
+
+    for (final testCase in cases) {
+      final gesture = await tester.startGesture(
+        Offset(testCase.x, sliderRect.center.dy),
+      );
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(_testValue, testCase.expected, reason: 'drag at ${testCase.x}');
+    }
+  });
+
   testWidgets('supports keyboard and semantics increment/decrement', (
     tester,
   ) async {
@@ -145,6 +247,57 @@ void main() {
     await tester.pump();
     expect(_testValue, CpuDifficulty.normal);
     semantics.dispose();
+  });
+
+  testWidgets('does not paint a value indicator during interaction or focus', (
+    tester,
+  ) async {
+    final valueIndicator = _RecordingValueIndicatorShape();
+    await tester.pumpWidget(
+      _Harness(width: 320, valueIndicatorShape: valueIndicator),
+    );
+
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderControl = find.byKey(
+      const ValueKey('cpu-difficulty-slider-control'),
+    );
+    expect(tester.widget<Slider>(sliderControl).label, isNull);
+    expect(
+      tester
+          .widget<SliderTheme>(
+            find
+                .ancestor(of: sliderControl, matching: find.byType(SliderTheme))
+                .first,
+          )
+          .data
+          .showValueIndicator,
+      ShowValueIndicator.never,
+    );
+
+    final harness = tester.state<_HarnessState>(find.byType(_Harness));
+    harness.focusNode.requestFocus();
+    await tester.pump();
+    expect(
+      tester
+          .widget<SliderTheme>(
+            find
+                .ancestor(of: sliderControl, matching: find.byType(SliderTheme))
+                .first,
+          )
+          .data
+          .overlayColor,
+      isNot(Colors.transparent),
+    );
+    await tester.tapAt(tester.getRect(slider).center);
+    await tester.pump();
+    final gesture = await tester.startGesture(tester.getRect(slider).center);
+    await tester.pump();
+    await gesture.moveBy(const Offset(12, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(valueIndicator.paintCount, 0);
   });
 
   testWidgets('keeps the control usable at narrow widths with reduced motion', (
@@ -172,13 +325,52 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('supports 2x text in a wide parent inside vertical scrolling', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _Harness(
+        width: 560,
+        textScaler: TextScaler.linear(2),
+        verticalScroll: true,
+        scrollHeight: 96,
+      ),
+    );
+
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderRect = tester.getRect(slider);
+    expect(sliderRect.width, 560);
+    for (final difficulty in CpuDifficulty.values) {
+      final labelRect = tester.getRect(
+        find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
+      );
+      expect(labelRect.left, greaterThanOrEqualTo(sliderRect.left));
+      expect(labelRect.right, lessThanOrEqualTo(sliderRect.right));
+    }
+
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -32));
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _Harness extends StatefulWidget {
-  const _Harness({this.width, this.disableAnimations = false});
+  const _Harness({
+    this.width,
+    this.disableAnimations = false,
+    this.valueIndicatorShape,
+    this.textScaler,
+    this.verticalScroll = false,
+    this.scrollHeight = 160,
+  });
 
   final double? width;
   final bool disableAnimations;
+  final SliderComponentShape? valueIndicatorShape;
+  final TextScaler? textScaler;
+  final bool verticalScroll;
+  final double scrollHeight;
 
   @override
   State<_Harness> createState() => _HarnessState();
@@ -212,31 +404,70 @@ class _HarnessState extends State<_Harness> {
 
   @override
   Widget build(BuildContext context) {
+    Widget slider = CpuDifficultySlider(
+      value: value,
+      onChanged: _change,
+      title: 'CPU難易度',
+      labels: const <CpuDifficulty, String>{
+        CpuDifficulty.veryEasy: 'Very Easy',
+        CpuDifficulty.easy: 'Easy',
+        CpuDifficulty.normal: 'Normal',
+        CpuDifficulty.hard: 'Hard',
+      },
+      focusNode: focusNode,
+    );
+    if (widget.valueIndicatorShape != null) {
+      slider = SliderTheme(
+        data: SliderTheme.of(
+          context,
+        ).copyWith(valueIndicatorShape: widget.valueIndicatorShape),
+        child: slider,
+      );
+    }
+    Widget content = SizedBox(width: widget.width, child: slider);
+    if (widget.verticalScroll) {
+      content = SizedBox(
+        height: widget.scrollHeight,
+        child: SingleChildScrollView(child: content),
+      );
+    }
     return MaterialApp(
       home: Scaffold(
         body: Center(
           child: MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(disableAnimations: widget.disableAnimations),
-            child: SizedBox(
-              width: widget.width,
-              child: CpuDifficultySlider(
-                value: value,
-                onChanged: _change,
-                title: 'CPU難易度',
-                labels: const <CpuDifficulty, String>{
-                  CpuDifficulty.veryEasy: 'Very Easy',
-                  CpuDifficulty.easy: 'Easy',
-                  CpuDifficulty.normal: 'Normal',
-                  CpuDifficulty.hard: 'Hard',
-                },
-                focusNode: focusNode,
-              ),
+            data: MediaQuery.of(context).copyWith(
+              disableAnimations: widget.disableAnimations,
+              textScaler: widget.textScaler,
             ),
+            child: content,
           ),
         ),
       ),
     );
+  }
+}
+
+class _RecordingValueIndicatorShape extends SliderComponentShape {
+  var paintCount = 0;
+
+  @override
+  Size getPreferredSize(bool isEnabled, bool isDiscrete) => Size.zero;
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset center, {
+    required Animation<double> activationAnimation,
+    required Animation<double> enableAnimation,
+    required bool isDiscrete,
+    required TextPainter labelPainter,
+    required RenderBox parentBox,
+    required SliderThemeData sliderTheme,
+    required TextDirection textDirection,
+    required double value,
+    required double textScaleFactor,
+    required Size sizeWithOverflow,
+  }) {
+    paintCount++;
   }
 }

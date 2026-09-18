@@ -102,9 +102,9 @@ class _CpuDifficultySliderState extends State<CpuDifficultySlider> {
         activeTickMarkColor: TacticalPalette.paper.withValues(alpha: 0.88),
         inactiveTickMarkColor: TacticalPalette.seaDeep.withValues(alpha: 0.72),
         thumbColor: TacticalPalette.paper,
-        overlayColor: Colors.transparent,
+        showValueIndicator: ShowValueIndicator.never,
         trackHeight: 32,
-        trackShape: const RoundedRectSliderTrackShape(),
+        trackShape: const _CpuDifficultySliderTrackShape(),
         tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 3),
         thumbShape: const RoundSliderThumbShape(
           enabledThumbRadius: 20,
@@ -118,7 +118,12 @@ class _CpuDifficultySliderState extends State<CpuDifficultySlider> {
         focusNode: _focusNode,
         value: widget.value.index / (CpuDifficulty.values.length - 1),
         divisions: CpuDifficulty.values.length - 1,
-        label: widget.title,
+        overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
+          if (states.contains(WidgetState.focused)) {
+            return activeColor.withValues(alpha: 0.16);
+          }
+          return Colors.transparent;
+        }),
         semanticFormatterCallback: (position) =>
             widget.labels[_difficultyForValue(position)] ??
             _difficultyForValue(position).name,
@@ -180,6 +185,38 @@ class _CpuDifficultySliderState extends State<CpuDifficultySlider> {
   }
 }
 
+/// Keeps pointer coordinates aligned with the visual centers of a discrete
+/// rounded slider's ticks and thumb.
+class _CpuDifficultySliderTrackShape extends RoundedRectSliderTrackShape {
+  const _CpuDifficultySliderTrackShape();
+
+  @override
+  Rect getPreferredRect({
+    required RenderBox parentBox,
+    Offset offset = Offset.zero,
+    required SliderThemeData sliderTheme,
+    bool isEnabled = false,
+    bool isDiscrete = false,
+  }) {
+    final rect = super.getPreferredRect(
+      parentBox: parentBox,
+      offset: offset,
+      sliderTheme: sliderTheme,
+      isEnabled: isEnabled,
+      isDiscrete: isDiscrete,
+    );
+    if (isDiscrete) return rect;
+
+    final trackInset = (sliderTheme.trackHeight ?? 0) / 2;
+    return Rect.fromLTRB(
+      rect.left + trackInset,
+      rect.top,
+      rect.right - trackInset,
+      rect.bottom,
+    );
+  }
+}
+
 class _DifficultyLabels extends StatelessWidget {
   const _DifficultyLabels({
     required this.keyPrefix,
@@ -197,11 +234,10 @@ class _DifficultyLabels extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Slider's rounded track uses a 20dp thumb radius and a 32dp track.
-        // The first/last ticks therefore sit 36dp inside the control. Using
-        // the same coordinates here keeps label hit areas aligned with ticks
-        // at every parent width.
-        const tickInset = 36.0;
+        // Slider's rounded discrete track maps its ticks inside the 32dp
+        // track ends and 24dp overlay bounds. Keep labels centered on those
+        // same tick coordinates at every parent width.
+        const tickInset = 40.0;
         final tickRange = math.max(0.0, constraints.maxWidth - tickInset * 2);
         final cellWidth = tickRange / (CpuDifficulty.values.length - 1);
         return SizedBox(
@@ -211,13 +247,22 @@ class _DifficultyLabels extends StatelessWidget {
             children: [
               for (var index = 0; index < CpuDifficulty.values.length; index++)
                 Positioned(
-                  left: math.max(
-                    0,
-                    tickInset + index * cellWidth - cellWidth / 2,
-                  ),
-                  width: math.min(
-                    constraints.maxWidth,
-                    math.max(1.0, cellWidth),
+                  left:
+                      tickInset +
+                      index * cellWidth -
+                      _labelCellHalfWidth(
+                        tickInset + index * cellWidth,
+                        cellWidth,
+                        constraints.maxWidth,
+                      ),
+                  width: math.max(
+                    1.0,
+                    _labelCellHalfWidth(
+                          tickInset + index * cellWidth,
+                          cellWidth,
+                          constraints.maxWidth,
+                        ) *
+                        2,
                   ),
                   top: 0,
                   bottom: 0,
@@ -237,6 +282,17 @@ class _DifficultyLabels extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  double _labelCellHalfWidth(
+    double tickCenter,
+    double cellWidth,
+    double parentWidth,
+  ) {
+    return math.max(
+      0,
+      math.min(cellWidth / 2, math.min(tickCenter, parentWidth - tickCenter)),
     );
   }
 }
