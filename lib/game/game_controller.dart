@@ -89,6 +89,7 @@ class GameController extends _$GameController {
   var _currentMatchId = 'match-0';
   var _rankRewardGranted = false;
   var _veryHardRequestGeneration = 0;
+  var _veryHardBatchPending = false;
   Future<void>? _veryHardPreflight;
 
   static const _interactionFeedbackDurationMs =
@@ -127,6 +128,7 @@ class GameController extends _$GameController {
     ref.onDispose(() {
       _disposed = true;
       _veryHardRequestGeneration++;
+      _veryHardBatchPending = false;
       _gameLoop.stop();
     });
 
@@ -270,6 +272,7 @@ class GameController extends _$GameController {
     }
     state = _rules.pause(state);
     _veryHardRequestGeneration++;
+    _veryHardBatchPending = false;
     _gameLoop.stop();
     _lastTickMs = null;
   }
@@ -326,6 +329,7 @@ class GameController extends _$GameController {
     }
     state = nextState;
     _veryHardRequestGeneration++;
+    _veryHardBatchPending = false;
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
@@ -347,6 +351,7 @@ class GameController extends _$GameController {
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
     _veryHardRequestGeneration++;
+    _veryHardBatchPending = false;
     _rankRewardGranted = false;
     state = _newInitialStateFor(
       configuration: state.configuration,
@@ -364,6 +369,7 @@ class GameController extends _$GameController {
     }
 
     _veryHardRequestGeneration++;
+    _veryHardBatchPending = false;
 
     final initial = _newInitialStateFor(
       configuration: state.configuration,
@@ -402,6 +408,7 @@ class GameController extends _$GameController {
     _currentMatchId = 'match-$_matchSerial';
     _rankRewardGranted = false;
     _veryHardRequestGeneration++;
+    _veryHardBatchPending = false;
   }
 
   bool _isRankEligible(GameConfiguration configuration, GameResult result) {
@@ -766,6 +773,12 @@ class GameController extends _$GameController {
   }
 
   void _runCpuDecisionIfDue() {
+    // A mixed spectator batch is intentionally held together while the
+    // asynchronous Very Hard decision is in flight.  Otherwise the local
+    // CPU would get a head start while Jev is still evaluating the same
+    // snapshot.
+    if (_veryHardBatchPending) return;
+
     final active = _activeCpuFactions.toList(growable: false);
     for (final faction in active) {
       _nextCpuDecisionAtMsByFaction.putIfAbsent(
@@ -787,8 +800,6 @@ class GameController extends _$GameController {
     if (due.isEmpty) return;
 
     // All decisions in one tick use the exact same post-rule-tick state.
-    // Applying local decisions before the asynchronous Very Hard response
-    // keeps the existing stable player-then-CPU order without blocking ticks.
     final snapshot = state;
     final localDue = [
       for (final faction in due)
@@ -798,79 +809,130 @@ class GameController extends _$GameController {
       for (final faction in due)
         if (_difficultyFor(faction) == CpuDifficulty.veryHard) faction,
     ];
-    final decisions = [
+    final localDecisions = <Faction, CpuDecision?>{
       for (final faction in localDue)
-        (
-          faction: faction,
-          decision: _cpuStrategies[faction]!.decide(
-            snapshot,
-            difficulty: _difficultyFor(faction),
-          ),
+        faction: _cpuStrategies[faction]!.decide(
+          snapshot,
+          difficulty: _difficultyFor(faction),
         ),
-    ];
-    for (final entry in decisions) {
-      final decision = entry.decision;
+    };
+    final coordinator = _veryHardCpuCoordinator;
+    if (veryHardDue.isNotEmpty) {
+      if (coordinator == null) {
+        // The coordinator is normally created with the controller. Keep the
+        // local Hard-equivalent fallback deterministic if construction ever
+        // fails, while still applying the complete due batch atomically.
+        final fallbackDecisions = <Faction, CpuDecision?>{
+          ...localDecisions,
+          for (final faction in veryHardDue)
+            faction: _cpuStrategies[faction]!.decide(
+              snapshot,
+              difficulty: CpuDifficulty.hard,
+            ),
+        };
+        final batchFactions = [
+          for (final faction in const [Faction.player, Faction.cpu])
+            if (due.contains(faction)) faction,
+        ];
+        _applyCpuDecisionBatch(
+          factions: batchFactions,
+          decisions: fallbackDecisions,
+        );
+        for (final faction in batchFactions) {
+          _scheduleNextCpuDecision(faction);
+        }
+        return;
+      }
+      if (coordinator.hasInFlightRequest) return;
+
+      _veryHardBatchPending = true;
+      final batchFactions = [
+        for (final faction in const [Faction.player, Faction.cpu])
+          if (due.contains(faction)) faction,
+      ];
+      _startVeryHardDecision(
+        snapshot,
+        veryHardDue,
+        batchFactions: batchFactions,
+        localDecisions: localDecisions,
+      );
+      return;
+    }
+
+    _applyCpuDecisionBatch(factions: localDue, decisions: localDecisions);
+    for (final faction in localDue) {
+      // Schedule from current game time rather than an old deadline. This
+      // prevents catch-up bursts after a delayed callback.
+      _scheduleNextCpuDecision(faction);
+    }
+  }
+
+  void _applyCpuDecisionBatch({
+    required List<Faction> factions,
+    required Map<Faction, CpuDecision?> decisions,
+  }) {
+    for (final faction in const [Faction.player, Faction.cpu]) {
+      if (!factions.contains(faction)) continue;
+      final decision = decisions[faction];
       if (decision != null) {
-        state = _cpuStrategies[entry.faction]!.applyDecision(
+        state = _cpuStrategies[faction]!.applyDecision(
           state,
           decision,
           movingForceId: _nextMovingForceId,
         );
       }
     }
-    for (final faction in localDue) {
-      // Schedule from current game time rather than an old deadline. This
-      // prevents catch-up bursts after a delayed callback.
-      _scheduleNextCpuDecision(faction);
-    }
-    final coordinator = _veryHardCpuCoordinator;
-    if (veryHardDue.isNotEmpty &&
-        coordinator != null &&
-        !coordinator.hasInFlightRequest) {
-      _startVeryHardDecision(snapshot, veryHardDue);
-    }
   }
 
-  void _startVeryHardDecision(GameState snapshot, List<Faction> factions) {
+  void _startVeryHardDecision(
+    GameState snapshot,
+    List<Faction> veryHardFactions, {
+    required List<Faction> batchFactions,
+    required Map<Faction, CpuDecision?> localDecisions,
+  }) {
     final generation = _veryHardRequestGeneration;
     final matchId = _currentMatchId;
     unawaited(() async {
-      final coordinator = _veryHardCpuCoordinator;
-      if (coordinator == null) return;
-      final outcome = await coordinator.decide(
-        state: snapshot,
-        matchId: matchId,
-        factions: factions,
-        fallback: (faction) => _cpuStrategies[faction]!.decide(
-          state,
-          difficulty: CpuDifficulty.hard,
-        ),
-      );
-      if (_disposed ||
-          generation != _veryHardRequestGeneration ||
-          matchId != _currentMatchId ||
-          state.phase != GamePhase.playing) {
-        return;
-      }
+      try {
+        final coordinator = _veryHardCpuCoordinator;
+        if (coordinator == null) return;
+        final outcome = await coordinator.decide(
+          state: snapshot,
+          matchId: matchId,
+          factions: veryHardFactions,
+          fallback: (faction) => _cpuStrategies[faction]!.decide(
+            snapshot,
+            difficulty: CpuDifficulty.hard,
+          ),
+        );
+        if (outcome.skipped ||
+            _disposed ||
+            generation != _veryHardRequestGeneration ||
+            matchId != _currentMatchId ||
+            state.phase != GamePhase.playing) {
+          return;
+        }
 
-      for (final faction in const [Faction.player, Faction.cpu]) {
-        if (!factions.contains(faction)) continue;
-        final decision = outcome.decisions[faction];
-        if (decision != null) {
-          state = _cpuStrategies[faction]!.applyDecision(
-            state,
-            decision,
-            movingForceId: _nextMovingForceId,
-          );
+        // Decisions were selected from [snapshot], but applyDecision checks
+        // the current source forces and phase again. This revalidation keeps
+        // a delayed response from dispatching a stale move. The fixed order
+        // is preserved even when the local CPU is part of this batch.
+        _applyCpuDecisionBatch(
+          factions: batchFactions,
+          decisions: {...localDecisions, ...outcome.decisions},
+        );
+        if (outcome.usedFallback && kDebugMode) {
+          _showInteractionFeedback(InteractionFeedbackType.veryHardFallback);
         }
-      }
-      if (outcome.usedFallback && kDebugMode) {
-        _showInteractionFeedback(InteractionFeedbackType.veryHardFallback);
-      }
-      if (state.phase == GamePhase.playing) {
-        for (final faction in factions) {
-          _scheduleNextCpuDecision(faction);
+        if (state.phase == GamePhase.playing) {
+          // A mixed batch gets one fresh deadline per faction after both
+          // decisions have been applied from the same snapshot.
+          for (final faction in batchFactions) {
+            _scheduleNextCpuDecision(faction);
+          }
         }
+      } finally {
+        _veryHardBatchPending = false;
       }
     }());
   }

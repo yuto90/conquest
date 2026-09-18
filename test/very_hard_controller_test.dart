@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:conquest/game/cpu_strategy.dart';
@@ -54,6 +55,24 @@ final class _ThrowingPreflightGateway extends _FailingGateway {
   Future<VeryHardPreflightResult> preflight({required String matchId}) {
     preflightCalls++;
     return Future<VeryHardPreflightResult>.error(StateError('offline'));
+  }
+}
+
+final class _DelayedGateway implements VeryHardCpuGateway {
+  var decisionCalls = 0;
+  late VeryHardDecisionRequest request;
+  final response = Completer<VeryHardDecisionResponse>();
+
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) async {
+    return const VeryHardPreflightResult.available();
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(VeryHardDecisionRequest request) {
+    decisionCalls++;
+    this.request = request;
+    return response.future;
   }
 }
 
@@ -203,4 +222,110 @@ void main() {
     );
     expect(after.movingForces.single.strength, 20);
   });
+
+  test(
+    'holds a mixed spectator batch until the Very Hard response resolves',
+    () async {
+      final loop = ManualGameLoop();
+      final gateway = _DelayedGateway();
+      final playerStrategy = CpuStrategy(
+        controlledFaction: Faction.player,
+        timingRandom: _ZeroRandom(),
+        qualityRandom: _ZeroRandom(),
+        viewport: GameRules.defaultMapViewport,
+      );
+      final cpuStrategy = CpuStrategy(
+        controlledFaction: Faction.cpu,
+        timingRandom: _ZeroRandom(),
+        qualityRandom: _ZeroRandom(),
+        viewport: GameRules.defaultMapViewport,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          playerCpuStrategyProvider.overrideWithValue(playerStrategy),
+          cpuStrategyProvider.overrideWithValue(cpuStrategy),
+          veryHardCpuGatewayProvider.overrideWithValue(gateway),
+        ],
+      );
+      final subscription = container.listen(gameControllerProvider, (_, __) {});
+      addTearDown(container.dispose);
+      addTearDown(subscription.close);
+
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectGameMode(GameMode.cpuVsCpu);
+      controller.selectPlayerCpuDifficulty(CpuDifficulty.veryHard);
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
+      await controller.startGame();
+      _completeCountdown(loop);
+
+      final started = container.read(gameControllerProvider);
+      controller.state = started.copyWith(
+        islands: [
+          for (final island in started.islands)
+            switch (island.id) {
+              0 => island.copyWith(
+                faction: Faction.player,
+                currentForces: 100,
+                durability: 0,
+                x: -0.8,
+                y: 0,
+              ),
+              1 => island.copyWith(
+                faction: Faction.cpu,
+                currentForces: 10,
+                durability: 0,
+                x: 0.8,
+                y: 0,
+              ),
+              2 => island.copyWith(
+                faction: Faction.cpu,
+                currentForces: 100,
+                durability: 0,
+                x: 0.7,
+                y: 0,
+              ),
+              3 => island.copyWith(
+                faction: Faction.player,
+                currentForces: 10,
+                durability: 0,
+                x: -0.7,
+                y: 0,
+              ),
+              _ => island,
+            },
+        ],
+      );
+
+      // Both profiles first become due at 1,500ms. The local Hard decision must
+      // wait for the Very Hard response instead of getting a head start.
+      for (var index = 0; index < 30; index++) {
+        loop.tick();
+      }
+      await Future<void>.delayed(Duration.zero);
+      expect(gateway.decisionCalls, 1);
+      expect(container.read(gameControllerProvider).movingForces, isEmpty);
+
+      final candidate = gateway.request
+          .subjectFor(Faction.player)
+          .candidates
+          .first;
+      gateway.response.complete(
+        VeryHardDecisionResponse(
+          requestId: gateway.request.requestId,
+          candidateIdsByFaction: {Faction.player: candidate.id},
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      final after = container.read(gameControllerProvider);
+      expect(after.movingForces, hasLength(2));
+      expect(after.movingForces.map((force) => force.faction), [
+        Faction.player,
+        Faction.cpu,
+      ]);
+    },
+  );
 }

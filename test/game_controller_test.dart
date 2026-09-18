@@ -139,6 +139,46 @@ void main() {
     expect(state.islands, hasLength(8));
   });
 
+  test('requires Very Hard preflight only for active CPU factions', () {
+    final inactivePlayerVeryHard = GameState(
+      phase: GamePhase.configuration,
+      elapsedMs: 0,
+      configuration: GameConfiguration(
+        playerCpuDifficulty: CpuDifficulty.veryHard,
+        cpuDifficulty: CpuDifficulty.hard,
+      ),
+    );
+    expect(inactivePlayerVeryHard.requiresVeryHardPreflight, isFalse);
+    expect(
+      inactivePlayerVeryHard.veryHardPreflightStatus,
+      VeryHardPreflightStatus.notRequired,
+    );
+
+    final spectatorPlayerVeryHard = GameState(
+      phase: GamePhase.configuration,
+      elapsedMs: 0,
+      configuration: GameConfiguration(
+        gameMode: GameMode.cpuVsCpu,
+        playerCpuDifficulty: CpuDifficulty.veryHard,
+        cpuDifficulty: CpuDifficulty.hard,
+      ),
+    );
+    expect(spectatorPlayerVeryHard.requiresVeryHardPreflight, isTrue);
+    expect(
+      spectatorPlayerVeryHard.veryHardPreflightStatus,
+      VeryHardPreflightStatus.notChecked,
+    );
+
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.selectPlayerCpuDifficulty(CpuDifficulty.veryHard);
+    final standardControllerState = container.read(gameControllerProvider);
+    expect(standardControllerState.requiresVeryHardPreflight, isFalse);
+    expect(
+      standardControllerState.veryHardPreflightStatus,
+      VeryHardPreflightStatus.notRequired,
+    );
+  });
+
   test('selects CPU difficulty without regenerating the displayed map', () {
     final controller = container.read(gameControllerProvider.notifier);
     final before = container.read(gameControllerProvider);
