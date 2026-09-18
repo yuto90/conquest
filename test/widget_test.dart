@@ -1542,6 +1542,65 @@ void main() {
   });
 
   testWidgets(
+    'holds an active match during an unsafe resize and requires explicit resume',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+          ],
+          child: const MyApp(locale: Locale('ja')),
+        ),
+      );
+      await openMatchSetup(tester);
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      for (var index = 0; index < 60; index++) {
+        loop.tick();
+      }
+      await tester.pump();
+
+      final before = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      ).read(gameControllerProvider);
+      expect(before.phase, GamePhase.playing);
+      expect(loop.isRunning, isTrue);
+
+      await tester.binding.setSurfaceSize(const Size(120, 120));
+      await tester.pump();
+      final blockedContainer = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('viewport-unavailable-sheet'))),
+      );
+      final blocked = blockedContainer.read(gameControllerProvider);
+      expect(blocked.viewportUnavailable, isTrue);
+      expect(blocked.phase, GamePhase.playing);
+      expect(blocked.elapsedMs, before.elapsedMs);
+      expect(blocked.islands, before.islands);
+      expect(blocked.movingForces, before.movingForces);
+      expect(loop.isRunning, isFalse);
+      expect(find.text('ウィンドウが小さすぎます'), findsOneWidget);
+
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pump();
+      expect(
+        blockedContainer.read(gameControllerProvider).viewportUnavailable,
+        isTrue,
+      );
+      expect(loop.isRunning, isFalse);
+
+      await tester.tap(find.byKey(const ValueKey('resume-after-resize')));
+      await tester.pump();
+      final resumed = blockedContainer.read(gameControllerProvider);
+      expect(resumed.viewportUnavailable, isFalse);
+      expect(resumed.phase, GamePhase.playing);
+      expect(loop.isRunning, isTrue);
+    },
+  );
+
+  testWidgets(
     'pauses from the board and requires confirmation before quitting',
     (tester) async {
       final loop = ManualWidgetGameLoop();

@@ -44,6 +44,39 @@ final class IslandMapViewport {
   bool get isValid =>
       width.isFinite && height.isFinite && width > 0 && height > 0;
 
+  /// The conservative square envelope used when a map is created for a
+  /// resizable native window. A map generated inside this envelope also fits
+  /// after swapping the window's width and height for the other orientation.
+  /// Rendering and movement still use the actual viewport supplied by Home.
+  IslandMapViewport get orientationSafePlacementViewport {
+    final side = math.min(width, height);
+    return IslandMapViewport(width: side, height: side);
+  }
+
+  /// Returns whether existing island rectangles can be displayed safely in
+  /// this viewport. This is deliberately separate from map generation: a
+  /// resize must never redraw or reposition an in-progress match.
+  bool canRenderIslands(Iterable<IslandState> islands) {
+    if (!isValid) return false;
+    final rectangles = [
+      for (final island in islands) rectFor(island),
+    ];
+    if (rectangles.isEmpty) return false;
+    for (var index = 0; index < rectangles.length; index++) {
+      final rectangle = rectangles[index];
+      if (!rectangle.isWithin(this) ||
+          rectangle.overlaps(topRightControlExclusion)) {
+        return false;
+      }
+      for (var otherIndex = index + 1;
+          otherIndex < rectangles.length;
+          otherIndex++) {
+        if (rectangle.overlaps(rectangles[otherIndex])) return false;
+      }
+    }
+    return true;
+  }
+
   @override
   bool operator ==(Object other) {
     return other is IslandMapViewport &&

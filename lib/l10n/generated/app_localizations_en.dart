@@ -199,6 +199,17 @@ class AppLocalizationsEn extends AppLocalizations {
       'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.';
 
   @override
+  String get viewportTooSmallTitle => 'Window too small';
+
+  @override
+  String get viewportTooSmallDescription =>
+      'The match is held to protect the battlefield. Enlarge the window to display the current map safely.';
+
+  @override
+  String get viewportReadyDescription =>
+      'The current map is ready. Tap Resume to continue the match.';
+
+  @override
   String selectedSummary({
     required int islandCount,
     required String difficulty,

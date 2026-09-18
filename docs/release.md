@@ -41,6 +41,17 @@ workflowの初回実行前に、App Store Connect側を次の状態にします�
 5. スクリーンショット、年齢区分、プライバシー、価格・配信地域など、workflowが更新しない必須項目を登録する。
 6. `TESTFLIGHT_INTERNAL_GROUP`と完全一致する内部グループを作り、全build自動配布を無効にする。workflowはupload前にこの設定を検証する。
 
+### iPad 対応の提出前確認
+
+このIssueの対象buildでは、TestFlight配布または審査提出の前に次を確認します。実機・Simulatorで確認した機種、OS、build number、確認日、スクリーンショットをPRまたはリリース記録へ残します。
+
+- iPhone は縦向きのまま起動し、既存の操作と表示が崩れていない。
+- iPad は互換表示にならず、縦向き・横向きの通常全画面でタイトル、対戦設定、戦闘、一時停止、結果を操作できる。
+- iPad の App Store 用スクリーンショットを、必要な向き・画面サイズの提出枠へ登録する。
+- 縦横回転、Safe Area、文字サイズ拡大、狭いウィンドウからの復帰で、盤面の重なり・クリップ・タップ位置ずれがない。表示できない小ささでは状態保持と拡大案内を確認する。
+- Archive 後の `Runner.app/Info.plist` の `UIDeviceFamily` が整数配列 `[1, 2]` であり、iPad の4方向と iPhone のPortraitだけが方向設定に反映されている。
+- AppIcon の iPad idiom と LaunchScreen が Archive 生成物へ含まれている。
+
 証明書はApple Distribution identityを含むもの、profileは指定Bundle ID・Team IDに一致するApp Store配布用で、期限切れでないものを用意します。Team IDやBundle IDをworkflowへ固定しないでください。
 
 ## 共通の入力ルール

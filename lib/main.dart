@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +8,17 @@ import 'ui/tactical_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations(const [
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // iOS gets its device-specific orientation policy from Info.plist.  The
+  // iPhone declaration remains portrait-only while the iPad declaration also
+  // permits landscape. Other platforms keep the existing portrait policy.
+  SystemChrome.setPreferredOrientations(
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+        ? const <DeviceOrientation>[]
+        : const [
+            DeviceOrientation.portraitUp,
+            DeviceOrientation.portraitDown,
+          ],
+  );
   runApp(const ProviderScope(child: MyApp()));
 }
 

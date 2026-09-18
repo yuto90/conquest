@@ -424,6 +424,57 @@ void main() {
     }
   });
 
+  test(
+    'native tablet maps use one safe placement envelope for both orientations',
+    () {
+      const portrait = IslandMapViewport(width: 834, height: 1194);
+      const landscape = IslandMapViewport(width: 1194, height: 834);
+      final placement = portrait.orientationSafePlacementViewport;
+
+      expect(placement.width, 834);
+      expect(placement.height, 834);
+      expect(placement, landscape.orientationSafePlacementViewport);
+
+      for (final total in GameConfiguration.allowedIslandCounts) {
+        final islands = rules.generateIslands(
+          configuration: GameConfiguration(totalIslandCount: total),
+          random: Random(total),
+          viewport: placement,
+        );
+        expect(portrait.canRenderIslands(islands), isTrue);
+        expect(landscape.canRenderIslands(islands), isTrue);
+      }
+    },
+  );
+
+  test(
+    'viewport safety detects an overlap without changing island positions',
+    () {
+      const viewport = IslandMapViewport(width: 320, height: 320);
+      const first = IslandState(
+        id: 0,
+        position: IslandPosition(x: 0, y: 0),
+        faction: Faction.player,
+        size: IslandSize.small,
+        currentForces: 10,
+        capacity: 50,
+      );
+      const second = IslandState(
+        id: 1,
+        position: IslandPosition(x: 0.1, y: 0),
+        faction: Faction.cpu,
+        size: IslandSize.small,
+        currentForces: 10,
+        capacity: 50,
+      );
+
+      expect(viewport.canRenderIslands([first]), isTrue);
+      expect(viewport.canRenderIslands([first, second]), isFalse);
+      expect(first.position, const IslandPosition(x: 0, y: 0));
+      expect(second.position, const IslandPosition(x: 0.1, y: 0));
+    },
+  );
+
   test('map generation reserves the renderer pause control envelope', () {
     const viewport = IslandMapViewport(width: 402, height: 874);
     final exclusion = viewport.topRightControlExclusion;

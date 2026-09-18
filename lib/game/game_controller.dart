@@ -107,6 +107,29 @@ class GameController extends _$GameController {
     if (previousState != null &&
         previousState.phase != GamePhase.configuration) {
       _cachedViewport = viewport;
+      final isActivePhase = switch (previousState.phase) {
+        GamePhase.startCountdown ||
+        GamePhase.playing ||
+        GamePhase.resumeCountdown => true,
+        GamePhase.configuration || GamePhase.paused || GamePhase.result =>
+          false,
+      };
+      if (isActivePhase &&
+          !viewport.canRenderIslands(previousState.islands)) {
+        // Keep every match value exactly as-is while the window is too small
+        // for the existing rectangles. The UI presents an explicit enlarge
+        // and resume action once the same map can be rendered again.
+        _gameLoop.stop();
+        _lastTickMs = null;
+        return previousState.copyWith(viewportUnavailable: true);
+      }
+      if (isActivePhase && previousState.viewportUnavailable) {
+        // A safe resize does not implicitly resume a match that was held for
+        // an unsafe resize. The user must explicitly choose Resume.
+        _gameLoop.stop();
+        _lastTickMs = null;
+        return previousState;
+      }
       final shouldResumeLoop =
           previousState.phase == GamePhase.startCountdown ||
           previousState.phase == GamePhase.resumeCountdown ||
@@ -166,6 +189,10 @@ class GameController extends _$GameController {
   }
 
   void resumeGame() {
+    if (state.viewportUnavailable) {
+      resumeAfterViewportChange();
+      return;
+    }
     if (_disposed || state.phase != GamePhase.paused) {
       return;
     }
@@ -177,6 +204,28 @@ class GameController extends _$GameController {
     // Game time is frozen while paused, so preserve the pending judgment's
     // absolute game-time deadline across resume.  A null deadline only occurs
     // after a rebuilt controller and needs a fresh injected interval.
+    _lastTickMs = _clock.nowMs();
+    _gameLoop.start(_tick);
+  }
+
+  /// Resumes a match that was held because a resized window could not safely
+  /// display its existing map. Returning to a safe size only enables this
+  /// action; it never starts the loop automatically.
+  void resumeAfterViewportChange() {
+    if (_disposed || !state.viewportUnavailable) return;
+    final viewport = ref.read(mapViewportProvider);
+    if (!viewport.canRenderIslands(state.islands)) return;
+
+    state = state.copyWith(viewportUnavailable: false);
+    if (state.phase == GamePhase.paused) {
+      resumeGame();
+      return;
+    }
+    if (state.phase != GamePhase.startCountdown &&
+        state.phase != GamePhase.resumeCountdown &&
+        state.phase != GamePhase.playing) {
+      return;
+    }
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
@@ -371,7 +420,7 @@ class GameController extends _$GameController {
     // key and value in sync so the next provider rebuild does not regenerate a
     // map from an already-advanced random source.
     _cachedConfiguration = configuration;
-    _cachedViewport = ref.read(mapViewportProvider);
+    _cachedViewport = _placementViewport(ref.read(mapViewportProvider));
     _cachedInitialState = updated;
   }
 
@@ -379,9 +428,10 @@ class GameController extends _$GameController {
     required GameConfiguration configuration,
     required IslandMapViewport viewport,
   }) {
+    final placementViewport = _placementViewport(viewport);
     if (_cachedInitialState != null &&
         _cachedConfiguration == configuration &&
-        _cachedViewport == viewport) {
+        _cachedViewport == placementViewport) {
       return _cachedInitialState!;
     }
 
@@ -389,7 +439,7 @@ class GameController extends _$GameController {
         _rules.tryInitialState(
           configuration: configuration,
           random: _random,
-          viewport: viewport,
+          viewport: placementViewport,
         ) ??
         GameState(
           configuration: configuration,
@@ -397,7 +447,7 @@ class GameController extends _$GameController {
           elapsedMs: 0,
         );
     _cachedConfiguration = configuration;
-    _cachedViewport = viewport;
+    _cachedViewport = placementViewport;
     _cachedInitialState = nextState;
     return nextState;
   }
@@ -406,11 +456,12 @@ class GameController extends _$GameController {
     required GameConfiguration configuration,
     required IslandMapViewport viewport,
   }) {
+    final placementViewport = _placementViewport(viewport);
     final nextState =
         _rules.tryInitialState(
           configuration: configuration,
           random: _random,
-          viewport: viewport,
+          viewport: placementViewport,
         ) ??
         GameState(
           configuration: configuration,
@@ -418,9 +469,19 @@ class GameController extends _$GameController {
           elapsedMs: 0,
         );
     _cachedConfiguration = configuration;
-    _cachedViewport = viewport;
+    _cachedViewport = placementViewport;
     _cachedInitialState = nextState;
     return nextState;
+  }
+
+  IslandMapViewport _placementViewport(IslandMapViewport viewport) {
+    // A tablet-sized logical window must be safe after swapping width and
+    // height. Keep narrower phone-sized layouts on their existing placement
+    // contract; an unusually small resizable window is still checked against
+    // the actual viewport before a match can continue.
+    return min(viewport.width, viewport.height) >= 600
+        ? viewport.orientationSafePlacementViewport
+        : viewport;
   }
 
   /// Selects a player island or dispatches a new force to the tapped island.

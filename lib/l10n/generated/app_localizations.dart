@@ -452,6 +452,24 @@ abstract class AppLocalizations {
   /// **'The map cannot be prepared at this screen size. Enlarge the window or reopen in portrait orientation.'**
   String get mapUnavailableMessage;
 
+  /// Heading shown when an active match cannot be rendered safely after a resize.
+  ///
+  /// In en, this message translates to:
+  /// **'Window too small'**
+  String get viewportTooSmallTitle;
+
+  /// Explains that the active match is retained while the window is too small.
+  ///
+  /// In en, this message translates to:
+  /// **'The match is held to protect the battlefield. Enlarge the window to display the current map safely.'**
+  String get viewportTooSmallDescription;
+
+  /// Explains that an explicitly held match can resume after the window is enlarged.
+  ///
+  /// In en, this message translates to:
+  /// **'The current map is ready. Tap Resume to continue the match.'**
+  String get viewportReadyDescription;
+
   /// The selected standard match summary.
   ///
   /// In en, this message translates to:

@@ -194,6 +194,17 @@ class AppLocalizationsJa extends AppLocalizations {
       '現在の画面サイズでは盤面を準備できません。ウィンドウを広げるか、縦向きで開き直してください。';
 
   @override
+  String get viewportTooSmallTitle => 'ウィンドウが小さすぎます';
+
+  @override
+  String get viewportTooSmallDescription =>
+      '盤面を安全に表示できるまで対戦を保持しています。ウィンドウを広げてください。';
+
+  @override
+  String get viewportReadyDescription =>
+      '盤面を表示できます。「再開」を押すと対戦を続けます。';
+
+  @override
   String selectedSummary({
     required int islandCount,
     required String difficulty,
