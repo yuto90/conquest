@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:conquest/audio/bgm_player.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
+import 'package:conquest/game/game_state.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +31,9 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   final List<String> calls = <String>[];
   Object? prepareError;
   Object? playError;
+  Object? pauseError;
+  Object? resumeError;
+  Object? stopAndResetError;
 
   @override
   Future<void> prepare() async {
@@ -46,13 +50,25 @@ final class _WidgetBgmPlayer implements BgmPlayer {
   }
 
   @override
-  Future<void> pause() async => calls.add('pause');
+  Future<void> pause() async {
+    calls.add('pause');
+    final error = pauseError;
+    if (error != null) throw error;
+  }
 
   @override
-  Future<void> resume() async => calls.add('resume');
+  Future<void> resume() async {
+    calls.add('resume');
+    final error = resumeError;
+    if (error != null) throw error;
+  }
 
   @override
-  Future<void> stopAndReset() async => calls.add('stopAndReset');
+  Future<void> stopAndReset() async {
+    calls.add('stopAndReset');
+    final error = stopAndResetError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<void> dispose() async => calls.add('dispose');
@@ -74,11 +90,13 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -111,14 +129,133 @@ void main() {
     expect(player.calls, contains('playFromStart'));
   });
 
+  testWidgets('menu BGM starts on the title and yields to battle BGM', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.pump();
+
+    expect(menu.calls, ['prepare', 'playFromStart']);
+    await openMatchSetup(tester);
+    expect(menu.calls, ['prepare', 'playFromStart']);
+
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    expect(menu.calls, ['prepare', 'playFromStart', 'stopAndReset']);
+    expect(battle.calls, ['prepare', 'playFromStart']);
+  });
+
+  testWidgets('shows a retry notice when result BGM cleanup fails', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await openMatchSetup(tester);
+
+    final islandFinder = find.byKey(const ValueKey('island-0'));
+    final container = ProviderScope.containerOf(tester.element(islandFinder));
+    final controller = container.read(gameControllerProvider.notifier);
+    controller.startGame();
+    for (var index = 0; index < 60; index++) {
+      loop.tick();
+    }
+    await tester.pump();
+
+    battle.stopAndResetError = StateError('result stop failed');
+    battle.pauseError = StateError('result pause failed');
+    controller.finish(const GameResult.victory(elapsedMs: 1));
+    await tester.pump();
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(find.byKey(const ValueKey('result-sheet')), findsOneWidget);
+    expect(notice, findsOneWidget);
+
+    battle.stopAndResetError = null;
+    battle.pauseError = null;
+    await tester.tap(find.byKey(const ValueKey('bgm-retry')));
+    await tester.pump();
+    await tester.pump();
+
+    expect(battle.calls.where((call) => call == 'stopAndReset'), hasLength(2));
+    expect(notice, findsNothing);
+  });
+
+  testWidgets('a dismissed menu failure reappears for a later battle failure', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
+    final battle = _WidgetBgmPlayer();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
+          bgmPlayerProvider.overrideWithValue(battle),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await tester.pump();
+    await openMatchSetup(tester);
+
+    menu.resumeError = StateError('menu autoplay rejected');
+    final toggle = find.byKey(const ValueKey('bgm-toggle'));
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.pump();
+
+    final notice = find.byKey(const ValueKey('bgm-unavailable-notice'));
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+    expect(notice, findsNothing);
+
+    menu.resumeError = null;
+    battle.playError = StateError('battle autoplay rejected');
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await _advanceToPlaying(tester, loop);
+
+    expect(notice, findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(notice, findsOneWidget);
+  });
+
   testWidgets('shows a temporary notice with a retry action', (tester) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..prepareError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -154,12 +291,14 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -187,6 +326,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
@@ -194,6 +334,7 @@ void main() {
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(0)),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -221,12 +362,14 @@ void main() {
     tester,
   ) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),
@@ -248,12 +391,14 @@ void main() {
 
   testWidgets('failed retry shows a fresh temporary notice', (tester) async {
     final loop = _ManualGameLoop();
+    final menu = _WidgetBgmPlayer();
     final player = _WidgetBgmPlayer()
       ..playError = StateError('autoplay rejected');
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           gameLoopProvider.overrideWithValue(loop),
+          menuBgmPlayerProvider.overrideWithValue(menu),
           bgmPlayerProvider.overrideWithValue(player),
         ],
         child: const MyApp(locale: Locale('ja')),

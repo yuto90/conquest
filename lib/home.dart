@@ -9,7 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'audio/battle_bgm_controller.dart';
+import 'audio/app_bgm_controller.dart';
 import 'audio/bgm_player.dart';
 import 'game/game_controller.dart';
 import 'game/game_rules.dart';
@@ -35,6 +35,11 @@ final webVisibilitySourceProvider = Provider<WebVisibilitySource>(
 );
 
 final bgmPlayerProvider = Provider<BgmPlayer>((_) => AudioPlayersBgmPlayer());
+
+final menuBgmPlayerProvider = Provider<BgmPlayer>(
+  (_) =>
+      AudioPlayersBgmPlayer(assetPath: menuBgmAssetPath, volume: menuBgmVolume),
+);
 
 class Home extends StatelessWidget {
   const Home({super.key, this.letterboxToPortrait = kIsWeb});
@@ -97,16 +102,18 @@ class _GameSurface extends ConsumerStatefulWidget {
 class _GameSurfaceState extends ConsumerState<_GameSurface>
     with WidgetsBindingObserver {
   late final WebVisibilityBridge _webVisibilityBridge;
-  late final BattleBgmController _battleBgmController;
+  late final AppBgmController _appBgmController;
   bool _showTitle = true;
   bool _bgmEnabled = true;
 
   @override
   void initState() {
     super.initState();
-    _battleBgmController = BattleBgmController(
-      player: ref.read(bgmPlayerProvider),
+    _appBgmController = AppBgmController(
+      menuPlayer: ref.read(menuBgmPlayerProvider),
+      battlePlayer: ref.read(bgmPlayerProvider),
     )..addListener(_handleBgmChanged);
+    _appBgmController.handleSurface(AppBgmSurface.title);
     WidgetsBinding.instance.addObserver(this);
     _webVisibilityBridge = WebVisibilityBridge(
       source: ref.read(webVisibilitySourceProvider),
@@ -119,8 +126,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void dispose() {
     _webVisibilityBridge.dispose();
     WidgetsBinding.instance.removeObserver(this);
-    _battleBgmController.removeListener(_handleBgmChanged);
-    unawaited(_battleBgmController.dispose());
+    _appBgmController.removeListener(_handleBgmChanged);
+    unawaited(_appBgmController.dispose());
     super.dispose();
   }
 
@@ -134,19 +141,19 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     } else if (lifecycleState == AppLifecycleState.resumed) {
       // Returning to the foreground only makes future explicit game actions
       // eligible. The paused game still has to be resumed by the user.
-      _battleBgmController.setAppVisible(true);
+      _appBgmController.setAppVisible(true);
     }
   }
 
   void _pauseGame() => ref.read(gameControllerProvider.notifier).pauseGame();
 
   void _handleHidden() {
-    _battleBgmController.setAppVisible(false);
+    _appBgmController.setAppVisible(false);
     _pauseGame();
   }
 
   void _handleWebVisibilityChanged(bool hidden) {
-    if (!hidden) _battleBgmController.setAppVisible(true);
+    if (!hidden) _appBgmController.setAppVisible(true);
   }
 
   void _handleBgmChanged() {
@@ -156,7 +163,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void _setBgmEnabled(bool enabled) {
     if (_bgmEnabled == enabled) return;
     setState(() => _bgmEnabled = enabled);
-    _battleBgmController.setEnabled(enabled);
+    _appBgmController.setEnabled(enabled);
   }
 
   @override
@@ -167,7 +174,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         (gameState) =>
             gameState.viewportUnavailable ? GamePhase.paused : gameState.phase,
       ),
-      (_, phase) => _battleBgmController.handlePhase(phase),
+      (_, phase) => _appBgmController.handlePhase(phase),
     );
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
@@ -178,7 +185,26 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     // Keep watching the same controller on both screens so configuration
     // selections survive a visit to the title without recreating the match.
     if (_showTitle) {
-      return TitleScreen(onStart: () => setState(() => _showTitle = false));
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          TitleScreen(onStart: _showGame),
+          if (_appBgmController.canRetry)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: _BgmUnavailableNotice(
+                  key: const ValueKey('bgm-unavailable-notice-state'),
+                  failureSerial: _appBgmController.failureSerial,
+                  onRetry: _appBgmController.retry,
+                ),
+              ),
+            ),
+        ],
+      );
     }
     final isPlayerInteractionEnabled =
         state.phase == GamePhase.playing &&
@@ -189,7 +215,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
       canPop: state.phase != GamePhase.configuration,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && state.phase == GamePhase.configuration) {
-          setState(() => _showTitle = true);
+          _showTitleScreen();
         }
       },
       child: ColoredBox(
@@ -262,7 +288,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 _ConfigurationPanel(
                   state: state,
                   rankProgress: rankProgress,
-                  onTitle: () => setState(() => _showTitle = true),
+                  onTitle: _showTitleScreen,
                   bgmEnabled: _bgmEnabled,
                   onBgmChanged: _setBgmEnabled,
                   onStart:
@@ -287,8 +313,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
                 ),
-              if (state.phase == GamePhase.playing &&
-                  _battleBgmController.canRetry)
+              if (_appBgmController.canRetry)
                 Positioned(
                   top: IslandMapViewport.topRightControlReservedHeight + 8,
                   left: 12,
@@ -297,8 +322,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     alignment: Alignment.topCenter,
                     child: _BgmUnavailableNotice(
                       key: const ValueKey('bgm-unavailable-notice-state'),
-                      failureSerial: _battleBgmController.failureSerial,
-                      onRetry: _battleBgmController.retry,
+                      failureSerial: _appBgmController.failureSerial,
+                      onRetry: _appBgmController.retry,
                     ),
                   ),
                 ),
@@ -313,6 +338,16 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         ),
       ),
     );
+  }
+
+  void _showGame() {
+    _appBgmController.handleSurface(AppBgmSurface.game);
+    if (mounted) setState(() => _showTitle = false);
+  }
+
+  void _showTitleScreen() {
+    _appBgmController.handleSurface(AppBgmSurface.title);
+    if (mounted) setState(() => _showTitle = true);
   }
 
   Future<void> _confirmQuit(
