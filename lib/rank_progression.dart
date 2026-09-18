@@ -476,6 +476,7 @@ int victoryXpFor(CpuDifficulty difficulty) => switch (difficulty) {
   CpuDifficulty.easy => 1000,
   CpuDifficulty.normal => 1500,
   CpuDifficulty.hard => 3000,
+  CpuDifficulty.veryHard => 5000,
 };
 
 abstract interface class RankProgressStore {

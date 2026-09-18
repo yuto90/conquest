@@ -177,6 +177,13 @@ void main() {
         skipDecisionRatePercent: 0,
         primaryCandidateRatePercent: 100,
       ),
+      CpuDifficulty.veryHard: CpuDifficultyProfile(
+        difficulty: CpuDifficulty.veryHard,
+        minDecisionIntervalMs: VeryHardCpuConfig.minDecisionIntervalMs,
+        maxDecisionIntervalMs: VeryHardCpuConfig.maxDecisionIntervalMs,
+        skipDecisionRatePercent: 0,
+        primaryCandidateRatePercent: 100,
+      ),
     };
 
     expect(CpuDifficulty.values, expected.keys.toList());
@@ -185,8 +192,9 @@ void main() {
     }
   });
 
-  test('difficulty profiles form a bounded monotonic gradient', () {
+  test('the existing four difficulty profiles form a bounded gradient', () {
     final profiles = CpuDifficulty.values
+        .where((difficulty) => difficulty != CpuDifficulty.veryHard)
         .map(CpuDifficultyProfile.forDifficulty)
         .toList();
 
@@ -453,7 +461,10 @@ void main() {
         ).selectCandidate(oneCandidates, difficulty: difficulty);
         expect(
           skippedOne,
-          difficulty == CpuDifficulty.hard ? oneCandidates.single : isNull,
+          difficulty == CpuDifficulty.hard ||
+                  difficulty == CpuDifficulty.veryHard
+              ? oneCandidates.single
+              : isNull,
           reason: '$difficulty one candidate skip boundary',
         );
         final selectedOne = CpuStrategy(
@@ -531,6 +542,10 @@ void main() {
       actionCounts[CpuDifficulty.normal]!,
       lessThanOrEqualTo(actionCounts[CpuDifficulty.hard]!),
     );
+    expect(
+      actionCounts[CpuDifficulty.hard]!,
+      lessThanOrEqualTo(actionCounts[CpuDifficulty.veryHard]!),
+    );
     expect(actionCounts.values.toSet(), hasLength(greaterThan(1)));
   });
 
@@ -597,6 +612,10 @@ void main() {
       CpuDifficulty.easy: (4000, 5500),
       CpuDifficulty.normal: (2750, 4000),
       CpuDifficulty.hard: (1500, 2750),
+      CpuDifficulty.veryHard: (
+        VeryHardCpuConfig.minDecisionIntervalMs,
+        VeryHardCpuConfig.maxDecisionIntervalMs,
+      ),
     };
 
     for (final entry in bounds.entries) {

@@ -693,6 +693,7 @@ void main() {
         CpuDifficulty.easy: 1000,
         CpuDifficulty.normal: 1500,
         CpuDifficulty.hard: 3000,
+        CpuDifficulty.veryHard: 5000,
       }.entries) {
         final award = await manager.recordVictory(
           matchId: entry.key.name,
@@ -705,8 +706,8 @@ void main() {
         difficulty: CpuDifficulty.hard,
       );
       expect(duplicate.xpAwarded, 0);
-      expect(manager.current.totalXp, 6000);
-      expect(store.saveCount, 4);
+      expect(manager.current.totalXp, 11000);
+      expect(store.saveCount, 5);
     });
 
     test('waits for load before applying a victory', () async {

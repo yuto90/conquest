@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -7,6 +9,7 @@ import 'cpu_strategy.dart';
 import 'game_loop.dart';
 import 'game_rules.dart';
 import 'game_state.dart';
+import 'very_hard_cpu.dart';
 import '../rank_progression.dart';
 
 part 'game_controller.g.dart';
@@ -58,6 +61,14 @@ final playerCpuStrategyProvider = Provider<CpuStrategy>((ref) {
   );
 });
 
+/// Same-origin gateway client. Tests replace this provider with a deterministic
+/// fake so normal Flutter tests never call Jev.
+final veryHardCpuGatewayProvider = Provider<VeryHardCpuGateway>((ref) {
+  final gateway = HttpVeryHardCpuGateway();
+  ref.onDispose(gateway.close);
+  return gateway;
+});
+
 @riverpod
 class GameController extends _$GameController {
   late GameLoop _gameLoop;
@@ -65,6 +76,8 @@ class GameController extends _$GameController {
   late GameClock _clock;
   late GameRules _rules;
   late Map<Faction, CpuStrategy> _cpuStrategies;
+  late VeryHardCpuGateway _veryHardCpuGateway;
+  VeryHardCpuCoordinator? _veryHardCpuCoordinator;
 
   var _disposed = false;
   int? _lastTickMs;
@@ -75,8 +88,11 @@ class GameController extends _$GameController {
   var _matchSerial = 0;
   var _currentMatchId = 'match-0';
   var _rankRewardGranted = false;
+  var _veryHardRequestGeneration = 0;
+  Future<void>? _veryHardPreflight;
 
-  static const _interactionFeedbackDurationMs = 1500;
+  static const _interactionFeedbackDurationMs =
+      VeryHardCpuConfig.debugFallbackNoticeDurationMs;
 
   @override
   GameState build() {
@@ -88,14 +104,29 @@ class GameController extends _$GameController {
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
     _rules = ref.read(gameRulesProvider);
+    final viewport = ref.watch(mapViewportProvider);
     _cpuStrategies = {
       Faction.player: ref.read(playerCpuStrategyProvider),
       Faction.cpu: ref.read(cpuStrategyProvider),
     };
-    final viewport = ref.watch(mapViewportProvider);
+    _veryHardCpuGateway = ref.read(veryHardCpuGatewayProvider);
+    final existingCoordinator = _veryHardCpuCoordinator;
+    if (existingCoordinator == null ||
+        !identical(existingCoordinator.gateway, _veryHardCpuGateway)) {
+      _veryHardCpuCoordinator = VeryHardCpuCoordinator(
+        gateway: _veryHardCpuGateway,
+        candidateGenerator: VeryHardCandidateGenerator(
+          rules: _rules,
+          viewport: viewport,
+        ),
+      );
+    } else {
+      existingCoordinator.updateViewport(viewport);
+    }
     final providerConfiguration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
       _disposed = true;
+      _veryHardRequestGeneration++;
       _gameLoop.stop();
     });
 
@@ -154,7 +185,7 @@ class GameController extends _$GameController {
   /// active.  The rules engine does not advance game time, move forces, grow
   /// islands, or run CPU decisions during that phase; the first playing tick
   /// after the countdown is the shared start boundary for every subsystem.
-  void startGame() {
+  Future<void> startGame() async {
     if (_disposed ||
         state.phase == GamePhase.playing ||
         (state.phase == GamePhase.configuration &&
@@ -162,6 +193,60 @@ class GameController extends _$GameController {
       return;
     }
 
+    if (state.requiresVeryHardPreflight &&
+        state.veryHardPreflightStatus != VeryHardPreflightStatus.available) {
+      final existing = _veryHardPreflight;
+      if (existing != null) {
+        await existing;
+        return;
+      }
+      state = state.copyWith(
+        veryHardPreflightStatus: VeryHardPreflightStatus.checking,
+      );
+      final matchId = _currentMatchId;
+      final operation = _runVeryHardPreflight(matchId);
+      _veryHardPreflight = operation;
+      try {
+        await operation;
+      } finally {
+        if (identical(_veryHardPreflight, operation)) {
+          _veryHardPreflight = null;
+        }
+      }
+      return;
+    }
+
+    _startGameAfterPreflight();
+  }
+
+  Future<void> _runVeryHardPreflight(String matchId) async {
+    late VeryHardPreflightResult result;
+    try {
+      result = await _veryHardCpuGateway
+          .preflight(matchId: matchId)
+          .timeout(VeryHardCpuConfig.preflightTimeout);
+    } on Object catch (error) {
+      result = VeryHardPreflightResult.unavailable(error.toString());
+    }
+    if (_disposed ||
+        state.phase != GamePhase.configuration ||
+        _currentMatchId != matchId ||
+        !state.requiresVeryHardPreflight) {
+      return;
+    }
+    if (!result.available) {
+      state = state.copyWith(
+        veryHardPreflightStatus: VeryHardPreflightStatus.unavailable,
+      );
+      return;
+    }
+    state = state.copyWith(
+      veryHardPreflightStatus: VeryHardPreflightStatus.available,
+    );
+    _startGameAfterPreflight();
+  }
+
+  void _startGameAfterPreflight() {
     final nextState = switch (state.phase) {
       GamePhase.configuration => _startNewMatch(),
       GamePhase.paused => _rules.resumeCountdown(state),
@@ -184,6 +269,7 @@ class GameController extends _$GameController {
       return;
     }
     state = _rules.pause(state);
+    _veryHardRequestGeneration++;
     _gameLoop.stop();
     _lastTickMs = null;
   }
@@ -239,6 +325,7 @@ class GameController extends _$GameController {
       return;
     }
     state = nextState;
+    _veryHardRequestGeneration++;
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
@@ -259,6 +346,7 @@ class GameController extends _$GameController {
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
+    _veryHardRequestGeneration++;
     _rankRewardGranted = false;
     state = _newInitialStateFor(
       configuration: state.configuration,
@@ -270,10 +358,12 @@ class GameController extends _$GameController {
   void returnToSettings() => returnToConfiguration();
 
   /// Starts a new match with the same island count and a newly generated map.
-  void replayGame() {
+  Future<void> replayGame() async {
     if (_disposed || state.phase != GamePhase.result) {
       return;
     }
+
+    _veryHardRequestGeneration++;
 
     final initial = _newInitialStateFor(
       configuration: state.configuration,
@@ -290,6 +380,11 @@ class GameController extends _$GameController {
       return;
     }
     final countdown = _rules.startCountdown(initial);
+    if (initial.requiresVeryHardPreflight) {
+      state = initial;
+      await startGame();
+      return;
+    }
     _beginNewMatch();
     state = countdown;
     _clearCpuDecisionDeadlines();
@@ -306,6 +401,7 @@ class GameController extends _$GameController {
     _matchSerial++;
     _currentMatchId = 'match-$_matchSerial';
     _rankRewardGranted = false;
+    _veryHardRequestGeneration++;
   }
 
   bool _isRankEligible(GameConfiguration configuration, GameResult result) {
@@ -413,7 +509,10 @@ class GameController extends _$GameController {
   void _updateConfigurationWithoutRegeneratingMap(
     GameConfiguration configuration,
   ) {
-    final updated = state.copyWith(configuration: configuration);
+    final updated = state.copyWith(
+      configuration: configuration,
+      veryHardPreflightStatus: _preflightStatusFor(configuration),
+    );
     state = updated;
 
     // Configuration-only changes keep the map itself intact. Keep the cache's
@@ -446,10 +545,13 @@ class GameController extends _$GameController {
           phase: GamePhase.configuration,
           elapsedMs: 0,
         );
+    final withPreflightStatus = nextState.copyWith(
+      veryHardPreflightStatus: _preflightStatusFor(configuration),
+    );
     _cachedConfiguration = configuration;
     _cachedViewport = placementViewport;
-    _cachedInitialState = nextState;
-    return nextState;
+    _cachedInitialState = withPreflightStatus;
+    return withPreflightStatus;
   }
 
   GameState _newInitialStateFor({
@@ -468,10 +570,23 @@ class GameController extends _$GameController {
           phase: GamePhase.configuration,
           elapsedMs: 0,
         );
+    final withPreflightStatus = nextState.copyWith(
+      veryHardPreflightStatus: _preflightStatusFor(configuration),
+    );
     _cachedConfiguration = configuration;
     _cachedViewport = placementViewport;
-    _cachedInitialState = nextState;
-    return nextState;
+    _cachedInitialState = withPreflightStatus;
+    return withPreflightStatus;
+  }
+
+  VeryHardPreflightStatus _preflightStatusFor(GameConfiguration configuration) {
+    final requiresPreflight =
+        configuration.cpuDifficulty == CpuDifficulty.veryHard ||
+        (configuration.gameMode == GameMode.cpuVsCpu &&
+            configuration.playerCpuDifficulty == CpuDifficulty.veryHard);
+    return requiresPreflight
+        ? VeryHardPreflightStatus.notChecked
+        : VeryHardPreflightStatus.notRequired;
   }
 
   IslandMapViewport _placementViewport(IslandMapViewport viewport) {
@@ -672,11 +787,19 @@ class GameController extends _$GameController {
     if (due.isEmpty) return;
 
     // All decisions in one tick use the exact same post-rule-tick state.
-    // Applying the collected decisions afterwards prevents the stable order
-    // from affecting the other CPU's choice.
+    // Applying local decisions before the asynchronous Very Hard response
+    // keeps the existing stable player-then-CPU order without blocking ticks.
     final snapshot = state;
-    final decisions = [
+    final localDue = [
       for (final faction in due)
+        if (_difficultyFor(faction) != CpuDifficulty.veryHard) faction,
+    ];
+    final veryHardDue = [
+      for (final faction in due)
+        if (_difficultyFor(faction) == CpuDifficulty.veryHard) faction,
+    ];
+    final decisions = [
+      for (final faction in localDue)
         (
           faction: faction,
           decision: _cpuStrategies[faction]!.decide(
@@ -695,11 +818,61 @@ class GameController extends _$GameController {
         );
       }
     }
-    for (final faction in due) {
+    for (final faction in localDue) {
       // Schedule from current game time rather than an old deadline. This
       // prevents catch-up bursts after a delayed callback.
       _scheduleNextCpuDecision(faction);
     }
+    final coordinator = _veryHardCpuCoordinator;
+    if (veryHardDue.isNotEmpty &&
+        coordinator != null &&
+        !coordinator.hasInFlightRequest) {
+      _startVeryHardDecision(snapshot, veryHardDue);
+    }
+  }
+
+  void _startVeryHardDecision(GameState snapshot, List<Faction> factions) {
+    final generation = _veryHardRequestGeneration;
+    final matchId = _currentMatchId;
+    unawaited(() async {
+      final coordinator = _veryHardCpuCoordinator;
+      if (coordinator == null) return;
+      final outcome = await coordinator.decide(
+        state: snapshot,
+        matchId: matchId,
+        factions: factions,
+        fallback: (faction) => _cpuStrategies[faction]!.decide(
+          state,
+          difficulty: CpuDifficulty.hard,
+        ),
+      );
+      if (_disposed ||
+          generation != _veryHardRequestGeneration ||
+          matchId != _currentMatchId ||
+          state.phase != GamePhase.playing) {
+        return;
+      }
+
+      for (final faction in const [Faction.player, Faction.cpu]) {
+        if (!factions.contains(faction)) continue;
+        final decision = outcome.decisions[faction];
+        if (decision != null) {
+          state = _cpuStrategies[faction]!.applyDecision(
+            state,
+            decision,
+            movingForceId: _nextMovingForceId,
+          );
+        }
+      }
+      if (outcome.usedFallback && kDebugMode) {
+        _showInteractionFeedback(InteractionFeedbackType.veryHardFallback);
+      }
+      if (state.phase == GamePhase.playing) {
+        for (final faction in factions) {
+          _scheduleNextCpuDecision(faction);
+        }
+      }
+    }());
   }
 
   IslandState? _findIsland(int id) {
