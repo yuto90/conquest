@@ -163,19 +163,11 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
     ref.listen<GamePhase>(
-      gameControllerProvider.select((gameState) => gameState.phase),
-      (_, phase) => _battleBgmController.handlePhase(phase),
-    );
-    ref.listen<bool>(
       gameControllerProvider.select(
-        (gameState) => gameState.viewportUnavailable,
+        (gameState) =>
+            gameState.viewportUnavailable ? GamePhase.paused : gameState.phase,
       ),
-      (_, unavailable) {
-        final phase = ref.read(gameControllerProvider).phase;
-        _battleBgmController.handlePhase(
-          unavailable ? GamePhase.paused : phase,
-        );
-      },
+      (_, phase) => _battleBgmController.handlePhase(phase),
     );
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);

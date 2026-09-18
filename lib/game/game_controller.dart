@@ -111,11 +111,11 @@ class GameController extends _$GameController {
         GamePhase.startCountdown ||
         GamePhase.playing ||
         GamePhase.resumeCountdown => true,
-        GamePhase.configuration || GamePhase.paused || GamePhase.result =>
-          false,
+        GamePhase.configuration ||
+        GamePhase.paused ||
+        GamePhase.result => false,
       };
-      if (isActivePhase &&
-          !viewport.canRenderIslands(previousState.islands)) {
+      if (isActivePhase && !viewport.canRenderIslands(previousState.islands)) {
         // Keep every match value exactly as-is while the window is too small
         // for the existing rectangles. The UI presents an explicit enlarge
         // and resume action once the same map can be rendered again.

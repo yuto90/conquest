@@ -14,10 +14,7 @@ void main() {
   SystemChrome.setPreferredOrientations(
     !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
         ? const <DeviceOrientation>[]
-        : const [
-            DeviceOrientation.portraitUp,
-            DeviceOrientation.portraitDown,
-          ],
+        : const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown],
   );
   runApp(const ProviderScope(child: MyApp()));
 }

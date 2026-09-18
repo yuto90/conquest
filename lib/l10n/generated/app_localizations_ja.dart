@@ -201,8 +201,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '盤面を安全に表示できるまで対戦を保持しています。ウィンドウを広げてください。';
 
   @override
-  String get viewportReadyDescription =>
-      '盤面を表示できます。「再開」を押すと対戦を続けます。';
+  String get viewportReadyDescription => '盤面を表示できます。「再開」を押すと対戦を続けます。';
 
   @override
   String selectedSummary({

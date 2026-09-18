@@ -40,7 +40,8 @@ class TitleScreen extends StatelessWidget {
             : constraints.maxWidth;
         final widthScale = contentWidth / _referenceSize.width;
         final heightScale = constraints.maxHeight / 900;
-        final scale = math.min(widthScale, heightScale)
+        final scale = math
+            .min(widthScale, heightScale)
             .clamp(0.1, 10.0)
             .toDouble();
         final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;

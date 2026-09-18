@@ -58,9 +58,7 @@ final class IslandMapViewport {
   /// resize must never redraw or reposition an in-progress match.
   bool canRenderIslands(Iterable<IslandState> islands) {
     if (!isValid) return false;
-    final rectangles = [
-      for (final island in islands) rectFor(island),
-    ];
+    final rectangles = [for (final island in islands) rectFor(island)];
     if (rectangles.isEmpty) return false;
     for (var index = 0; index < rectangles.length; index++) {
       final rectangle = rectangles[index];
@@ -68,9 +66,11 @@ final class IslandMapViewport {
           rectangle.overlaps(topRightControlExclusion)) {
         return false;
       }
-      for (var otherIndex = index + 1;
-          otherIndex < rectangles.length;
-          otherIndex++) {
+      for (
+        var otherIndex = index + 1;
+        otherIndex < rectangles.length;
+        otherIndex++
+      ) {
         if (rectangle.overlaps(rectangles[otherIndex])) return false;
       }
     }

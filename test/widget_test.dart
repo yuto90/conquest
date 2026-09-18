@@ -1572,7 +1572,9 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(120, 120));
       await tester.pump();
       final blockedContainer = ProviderScope.containerOf(
-        tester.element(find.byKey(const ValueKey('viewport-unavailable-sheet'))),
+        tester.element(
+          find.byKey(const ValueKey('viewport-unavailable-sheet')),
+        ),
       );
       final blocked = blockedContainer.read(gameControllerProvider);
       expect(blocked.viewportUnavailable, isTrue);

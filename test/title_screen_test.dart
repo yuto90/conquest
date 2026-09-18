@@ -255,9 +255,7 @@ void main() {
         final wordmark = tester.getRect(
           find.byKey(const ValueKey('title-wordmark')),
         );
-        final start = tester.getRect(
-          find.byKey(const ValueKey('title-start')),
-        );
+        final start = tester.getRect(find.byKey(const ValueKey('title-start')));
         expect(wordmark.width, lessThanOrEqualTo(720));
         expect(start.width, lessThanOrEqualTo(667));
         expect(start.top, greaterThanOrEqualTo(0));
