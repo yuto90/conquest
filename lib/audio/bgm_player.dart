@@ -1,14 +1,21 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
-/// The single in-game music track.  The actual file is supplied only by an
-/// approved build input; it is intentionally not checked into this public
-/// repository.
+/// The battle music track. The actual file is supplied only by an approved
+/// build input; it is intentionally not checked into this public repository.
 const battleBgmAssetPath = 'audio/tense_tactics.mp3';
+
+/// The menu music track. The actual file is supplied only by an approved build
+/// input; it is intentionally not checked into this public repository.
+const menuBgmAssetPath = 'audio/metropolis_destruction.mp3';
 
 /// The application-level music volume.  This changes the player amplitude only
 /// and never changes the device volume.
 const battleBgmVolume = 0.35;
+
+/// Menu music uses the same application-level volume as battle music so the
+/// device volume is never modified by the game.
+const menuBgmVolume = 0.35;
 
 /// Small adapter around the concrete audioplayers object.
 ///
@@ -76,7 +83,7 @@ final class _NoopBgmAudioFocusController implements BgmAudioFocusController {
   Future<void> resume(BgmAudioPlayer player) => player.resume();
 }
 
-/// Small audio boundary used by the battle BGM controller.
+/// Small audio boundary used by the application BGM controller.
 ///
 /// Keeping the plugin out of the controller makes phase and lifecycle tests
 /// deterministic and leaves the player implementation replaceable.
