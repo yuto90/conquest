@@ -327,7 +327,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     ),
                   ),
                 ),
-              _CountdownOverlay(state: state),
+              if (!state.viewportUnavailable) _CountdownOverlay(state: state),
               if (state.viewportUnavailable)
                 _ViewportUnavailableOverlay(
                   canResume: canRenderCurrentMap,

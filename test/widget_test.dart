@@ -1584,6 +1584,7 @@ void main() {
       expect(blocked.movingForces, before.movingForces);
       expect(loop.isRunning, isFalse);
       expect(find.text('ウィンドウが小さすぎます'), findsOneWidget);
+      expect(find.byKey(const ValueKey('countdown-ring')), findsNothing);
 
       await tester.binding.setSurfaceSize(const Size(390, 844));
       await tester.pump();
