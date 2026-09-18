@@ -173,19 +173,14 @@ void main() {
         findsOneWidget,
       );
     }
-    for (final entry in expectedLabels.entries) {
-      final chip = find.byKey(ValueKey('cpu-difficulty-${entry.key.name}'));
-      final semanticsNode = tester.getSemantics(chip);
-      final data = semanticsNode.getSemanticsData();
-      expect(semanticsNode.label, '${entry.value} CPU難易度');
-      expect(data.hasAction(SemanticsAction.tap), isTrue);
-      expect(
-        data.flagsCollection.isSelected,
-        entry.key == CpuDifficulty.normal ? Tristate.isTrue : Tristate.isFalse,
-      );
-    }
-    final normalChip = find.byKey(const ValueKey('cpu-difficulty-normal'));
-    expect(tester.widget<ChoiceChip>(normalChip).selected, isTrue);
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderSemantics = tester.getSemantics(slider);
+    final sliderData = sliderSemantics.getSemanticsData();
+    expect(sliderSemantics.label, 'CPU難易度');
+    expect(sliderSemantics.value, 'Normal');
+    expect(sliderData.flagsCollection.isSlider, isTrue);
+    expect(sliderData.hasAction(SemanticsAction.increase), isTrue);
+    expect(sliderData.hasAction(SemanticsAction.decrease), isTrue);
 
     final mapBefore = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
@@ -199,19 +194,7 @@ void main() {
     final selected = container.read(gameControllerProvider);
     expect(selected.configuration.cpuDifficulty, CpuDifficulty.veryEasy);
     expect(selected.islands, orderedEquals(mapBefore));
-    expect(tester.widget<ChoiceChip>(normalChip).selected, isFalse);
-    final veryEasySemantics = tester.getSemantics(
-      find.byKey(const ValueKey('cpu-difficulty-veryEasy')),
-    );
-    expect(veryEasySemantics.label, 'Very Easy CPU難易度');
-    expect(
-      veryEasySemantics.getSemanticsData().hasAction(SemanticsAction.tap),
-      isTrue,
-    );
-    expect(
-      veryEasySemantics.getSemanticsData().flagsCollection.isSelected,
-      Tristate.isTrue,
-    );
+    expect(tester.getSemantics(slider).value, 'Very Easy');
     expect(find.text('選択中：10島 / Very Easy'), findsOneWidget);
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
@@ -265,20 +248,76 @@ void main() {
     expect(
       tester
           .getSemantics(
-            find.byKey(const ValueKey('player-cpu-difficulty-normal')),
+            find.byKey(const ValueKey('player-cpu-difficulty-slider')),
           )
           .label,
-      '1P Normal CPU難易度',
+      '1P CPU難易度',
     );
     expect(
       tester
-          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-normal')))
+          .getSemantics(
+            find.byKey(const ValueKey('player-cpu-difficulty-slider')),
+          )
+          .value,
+      'Normal',
+    );
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-slider')))
           .label,
-      '2P Normal CPU難易度',
+      '2P CPU難易度',
+    );
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-slider')))
+          .value,
+      'Normal',
     );
     expect(
       tester.getSemantics(find.byKey(const ValueKey('start-game'))).label,
       contains('1P Normal、2P NormalのCPU対戦を観戦'),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('player-cpu-difficulty-hard')));
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const ValueKey('player-cpu-difficulty-slider')),
+          )
+          .value,
+      'Hard',
+    );
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-slider')))
+          .value,
+      'Easy',
+    );
+
+    await tester.tap(standardMode);
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('player-cpu-difficulty-slider')),
+      findsNothing,
+    );
+    expect(
+      tester
+          .getSemantics(find.byKey(const ValueKey('cpu-difficulty-slider')))
+          .value,
+      'Easy',
+    );
+
+    await tester.tap(spectatorMode);
+    await tester.pump();
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const ValueKey('player-cpu-difficulty-slider')),
+          )
+          .value,
+      'Hard',
     );
     semantics.dispose();
   });
@@ -612,6 +651,7 @@ void main() {
       ),
     );
     await openMatchSetup(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
       loop.tick();
@@ -649,6 +689,7 @@ void main() {
       ),
     );
     await openMatchSetup(tester);
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     await tester.tap(find.byKey(const ValueKey('start-game')));
     for (var index = 0; index < 60; index++) {
       spectatorLoop.tick();
@@ -1149,14 +1190,9 @@ void main() {
           find.byKey(ValueKey('cpu-difficulty-${difficulty.name}')),
         ),
     ];
-    for (final rectangle in [
-      ...difficultyRects,
-      tester.getRect(find.byKey(const ValueKey('start-game'))),
-    ]) {
+    for (final rectangle in difficultyRects) {
       expect(rectangle.left, greaterThanOrEqualTo(safeBounds.left));
-      expect(rectangle.top, greaterThanOrEqualTo(safeBounds.top));
       expect(rectangle.right, lessThanOrEqualTo(safeBounds.right));
-      expect(rectangle.bottom, lessThanOrEqualTo(safeBounds.bottom));
     }
     expect(difficultyRects.first.left, lessThan(difficultyRects.last.left));
     expect(
@@ -1165,8 +1201,10 @@ void main() {
           .every((rectangle) => rectangle.top == difficultyRects.first.top),
       isTrue,
     );
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     final startRect = tester.getRect(find.byKey(const ValueKey('start-game')));
-    expect(startRect.top, greaterThan(difficultyRects.first.bottom));
+    expect(startRect.top, greaterThanOrEqualTo(safeBounds.top));
+    expect(startRect.bottom, lessThanOrEqualTo(safeBounds.bottom));
 
     await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
     await tester.pump();
@@ -1374,6 +1412,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
       await tester.pump();
+      await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
       await tester.tap(find.byKey(const ValueKey('start-game')));
       for (var index = 0; index < 60; index++) {
         loop.tick();
@@ -1444,6 +1483,7 @@ void main() {
     );
     await openMatchSetup(tester);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
     final beforeResize = ProviderScope.containerOf(
@@ -1495,6 +1535,7 @@ void main() {
     );
     await openMatchSetup(tester);
 
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
     for (var index = 0; index < 60; index++) {

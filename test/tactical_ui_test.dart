@@ -238,6 +238,7 @@ void main() {
     final loop = _ManualGameLoop();
     await _pumpApp(tester, loop: loop, size: const Size(280, 500));
 
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
     await tester.tap(find.byKey(const ValueKey('start-game')));
     await tester.pump();
     loop.tickMany(60);

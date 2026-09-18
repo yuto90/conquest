@@ -20,6 +20,7 @@ import 'l10n/generated/app_localizations_en.dart';
 import 'rank_progression.dart';
 import 'ui/island_assets.dart';
 import 'ui/match_summary.dart';
+import 'ui/cpu_difficulty_slider.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
@@ -1168,6 +1169,18 @@ class _ConfigurationPanel extends StatelessWidget {
   final bool bgmEnabled;
   final ValueChanged<bool> onBgmChanged;
 
+  void _selectDifficulty(BuildContext context, CpuDifficulty difficulty) {
+    ProviderScope.containerOf(
+      context,
+    ).read(gameControllerProvider.notifier).selectCpuDifficulty(difficulty);
+  }
+
+  void _selectPlayerDifficulty(BuildContext context, CpuDifficulty difficulty) {
+    ProviderScope.containerOf(context)
+        .read(gameControllerProvider.notifier)
+        .selectPlayerCpuDifficulty(difficulty);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
@@ -1273,66 +1286,32 @@ class _ConfigurationPanel extends StatelessWidget {
                             ],
                           ),
                           const SizedBox(height: 16),
-                          Text(
-                            state.configuration.gameMode == GameMode.cpuVsCpu
-                                ? l10n.playerCpuDifficultyLabel
-                                : l10n.cpuDifficultyLabel,
-                            style: TacticalTypography.of(context).mono(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.9,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           if (state.configuration.gameMode ==
                               GameMode.cpuVsCpu) ...[
-                            Row(
-                              children: [
-                                for (
-                                  var index = 0;
-                                  index < CpuDifficulty.values.length;
-                                  index++
-                                ) ...[
-                                  if (index > 0) const SizedBox(width: 7),
-                                  Expanded(
-                                    child: _DifficultyChoice(
-                                      state: state,
-                                      difficulty: CpuDifficulty.values[index],
-                                      playerCpu: true,
-                                      keyPrefix: 'player-cpu-difficulty',
-                                    ),
-                                  ),
-                                ],
-                              ],
+                            CpuDifficultySlider(
+                              value: state.configuration.playerCpuDifficulty,
+                              labels: _difficultyLabels(l10n),
+                              title: l10n.playerCpuDifficultyLabel,
+                              keyPrefix: 'player-cpu-difficulty',
+                              onChanged: (difficulty) =>
+                                  _selectPlayerDifficulty(context, difficulty),
                             ),
                             const SizedBox(height: 18),
-                            Text(
-                              l10n.opponentCpuDifficultyLabel,
-                              style: TacticalTypography.of(context).mono(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.9,
-                              ),
+                            CpuDifficultySlider(
+                              value: state.configuration.cpuDifficulty,
+                              labels: _difficultyLabels(l10n),
+                              title: l10n.opponentCpuDifficultyLabel,
+                              onChanged: (difficulty) =>
+                                  _selectDifficulty(context, difficulty),
                             ),
-                            const SizedBox(height: 4),
-                          ],
-                          Row(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < CpuDifficulty.values.length;
-                                index++
-                              ) ...[
-                                if (index > 0) const SizedBox(width: 7),
-                                Expanded(
-                                  child: _DifficultyChoice(
-                                    state: state,
-                                    difficulty: CpuDifficulty.values[index],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                          ] else
+                            CpuDifficultySlider(
+                              value: state.configuration.cpuDifficulty,
+                              labels: _difficultyLabels(l10n),
+                              title: l10n.cpuDifficultyLabel,
+                              onChanged: (difficulty) =>
+                                  _selectDifficulty(context, difficulty),
+                            ),
                           _BgmToggle(
                             enabled: bgmEnabled,
                             onChanged: onBgmChanged,
@@ -1486,95 +1465,6 @@ class _IslandCountChoice extends StatelessWidget {
   }
 }
 
-class _DifficultyChoice extends StatelessWidget {
-  const _DifficultyChoice({
-    required this.state,
-    required this.difficulty,
-    this.playerCpu = false,
-    this.keyPrefix = 'cpu-difficulty',
-  });
-
-  final GameState state;
-  final CpuDifficulty difficulty;
-  final bool playerCpu;
-  final String keyPrefix;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = _appLocalizations(context);
-    final selected =
-        (playerCpu
-            ? state.configuration.playerCpuDifficulty
-            : state.configuration.cpuDifficulty) ==
-        difficulty;
-    final label = _difficultyLabel(l10n, difficulty);
-    final owner = playerCpu
-        ? '1P '
-        : state.configuration.gameMode == GameMode.cpuVsCpu
-        ? '2P '
-        : '';
-    final semanticLabel = l10n.difficultyChoice(
-      owner: owner,
-      difficulty: label,
-    );
-    return SizedBox(
-      height: 51,
-      width: double.infinity,
-      child: ChoiceChip(
-        key: ValueKey('$keyPrefix-${difficulty.name}'),
-        label: SizedBox(
-          width: double.infinity,
-          child: Semantics(
-            excludeSemantics: true,
-            label: semanticLabel,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label, textAlign: TextAlign.center),
-            ),
-          ),
-        ),
-        selected: selected,
-        showCheckmark: false,
-        onSelected: (_) => playerCpu
-            ? _selectPlayerDifficulty(context, difficulty)
-            : _selectDifficulty(context, difficulty),
-        tooltip: semanticLabel,
-        padding: EdgeInsets.zero,
-        labelPadding: const EdgeInsets.symmetric(vertical: 9),
-        materialTapTargetSize: MaterialTapTargetSize.padded,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(1)),
-        ),
-        side: BorderSide(
-          color: selected ? TacticalPalette.foreground : TacticalPalette.border,
-        ),
-        selectedColor: TacticalPalette.foreground,
-        backgroundColor: Color.alphaBlend(
-          TacticalPalette.surface.withValues(alpha: 0.62),
-          TacticalPalette.background,
-        ),
-        labelStyle: TacticalTypography.of(context).body(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: selected ? TacticalPalette.paper : TacticalPalette.muted,
-        ),
-      ),
-    );
-  }
-
-  void _selectDifficulty(BuildContext context, CpuDifficulty difficulty) {
-    ProviderScope.containerOf(
-      context,
-    ).read(gameControllerProvider.notifier).selectCpuDifficulty(difficulty);
-  }
-
-  void _selectPlayerDifficulty(BuildContext context, CpuDifficulty difficulty) {
-    ProviderScope.containerOf(context)
-        .read(gameControllerProvider.notifier)
-        .selectPlayerCpuDifficulty(difficulty);
-  }
-}
-
 class _GameModeChoice extends StatelessWidget {
   const _GameModeChoice({required this.state, required this.mode});
 
@@ -1717,6 +1607,11 @@ String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
       CpuDifficulty.normal => l10n.difficultyNormal,
       CpuDifficulty.hard => l10n.difficultyHard,
     };
+
+Map<CpuDifficulty, String> _difficultyLabels(AppLocalizations l10n) => {
+  for (final difficulty in CpuDifficulty.values)
+    difficulty: _difficultyLabel(l10n, difficulty),
+};
 
 class _CountdownOverlay extends StatelessWidget {
   const _CountdownOverlay({required this.state});
