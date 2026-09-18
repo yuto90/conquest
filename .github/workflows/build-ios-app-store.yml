@@ -421,6 +421,35 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
             archive
+
+          python3 - "$RUNNER_TEMP/Runner.xcarchive/Products/Applications/Runner.app/Info.plist" <<'PY'
+          import plistlib
+          import sys
+
+          path = sys.argv[1]
+          with open(path, "rb") as file:
+              info = plistlib.load(file)
+          family = info.get("UIDeviceFamily")
+          if family != [1, 2]:
+              raise SystemExit(
+                  f"Archive must declare UIDeviceFamily [1, 2], got {family!r}"
+              )
+          if info.get("UISupportedInterfaceOrientations") != [
+              "UIInterfaceOrientationPortrait"
+          ]:
+              raise SystemExit("Archive iPhone orientations must remain portrait-only")
+          if info.get("UISupportedInterfaceOrientations~ipad") != [
+              "UIInterfaceOrientationPortrait",
+              "UIInterfaceOrientationPortraitUpsideDown",
+              "UIInterfaceOrientationLandscapeLeft",
+              "UIInterfaceOrientationLandscapeRight",
+          ]:
+              raise SystemExit(
+                  "Archive iPad orientations must include portrait and both landscape directions"
+              )
+          print("Archive UIDeviceFamily and orientation settings verified")
+          PY
+
           mkdir -p build/ios/ipa
           xcodebuild \
             -exportArchive \

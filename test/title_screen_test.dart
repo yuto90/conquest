@@ -233,4 +233,35 @@ void main() {
     expect(stage.contains(button.bottomRight), isTrue);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'keeps the title group bounded and visible on native tablet sizes',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        const ProviderScope(child: MyApp(locale: Locale('en'))),
+      );
+      const sizes = <Size>[
+        Size(744, 1133),
+        Size(1133, 744),
+        Size(834, 1194),
+        Size(1194, 834),
+        Size(1024, 1366),
+        Size(1366, 1024),
+      ];
+      for (final size in sizes) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pump();
+        final wordmark = tester.getRect(
+          find.byKey(const ValueKey('title-wordmark')),
+        );
+        final start = tester.getRect(find.byKey(const ValueKey('title-start')));
+        expect(wordmark.width, lessThanOrEqualTo(720));
+        expect(start.width, lessThanOrEqualTo(667));
+        expect(start.top, greaterThanOrEqualTo(0));
+        expect(start.bottom, lessThanOrEqualTo(size.height));
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
 }

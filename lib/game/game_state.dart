@@ -624,6 +624,7 @@ final class GameState {
     MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
+    this.viewportUnavailable = false,
   }) : configuration = configuration ?? GameConfiguration.initial,
        islands = List.unmodifiable(islands ?? bases ?? const <IslandState>[]),
        selectedIslandId = selectedIslandId ?? selectedBaseId,
@@ -657,6 +658,11 @@ final class GameState {
   final GameResult? result;
   final int countdownRemainingMs;
 
+  /// True while a match is held because its current window is too small to
+  /// render the existing island layout safely. The match data itself remains
+  /// untouched until the user explicitly resumes after enlarging the window.
+  final bool viewportUnavailable;
+
   /// PR #3 compatibility getters.
   List<IslandState> get bases => islands;
   int? get selectedBaseId => selectedIslandId;
@@ -689,6 +695,7 @@ final class GameState {
     MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
+    bool? viewportUnavailable,
   }) {
     return GameState(
       configuration: configuration ?? this.configuration,
@@ -704,6 +711,7 @@ final class GameState {
       matchSummary: matchSummary ?? this.matchSummary,
       result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable ?? this.viewportUnavailable,
     );
   }
 
@@ -722,6 +730,7 @@ final class GameState {
       matchSummary: matchSummary.withElapsedMs(nextResult.elapsedMs),
       result: nextResult,
       countdownRemainingMs: 0,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -750,6 +759,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -768,6 +778,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -785,6 +796,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -806,6 +818,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -831,6 +844,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      viewportUnavailable: viewportUnavailable,
     );
   }
 
@@ -847,7 +861,8 @@ final class GameState {
         other.interactionFeedbackUntilMs == interactionFeedbackUntilMs &&
         other.matchSummary == matchSummary &&
         other.result == result &&
-        other.countdownRemainingMs == countdownRemainingMs;
+        other.countdownRemainingMs == countdownRemainingMs &&
+        other.viewportUnavailable == viewportUnavailable;
   }
 
   @override
@@ -863,6 +878,7 @@ final class GameState {
     matchSummary,
     result,
     countdownRemainingMs,
+    viewportUnavailable,
   );
 
   static bool _listEquals<T>(List<T> first, List<T> second) {

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
@@ -10,6 +11,7 @@ import 'tactical_theme.dart';
 const _ink = Color(0xFF002C36);
 const _paper = Color(0xFFF6F8F7);
 const _referenceSize = Size(941, 1672);
+const _wideNativeContentMaxWidth = 720.0;
 // トップ画面の補助ボタンは、再表示するまで一時的に非表示にする。
 const _showSecondaryActions = false;
 
@@ -28,7 +30,20 @@ class TitleScreen extends StatelessWidget {
     return LayoutBuilder(
       key: const ValueKey('title-view'),
       builder: (context, constraints) {
-        final scale = constraints.maxWidth / _referenceSize.width;
+        // The title uses the available window as its canvas, but its visual
+        // group has a readable maximum on native tablet-sized windows. The
+        // height cap keeps the wordmark and START action in view in landscape
+        // without changing the Web portrait stage's existing scale contract.
+        final isWideNative = !kIsWeb && constraints.maxWidth >= 600;
+        final contentWidth = isWideNative
+            ? math.min(constraints.maxWidth, _wideNativeContentMaxWidth)
+            : constraints.maxWidth;
+        final widthScale = contentWidth / _referenceSize.width;
+        final heightScale = constraints.maxHeight / 900;
+        final scale = math
+            .min(widthScale, heightScale)
+            .clamp(0.1, 10.0)
+            .toDouble();
         final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
         // Keep secondary labels readable on narrow Web portrait stages.
         final secondaryWidth = largeText

@@ -170,7 +170,10 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
     ref.listen<GamePhase>(
-      gameControllerProvider.select((gameState) => gameState.phase),
+      gameControllerProvider.select(
+        (gameState) =>
+            gameState.viewportUnavailable ? GamePhase.paused : gameState.phase,
+      ),
       (_, phase) => _appBgmController.handlePhase(phase),
     );
     final viewport = ref.watch(mapViewportProvider);
@@ -178,6 +181,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     final rankProgress =
         ref.watch(rankProgressProvider).value ?? RankProgress.zero;
     final controller = ref.read(gameControllerProvider.notifier);
+    final canRenderCurrentMap = viewport.canRenderIslands(state.islands);
     // Keep watching the same controller on both screens so configuration
     // selections survive a visit to the title without recreating the match.
     if (_showTitle) {
@@ -221,56 +225,58 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             fit: StackFit.expand,
             children: [
               const TacticalMapBackground(),
-              CustomPaint(painter: _RoutePainter(state: state)),
-              Semantics(
-                container: true,
-                label: l10n.boardMapSemantics(
-                  islandCount: state.configuration.totalIslandCount,
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    for (final island in state.islands)
-                      Align(
-                        key: ValueKey('island-${island.id}'),
-                        alignment: Alignment(island.x, island.y),
-                        child: SizedBox.square(
-                          dimension: GameRules.islandWidgetSize(island.size),
-                          child: Base(
-                            key: ValueKey('island-button-${island.id}'),
-                            base: island,
+              if (canRenderCurrentMap && !state.viewportUnavailable) ...[
+                CustomPaint(painter: _RoutePainter(state: state)),
+                Semantics(
+                  container: true,
+                  label: l10n.boardMapSemantics(
+                    islandCount: state.configuration.totalIslandCount,
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      for (final island in state.islands)
+                        Align(
+                          key: ValueKey('island-${island.id}'),
+                          alignment: Alignment(island.x, island.y),
+                          child: SizedBox.square(
+                            dimension: GameRules.islandWidgetSize(island.size),
+                            child: Base(
+                              key: ValueKey('island-button-${island.id}'),
+                              base: island,
+                              presentation: FactionPresentation.forMode(
+                                state.configuration.gameMode,
+                                island.faction,
+                              ),
+                              selected: state.selectedIslandId == island.id,
+                              destinationCandidate:
+                                  isPlayerInteractionEnabled &&
+                                  state.selectedIslandId != null &&
+                                  state.selectedIslandId != island.id,
+                              onPressed: isPlayerInteractionEnabled
+                                  ? () => controller.tapBase(island.id)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      for (final force in state.movingForces)
+                        Align(
+                          key: ValueKey('moving-force-position-${force.id}'),
+                          alignment: Alignment(force.x, force.y),
+                          child: MovingForceWidget(
+                            force: force,
+                            boardSize: Size(viewport.width, viewport.height),
                             presentation: FactionPresentation.forMode(
                               state.configuration.gameMode,
-                              island.faction,
+                              force.faction,
                             ),
-                            selected: state.selectedIslandId == island.id,
-                            destinationCandidate:
-                                isPlayerInteractionEnabled &&
-                                state.selectedIslandId != null &&
-                                state.selectedIslandId != island.id,
-                            onPressed: isPlayerInteractionEnabled
-                                ? () => controller.tapBase(island.id)
-                                : null,
+                            semanticsKey: ValueKey('moving-force-${force.id}'),
                           ),
                         ),
-                      ),
-                    for (final force in state.movingForces)
-                      Align(
-                        key: ValueKey('moving-force-position-${force.id}'),
-                        alignment: Alignment(force.x, force.y),
-                        child: MovingForceWidget(
-                          force: force,
-                          boardSize: Size(viewport.width, viewport.height),
-                          presentation: FactionPresentation.forMode(
-                            state.configuration.gameMode,
-                            force.faction,
-                          ),
-                          semanticsKey: ValueKey('moving-force-${force.id}'),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
               if (showBoardChrome)
                 _BoardChrome(
                   state: state,
@@ -289,7 +295,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onBgmChanged: _setBgmEnabled,
                   onStart:
                       state.islands.length ==
-                          state.configuration.totalIslandCount
+                              state.configuration.totalIslandCount &&
+                          canRenderCurrentMap
                       ? controller.startGame
                       : null,
                 ),
@@ -323,7 +330,12 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     ),
                   ),
                 ),
-              _CountdownOverlay(state: state),
+              if (!state.viewportUnavailable) _CountdownOverlay(state: state),
+              if (state.viewportUnavailable)
+                _ViewportUnavailableOverlay(
+                  canResume: canRenderCurrentMap,
+                  onResume: controller.resumeAfterViewportChange,
+                ),
             ],
           ),
         ),
@@ -522,68 +534,157 @@ class _PauseMenu extends StatelessWidget {
     return ColoredBox(
       color: TacticalPalette.outer.withValues(alpha: 0.23),
       child: Center(
-        child: Container(
-          key: const ValueKey('pause-sheet'),
-          width: 248,
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              TacticalPalette.surface.withValues(alpha: 0.94),
-              TacticalPalette.background,
-            ),
-            border: Border.all(color: TacticalPalette.border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x2E1A4448),
-                blurRadius: 28,
-                offset: Offset(0, 12),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Container(
+            key: const ValueKey('pause-sheet'),
+            width: 248,
+            padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+            decoration: BoxDecoration(
+              color: Color.alphaBlend(
+                TacticalPalette.surface.withValues(alpha: 0.94),
+                TacticalPalette.background,
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.pauseHeading,
-                style: TacticalTypography.of(context).mono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: TacticalPalette.muted,
-                  height: 1.2,
-                  letterSpacing: 1.6,
+              border: Border.all(color: TacticalPalette.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x2E1A4448),
+                  blurRadius: 28,
+                  offset: Offset(0, 12),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l10n.pauseTitle,
-                style: TacticalTypography.of(
-                  context,
-                ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                l10n.pauseDescription,
-                style: TacticalTypography.of(
-                  context,
-                ).body(fontSize: 12, color: TacticalPalette.muted),
-              ),
-              const SizedBox(height: 14),
-              _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
-              const SizedBox(height: 14),
-              _PrimaryActionButton(
-                key: const ValueKey('resume-game'),
-                onPressed: onResume,
-                label: l10n.resume,
-              ),
-              const SizedBox(height: 9),
-              _SecondaryActionButton(
-                key: const ValueKey('quit-game'),
-                onPressed: onQuit,
-                label: l10n.returnSettings,
-              ),
-            ],
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l10n.pauseHeading,
+                  style: TacticalTypography.of(context).mono(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: TacticalPalette.muted,
+                    height: 1.2,
+                    letterSpacing: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  l10n.pauseTitle,
+                  style: TacticalTypography.of(
+                    context,
+                  ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  l10n.pauseDescription,
+                  style: TacticalTypography.of(
+                    context,
+                  ).body(fontSize: 12, color: TacticalPalette.muted),
+                ),
+                const SizedBox(height: 14),
+                _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
+                const SizedBox(height: 14),
+                _PrimaryActionButton(
+                  key: const ValueKey('resume-game'),
+                  onPressed: onResume,
+                  label: l10n.resume,
+                ),
+                const SizedBox(height: 9),
+                _SecondaryActionButton(
+                  key: const ValueKey('quit-game'),
+                  onPressed: onQuit,
+                  label: l10n.returnSettings,
+                ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ViewportUnavailableOverlay extends StatelessWidget {
+  const _ViewportUnavailableOverlay({
+    required this.canResume,
+    required this.onResume,
+  });
+
+  final bool canResume;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    final description = canResume
+        ? l10n.viewportReadyDescription
+        : l10n.viewportTooSmallDescription;
+    return ColoredBox(
+      color: TacticalPalette.background.withValues(alpha: 0.96),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = math
+              .min(360.0, math.max(0.0, constraints.maxWidth - 32))
+              .toDouble();
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: width),
+                child: Container(
+                  key: const ValueKey('viewport-unavailable-sheet'),
+                  padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+                  decoration: BoxDecoration(
+                    color: Color.alphaBlend(
+                      TacticalPalette.surface.withValues(alpha: 0.96),
+                      TacticalPalette.background,
+                    ),
+                    border: Border.all(color: TacticalPalette.border),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x2E1A4448),
+                        blurRadius: 28,
+                        offset: Offset(0, 12),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        l10n.viewportTooSmallTitle,
+                        textAlign: TextAlign.center,
+                        style: TacticalTypography.of(context).mono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: TacticalPalette.muted,
+                          height: 1.2,
+                          letterSpacing: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        description,
+                        textAlign: TextAlign.center,
+                        style: TacticalTypography.of(context).body(
+                          fontSize: 12,
+                          color: TacticalPalette.muted,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      _PrimaryActionButton(
+                        key: const ValueKey('resume-after-resize'),
+                        onPressed: canResume ? onResume : null,
+                        label: l10n.resume,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1782,7 +1883,7 @@ class _PrimaryActionButton extends StatelessWidget {
     super.key,
   });
 
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final String label;
 
   @override

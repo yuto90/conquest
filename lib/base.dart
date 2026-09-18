@@ -82,9 +82,12 @@ class Base extends StatelessWidget {
                 offset: isHeadquarters && base.y > 0
                     ? const Offset(0, -8)
                     : Offset.zero,
-                child: _IslandStatusPanel(
-                  base: base,
-                  marker: _effectivePresentation.marker,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _IslandStatusPanel(
+                    base: base,
+                    marker: _effectivePresentation.marker,
+                  ),
                 ),
               ),
               if (isHeadquarters)
