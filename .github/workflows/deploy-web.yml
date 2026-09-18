@@ -31,6 +31,24 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.14.0
+          cache: npm
+
+      - name: Install Function dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Check Function formatting
+        run: npm run format
+
+      - name: Typecheck Function
+        run: npm run typecheck
+
+      - name: Test Function
+        run: npm test
+
       - name: Read Flutter version
         id: version
         shell: bash
@@ -77,8 +95,8 @@ jobs:
       - name: Build web
         run: fvm flutter build web --release --base-href /
 
-      - name: Copy Vercel headers into web output
-        run: cp vercel.json build/web/vercel.json
+      - name: Build Vercel Output API artifact
+        run: npm run build:vercel-output
 
       - name: Measure release Web sizes
         if: github.event_name == 'pull_request'
@@ -109,7 +127,6 @@ jobs:
             cd "$baseline_dir"
             fvm flutter pub get
             fvm flutter build web --release --base-href /
-            cp vercel.json build/web/vercel.json
           )
 
           baseline_web_bytes="$(sum_bytes "$baseline_dir/build/web")"
@@ -127,7 +144,7 @@ jobs:
 
       - name: Skip Vercel deploy
         if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
-        run: echo "::notice::Vercel secrets are not configured; built build/web without deploying."
+        run: echo "::notice::Vercel secrets are not configured; built the prebuilt artifact without deploying."
 
       - name: Deploy to Vercel
         id: deploy
@@ -135,12 +152,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm install -g vercel
           extra=(--target=preview)
           if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
             extra=(--prod)
           fi
-          url="$(vercel deploy build/web --yes --token="$VERCEL_TOKEN" "${extra[@]}")"
+          url="$(npx --no-install vercel deploy --prebuilt --yes --token="$VERCEL_TOKEN" "${extra[@]}")"
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_STEP_SUMMARY"

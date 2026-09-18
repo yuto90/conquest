@@ -1,0 +1,30 @@
+{
+  "name": "conquest-vercel-functions",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0 <23"
+  },
+  "scripts": {
+    "format": "prettier --check api scripts test-function package.json tsconfig.json vitest.config.ts vercel.json",
+    "format:write": "prettier --write api scripts test-function package.json tsconfig.json vitest.config.ts vercel.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build:vercel-output": "tsx scripts/build_vercel_output.ts",
+    "build:vercel-output:check": "tsx scripts/build_vercel_output.ts --check"
+  },
+  "dependencies": {
+    "@ai-sdk/gateway": "3.0.196",
+    "ai": "6.0.286",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.21",
+    "esbuild": "0.28.2",
+    "prettier": "3.6.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vercel": "59.23.1",
+    "vitest": "5.0.1"
+  }
+}
