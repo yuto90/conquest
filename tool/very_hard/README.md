@@ -1,0 +1,53 @@
+# Very Hard / Hard ローカル比較
+
+PRのPreview Deploymentが作成された直後に、ローカルCodexから実Jevを使った比較を実行するための固定ハーネスです。通常のFlutterテスト・CIからは呼び出しません。
+
+## 実行前の条件
+
+- Previewがデプロイ済みで、Flutter Webと`/api/v1/cpu/very-hard`が同じPreview URLから応答すること。
+- ローカルの`HEAD`が、比較対象PRのHEAD SHAと一致していること。
+- `--pr-head`はPR画面から取得した40桁の小文字SHAをそのまま指定すること。
+- Preview URLへquery、fragment、ユーザー名、パスワードを付けないこと。
+- JevのtokenやVercelのsecretをコマンド、環境変数、レポートへ渡さないこと。初期版のPreview Functionは未認証で利用する。
+
+## Codexからの正確な実行コマンド
+
+PR番号、PR HEAD SHA、Preview URLを埋めて、リポジトリのルートから実行します。
+
+```sh
+fvm dart run tool/very_hard/run.dart \
+  --pr-number <PR番号> \
+  --pr-head <PRの40桁HEAD SHA> \
+  --preview-url https://<Previewのホスト>
+```
+
+記録用ファイルへ保存する場合は、出力だけを保存します。
+
+```sh
+fvm dart run tool/very_hard/run.dart \
+  --pr-number 99 \
+  --pr-head <PRの40桁HEAD SHA> \
+  --preview-url https://<Previewのホスト> \
+  | tee /tmp/conquest-very-hard-80.md
+```
+
+Codexへ渡す固定プロンプトは次のとおりです。
+
+> PR `<PR番号>` のPreview URL `<Preview URL>`、PR HEAD `<40桁HEAD SHA>`を使い、上記コマンドを実行してください。出力された日本語MarkdownをPRの検証資料として確認してください。ローカルHEADがPR HEADと一致しない場合は実行せず、token・secret・盤面本文を表示しないでください。勝点率60%未満でも結果・観察事項・残存リスクを隠さず記録してください。
+
+ハーネスは実行前に`git rev-parse HEAD`と`--pr-head`を比較し、一致しなければpreflightを含む外部通信を行わず終了します。
+
+## 比較条件
+
+- CPU対CPU、対戦相手はHard。
+- 島数6・8・10・12それぞれ固定seed 10件。
+- 同じseedでVery Hardを`player`/`cpu`へ入れ替え、合計80試合。
+- マップ、候補生成、移動時間、戦闘、増加は既存の`GameRules`と`VeryHardCandidateGenerator`を使用。
+- 判断間隔は製品と同じ1,500〜2,750ms、判断期限は1,200ms。
+- ゲームは50ms固定stepで進め、実際のJev応答待ち時間もゲーム内時刻へ加算。
+- 1試合の観測上限はゲーム内10分。
+- 勝利1点、引分0.5点、敗北0点、未完了0点。未完了は引分と別表示。
+
+レポートにはPR番号、HEAD、実行日時、固定/解決済みモデル、prompt/schema version、島数別と全体のW/D/L/未完了、勝点率、フォールバック数/率、レイテンシ中央値/p95、分類済みProvider/APIエラー、観察事項、残存リスクを出力します。HTTP本文、候補説明、認証情報は出力しません。
+
+60%は観測上の目標であり、未達だけでPRを失敗扱いにしません。モデル更新、Previewリージョン、ネットワーク、未認証APIの利用制限による変動を残存リスクとして併記してください。
