@@ -225,56 +225,58 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
             fit: StackFit.expand,
             children: [
               const TacticalMapBackground(),
-              CustomPaint(painter: _RoutePainter(state: state)),
-              Semantics(
-                container: true,
-                label: l10n.boardMapSemantics(
-                  islandCount: state.configuration.totalIslandCount,
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    for (final island in state.islands)
-                      Align(
-                        key: ValueKey('island-${island.id}'),
-                        alignment: Alignment(island.x, island.y),
-                        child: SizedBox.square(
-                          dimension: GameRules.islandWidgetSize(island.size),
-                          child: Base(
-                            key: ValueKey('island-button-${island.id}'),
-                            base: island,
+              if (canRenderCurrentMap && !state.viewportUnavailable) ...[
+                CustomPaint(painter: _RoutePainter(state: state)),
+                Semantics(
+                  container: true,
+                  label: l10n.boardMapSemantics(
+                    islandCount: state.configuration.totalIslandCount,
+                  ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      for (final island in state.islands)
+                        Align(
+                          key: ValueKey('island-${island.id}'),
+                          alignment: Alignment(island.x, island.y),
+                          child: SizedBox.square(
+                            dimension: GameRules.islandWidgetSize(island.size),
+                            child: Base(
+                              key: ValueKey('island-button-${island.id}'),
+                              base: island,
+                              presentation: FactionPresentation.forMode(
+                                state.configuration.gameMode,
+                                island.faction,
+                              ),
+                              selected: state.selectedIslandId == island.id,
+                              destinationCandidate:
+                                  isPlayerInteractionEnabled &&
+                                  state.selectedIslandId != null &&
+                                  state.selectedIslandId != island.id,
+                              onPressed: isPlayerInteractionEnabled
+                                  ? () => controller.tapBase(island.id)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      for (final force in state.movingForces)
+                        Align(
+                          key: ValueKey('moving-force-position-${force.id}'),
+                          alignment: Alignment(force.x, force.y),
+                          child: MovingForceWidget(
+                            force: force,
+                            boardSize: Size(viewport.width, viewport.height),
                             presentation: FactionPresentation.forMode(
                               state.configuration.gameMode,
-                              island.faction,
+                              force.faction,
                             ),
-                            selected: state.selectedIslandId == island.id,
-                            destinationCandidate:
-                                isPlayerInteractionEnabled &&
-                                state.selectedIslandId != null &&
-                                state.selectedIslandId != island.id,
-                            onPressed: isPlayerInteractionEnabled
-                                ? () => controller.tapBase(island.id)
-                                : null,
+                            semanticsKey: ValueKey('moving-force-${force.id}'),
                           ),
                         ),
-                      ),
-                    for (final force in state.movingForces)
-                      Align(
-                        key: ValueKey('moving-force-position-${force.id}'),
-                        alignment: Alignment(force.x, force.y),
-                        child: MovingForceWidget(
-                          force: force,
-                          boardSize: Size(viewport.width, viewport.height),
-                          presentation: FactionPresentation.forMode(
-                            state.configuration.gameMode,
-                            force.faction,
-                          ),
-                          semanticsKey: ValueKey('moving-force-${force.id}'),
-                        ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
               if (showBoardChrome)
                 _BoardChrome(
                   state: state,
@@ -293,7 +295,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onBgmChanged: _setBgmEnabled,
                   onStart:
                       state.islands.length ==
-                          state.configuration.totalIslandCount
+                              state.configuration.totalIslandCount &&
+                          canRenderCurrentMap
                       ? controller.startGame
                       : null,
                 ),
@@ -327,7 +330,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                     ),
                   ),
                 ),
-              _CountdownOverlay(state: state),
+              if (!state.viewportUnavailable) _CountdownOverlay(state: state),
               if (state.viewportUnavailable)
                 _ViewportUnavailableOverlay(
                   canResume: canRenderCurrentMap,
