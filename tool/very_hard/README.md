@@ -10,6 +10,14 @@ PRのPreview Deploymentが作成された直後に、ローカルCodexから実J
 - Preview URLへquery、fragment、ユーザー名、パスワードを付けないこと。
 - JevのtokenやVercelのsecretをコマンド、環境変数、レポートへ渡さないこと。初期版のPreview Functionは未認証で利用する。
 
+## 外部設定ゲート
+
+次の設定はリポジトリや通常CIへ持ち込まず、PreviewとProductionのVercelプロジェクトで別途確認・適用します。
+
+- Functionは`@vercel/firewall`の`conquest-very-hard-v1`ルールIDを使います。PreviewとProductionの両方で、同じIDの`@vercel/firewall`条件を持つWAF rate-limit ruleを作成し、対象APIを制限する設定を公開してください。ルール未作成・Firewallエラー時はFunctionが安全側へ停止します。
+- AI Gateway側で、`typesafe-ai/jev`を使うプロジェクトの利用予算・アラート・Provider利用可否をPreviewとProductionそれぞれ確認してください。予算超過はFunctionの分類済みエラーになり、ベンチマークではフォールバックとして記録されます。
+- これらの設定変更、secret投入、deployはこのハーネスや通常CIから実行しません。
+
 ## Codexからの正確な実行コマンド
 
 PR番号、PR HEAD SHA、Preview URLを埋めて、リポジトリのルートから実行します。

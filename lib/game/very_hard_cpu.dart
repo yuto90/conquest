@@ -316,13 +316,19 @@ final class VeryHardDecisionResponse {
     required this.requestId,
     required this.candidateIdsByFaction,
     this.model,
+    this.resolvedModel,
     this.promptVersion,
     this.latencyMs,
   });
 
   final String requestId;
   final Map<Faction, String> candidateIdsByFaction;
+
+  /// The fixed model alias sent to the AI Gateway.
   final String? model;
+
+  /// The provider/model identifier resolved by the AI Gateway response.
+  final String? resolvedModel;
   final String? promptVersion;
   final int? latencyMs;
 
@@ -364,9 +370,11 @@ final class VeryHardDecisionResponse {
     final diagnostics = map['diagnostics'];
     final diagnosticsMap = diagnostics is Map ? diagnostics : null;
     final model = diagnosticsMap?['model'];
+    final resolvedModel = diagnosticsMap?['resolvedModel'];
     final promptVersion = diagnosticsMap?['promptVersion'];
     final latencyMs = diagnosticsMap?['latencyMs'];
     if (model != null && model is! String ||
+        resolvedModel != null && resolvedModel is! String ||
         promptVersion != null && promptVersion is! String ||
         latencyMs != null && latencyMs is! int) {
       throw VeryHardCpuProtocolException('invalid response diagnostics');
@@ -375,6 +383,7 @@ final class VeryHardDecisionResponse {
       requestId: request.requestId,
       candidateIdsByFaction: Map.unmodifiable(result),
       model: model as String?,
+      resolvedModel: resolvedModel as String?,
       promptVersion: promptVersion as String?,
       latencyMs: latencyMs as int?,
     );

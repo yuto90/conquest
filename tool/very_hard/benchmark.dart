@@ -111,9 +111,11 @@ final class BenchmarkMatchResult {
     this.decisionRequestCount = 0,
     this.decisionLatenciesMs = const <int>[],
     this.providerApiErrors = const <String, int>{},
+    this.modelAliases = const <String>[],
     this.resolvedModels = const <String>[],
     this.promptVersions = const <String>[],
     this.staleResponseCount = 0,
+    this.fallbackStrategyFactions = const <Faction>[],
   });
 
   final int islandCount;
@@ -125,9 +127,13 @@ final class BenchmarkMatchResult {
   final int decisionRequestCount;
   final List<int> decisionLatenciesMs;
   final Map<String, int> providerApiErrors;
+  final List<String> modelAliases;
   final List<String> resolvedModels;
   final List<String> promptVersions;
   final int staleResponseCount;
+
+  /// Aggregate-safe trace used to verify fallbacks stay on the Very Hard side.
+  final List<Faction> fallbackStrategyFactions;
 }
 
 /// Aggregate metrics for either one island-count bucket or all matches.
@@ -239,7 +245,9 @@ final class BenchmarkReport {
       ..writeln('- PR: #$pullRequestNumber')
       ..writeln('- HEAD: `$headSha`')
       ..writeln('- 実行日時（UTC）: ${executedAtUtc.toIso8601String()}')
-      ..writeln('- モデル（サーバー固定）: `${VeryHardCpuConfig.model}`')
+      ..writeln(
+        '- モデル（サーバー固定）: `${_joinOrFallback(_modelAliases, VeryHardCpuConfig.model)}`',
+      )
       ..writeln(
         '- 解決済みモデル: ${_joinOrFallback(_resolvedModels, 'Function応答のdiagnostics未返却')}',
       )
@@ -300,6 +308,14 @@ final class BenchmarkReport {
     final values = <String>{};
     for (final match in matches) {
       values.addAll(match.resolvedModels);
+    }
+    yield* values;
+  }
+
+  Iterable<String> get _modelAliases sync* {
+    final values = <String>{};
+    for (final match in matches) {
+      values.addAll(match.modelAliases);
     }
     yield* values;
   }
@@ -489,8 +505,10 @@ final class _MatchSimulation {
   var _veryHardBlocked = false;
   final _decisionLatenciesMs = <int>[];
   final _providerApiErrors = <String, int>{};
+  final _modelAliases = <String>{};
   final _resolvedModels = <String>{};
   final _promptVersions = <String>{};
+  final _fallbackStrategyFactions = <Faction>[];
 
   Future<BenchmarkMatchResult> run() async {
     while (_state.phase == GamePhase.playing &&
@@ -521,14 +539,19 @@ final class _MatchSimulation {
       decisionRequestCount: _decisionRequestCount,
       decisionLatenciesMs: List.unmodifiable(_decisionLatenciesMs),
       providerApiErrors: Map.unmodifiable(_providerApiErrors),
+      modelAliases: List.unmodifiable(_modelAliases),
       resolvedModels: List.unmodifiable(_resolvedModels),
       promptVersions: List.unmodifiable(_promptVersions),
       staleResponseCount: _staleResponseCount,
+      fallbackStrategyFactions: List.unmodifiable(_fallbackStrategyFactions),
     );
   }
 
   void _advanceFixed(int durationMs) {
-    var remaining = durationMs;
+    var remaining = math.min(
+      math.max(0, durationMs),
+      math.max(0, maxGameTimeMs - _state.elapsedMs),
+    );
     while (remaining > 0 && _state.phase == GamePhase.playing) {
       final step = math.min(simulationStepMs, remaining);
       _state = rules.tick(_state, deltaMs: step);
@@ -652,12 +675,13 @@ final class _MatchSimulation {
   void _applyHardFallback({required String errorCode}) {
     _fallbackCount++;
     if (_state.phase != GamePhase.playing) return;
-    final decision = _hardStrategy.decide(
+    _fallbackStrategyFactions.add(_veryHardStrategy.controlledFaction);
+    final decision = _veryHardStrategy.decide(
       _state,
       difficulty: CpuDifficulty.hard,
     );
     if (decision != null) {
-      _state = _hardStrategy.applyDecision(
+      _state = _veryHardStrategy.applyDecision(
         _state,
         decision,
         movingForceId: _takeMovingForceId(),
@@ -670,8 +694,11 @@ final class _MatchSimulation {
   }
 
   void _recordDiagnostics(VeryHardDecisionResponse response) {
-    if (response.model == VeryHardCpuConfig.model) {
-      _resolvedModels.add(response.model!);
+    if (response.model != null) {
+      _modelAliases.add(response.model!);
+    }
+    if (response.resolvedModel != null) {
+      _resolvedModels.add(response.resolvedModel!);
     }
     if (response.promptVersion == VeryHardCpuConfig.promptVersion) {
       _promptVersions.add(response.promptVersion!);

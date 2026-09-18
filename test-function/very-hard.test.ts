@@ -1,14 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { checkRateLimit } from "@vercel/firewall";
 
 import {
   FIXED_MODEL,
   MAX_BODY_BYTES,
   PROMPT_VERSION,
+  RATE_LIMIT_RULE_ID,
   SCHEMA_VERSION,
   createVeryHardHandler,
   type JevChoiceInput,
   type JevProvider,
 } from "../api/v1/cpu/very-hard.js";
+
+vi.mock("@vercel/firewall", () => ({
+  checkRateLimit: vi.fn(async () => ({ rateLimited: false })),
+}));
 
 const board = {
   elapsedMs: 1_500,
@@ -86,7 +92,79 @@ function providerReturning(
   return { choose: choice };
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(checkRateLimit).mockResolvedValue({ rateLimited: false });
+});
+
 describe("POST /api/v1/cpu/very-hard", () => {
+  it("uses the shared Vercel Firewall rule before calling Jev", async () => {
+    const handler = createVeryHardHandler({
+      provider: providerReturning(async (input) => ({
+        candidateId: input.subject.candidates[0].id,
+      })),
+    });
+
+    const input = request(decisionBody());
+    const response = await handler(input);
+
+    expect(response.status).toBe(200);
+    expect(checkRateLimit).toHaveBeenCalledWith(RATE_LIMIT_RULE_ID, {
+      request: input,
+    });
+  });
+
+  it("rejects a shared Firewall rate limit without calling Jev", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ rateLimited: true });
+    const choose = vi.fn();
+    const handler = createVeryHardHandler({
+      provider: providerReturning(choose),
+    });
+
+    const response = await handler(request(decisionBody()));
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({
+      error: { code: "rate_limited" },
+    });
+    expect(choose).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the shared Firewall check errors", async () => {
+    vi.mocked(checkRateLimit).mockRejectedValue(new Error("WAF unavailable"));
+    const choose = vi.fn();
+    const handler = createVeryHardHandler({
+      provider: providerReturning(choose),
+    });
+
+    const response = await handler(request(decisionBody()));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: { code: "rate_limiter_unavailable" },
+    });
+    expect(choose).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Firewall reports a missing rule", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      rateLimited: false,
+      error: "not-found",
+    });
+    const choose = vi.fn();
+    const handler = createVeryHardHandler({
+      provider: providerReturning(choose),
+    });
+
+    const response = await handler(request(decisionBody()));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      error: { code: "rate_limiter_unavailable" },
+    });
+    expect(choose).not.toHaveBeenCalled();
+  });
+
   it("returns an independent candidate choice for one subject", async () => {
     const calls: JevChoiceInput[] = [];
     const handler = createVeryHardHandler({

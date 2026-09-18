@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@ai-sdk/gateway": "3.0.196",
+    "@vercel/firewall": "1.2.5",
     "ai": "6.0.286",
     "zod": "4.6.5"
   },

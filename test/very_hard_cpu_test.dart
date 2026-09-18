@@ -161,6 +161,57 @@ void main() {
     },
   );
 
+  test('parses and validates the resolved model diagnostic separately', () {
+    final state = _playing(
+      islands: [
+        _island(id: 0, faction: Faction.cpu, forces: 20),
+        _island(id: 1, faction: Faction.player, forces: 10),
+      ],
+    );
+    final request = VeryHardDecisionRequest.fromState(
+      state,
+      matchId: 'match-1',
+      requestId: 'request-1',
+      factions: const [Faction.cpu],
+      viewport: _viewport,
+    );
+
+    final response = VeryHardDecisionResponse.fromJson({
+      'schemaVersion': VeryHardCpuConfig.schemaVersion,
+      'requestId': 'request-1',
+      'decisions': [
+        {
+          'faction': 'cpu',
+          'candidateId': request.subjects.single.candidates.first.id,
+        },
+      ],
+      'diagnostics': {
+        'model': VeryHardCpuConfig.model,
+        'resolvedModel': 'jev/provider-v1',
+        'promptVersion': VeryHardCpuConfig.promptVersion,
+        'latencyMs': 12,
+      },
+    }, request: request);
+
+    expect(response.model, VeryHardCpuConfig.model);
+    expect(response.resolvedModel, 'jev/provider-v1');
+
+    expect(
+      () => VeryHardDecisionResponse.fromJson({
+        'schemaVersion': VeryHardCpuConfig.schemaVersion,
+        'requestId': 'request-1',
+        'decisions': [
+          {
+            'faction': 'cpu',
+            'candidateId': request.subjects.single.candidates.first.id,
+          },
+        ],
+        'diagnostics': {'resolvedModel': 42},
+      }, request: request),
+      throwsA(isA<VeryHardCpuProtocolException>()),
+    );
+  });
+
   test('evaluates a fallback against the caller latest state', () async {
     final request = Completer<VeryHardDecisionResponse>();
     final coordinator = VeryHardCpuCoordinator(

@@ -1,5 +1,6 @@
 import { generateObject } from "ai";
 import { gateway } from "@ai-sdk/gateway";
+import { checkRateLimit } from "@vercel/firewall";
 import { z } from "zod";
 
 export const SCHEMA_VERSION = 1;
@@ -12,6 +13,7 @@ export const DECISION_PROVIDER_TIMEOUT_MS = 1_100;
 export const PREFLIGHT_PROVIDER_TIMEOUT_MS = 2_800;
 export const MAX_ISLANDS = 12;
 export const MAX_MOVING_FORCES = 132;
+export const RATE_LIMIT_RULE_ID = "conquest-very-hard-v1";
 
 const SYSTEM_PROMPT = [
   `Conquest Very Hard CPU selector. Prompt contract ${PROMPT_VERSION}.`,
@@ -171,41 +173,13 @@ export class VercelGatewayJevProvider implements JevProvider {
   }
 }
 
-export interface RateLimiter {
-  allow(key: string): boolean;
-}
-
-export class InMemoryRateLimiter implements RateLimiter {
-  private readonly requests = new Map<
-    string,
-    { count: number; windowStartedAt: number }
-  >();
-
-  public constructor(
-    private readonly maxRequests = 60,
-    private readonly windowMs = 60_000,
-    private readonly now: () => number = Date.now,
-  ) {}
-
-  allow(key: string): boolean {
-    const now = this.now();
-    const previous = this.requests.get(key);
-    if (
-      previous === undefined ||
-      now - previous.windowStartedAt >= this.windowMs
-    ) {
-      this.requests.set(key, { count: 1, windowStartedAt: now });
-      return true;
-    }
-    if (previous.count >= this.maxRequests) return false;
-    previous.count += 1;
-    return true;
-  }
-}
+export type RateLimitCheck = (
+  request: Request,
+) => ReturnType<typeof checkRateLimit>;
 
 export interface VeryHardHandlerOptions {
   provider?: JevProvider;
-  rateLimiter?: RateLimiter;
+  rateLimitCheck?: RateLimitCheck;
   logger?: (event: Record<string, unknown>) => void;
   now?: () => number;
   decisionTimeoutMs?: number;
@@ -223,7 +197,9 @@ export function createVeryHardHandler(
   options: VeryHardHandlerOptions = {},
 ): Handler {
   const provider = options.provider ?? new VercelGatewayJevProvider();
-  const rateLimiter = options.rateLimiter ?? new InMemoryRateLimiter();
+  const rateLimitCheck =
+    options.rateLimitCheck ??
+    ((request) => checkRateLimit(RATE_LIMIT_RULE_ID, { request }));
   const logger =
     options.logger ?? ((event) => console.info(JSON.stringify(event)));
   const now = options.now ?? Date.now;
@@ -247,10 +223,34 @@ export function createVeryHardHandler(
         "Content-Type must be application/json.",
       );
     }
-    const rateLimitKey =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "anonymous";
-    if (!rateLimiter.allow(rateLimitKey)) {
+    let rateLimitResult: Awaited<ReturnType<typeof checkRateLimit>>;
+    try {
+      rateLimitResult = await rateLimitCheck(request);
+    } catch {
+      logger({
+        event: "very_hard_jev",
+        kind: "rate_limit",
+        outcome: "rate_limiter_unavailable",
+      });
+      return errorResponse(
+        503,
+        "rate_limiter_unavailable",
+        "Rate limiter is unavailable.",
+      );
+    }
+    if (rateLimitResult.error !== undefined) {
+      logger({
+        event: "very_hard_jev",
+        kind: "rate_limit",
+        outcome: "rate_limiter_unavailable",
+      });
+      return errorResponse(
+        503,
+        "rate_limiter_unavailable",
+        "Rate limiter is unavailable.",
+      );
+    }
+    if (rateLimitResult.rateLimited) {
       return errorResponse(429, "rate_limited", "Too many requests.");
     }
 

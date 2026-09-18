@@ -153,8 +153,90 @@ void main() {
       expect(markdown, contains('観察事項'));
       expect(markdown, contains('残存リスク'));
       expect(markdown, isNot(contains('currentForces')));
+      expect(markdown, contains('モデル（サーバー固定）: `typesafe-ai/jev`'));
+      expect(markdown, contains('解決済みモデル: jev/provider-v1'));
     },
   );
+
+  test('uses the Very Hard faction strategy for a Hard fallback', () async {
+    final report =
+        await VeryHardBenchmarkRunner(
+          gateway: _FakeGateway(
+            responseDelay: const Duration(milliseconds: 20),
+          ),
+        ).run(
+          pullRequestNumber: 99,
+          expectedHead: 'head-99',
+          localHead: 'head-99',
+          cases: const [
+            BenchmarkCase(
+              islandCount: 6,
+              seed: 6001,
+              veryHardFaction: Faction.player,
+            ),
+          ],
+          maxGameTimeMs: 1_839,
+          decisionTimeout: const Duration(milliseconds: 5),
+          transportGrace: Duration.zero,
+        );
+
+    expect(report.matches.single.fallbackStrategyFactions, isNotEmpty);
+    expect(
+      report.matches.single.fallbackStrategyFactions,
+      everyElement(Faction.player),
+    );
+  });
+
+  test('clamps response latency at the game-time cap as uncompleted', () async {
+    final report =
+        await VeryHardBenchmarkRunner(
+          gateway: _FakeGateway(
+            responseDelay: const Duration(milliseconds: 20),
+          ),
+        ).run(
+          pullRequestNumber: 99,
+          expectedHead: 'head-99',
+          localHead: 'head-99',
+          cases: const [
+            BenchmarkCase(
+              islandCount: 6,
+              seed: 6001,
+              veryHardFaction: Faction.player,
+            ),
+          ],
+          maxGameTimeMs: 1_839,
+          decisionTimeout: const Duration(milliseconds: 100),
+        );
+
+    expect(report.matches.single.elapsedMs, 1_839);
+    expect(report.matches.single.outcome, BenchmarkOutcome.uncompleted);
+  });
+
+  test('clamps timeout wait at the game-time cap as uncompleted', () async {
+    final report =
+        await VeryHardBenchmarkRunner(
+          gateway: _FakeGateway(
+            responseDelay: const Duration(milliseconds: 20),
+          ),
+        ).run(
+          pullRequestNumber: 99,
+          expectedHead: 'head-99',
+          localHead: 'head-99',
+          cases: const [
+            BenchmarkCase(
+              islandCount: 6,
+              seed: 6001,
+              veryHardFaction: Faction.player,
+            ),
+          ],
+          maxGameTimeMs: 1_839,
+          decisionTimeout: const Duration(milliseconds: 5),
+          transportGrace: Duration.zero,
+        );
+
+    expect(report.matches.single.elapsedMs, 1_839);
+    expect(report.matches.single.outcome, BenchmarkOutcome.uncompleted);
+  });
 
   test('counts the product timeout as a classified fallback error', () async {
     final gateway = _FakeGateway(
@@ -267,6 +349,7 @@ final class _FakeGateway implements VeryHardCpuGateway {
           subject.faction: subject.candidates.first.id,
       },
       model: VeryHardCpuConfig.model,
+      resolvedModel: 'jev/provider-v1',
       promptVersion: VeryHardCpuConfig.promptVersion,
       latencyMs: responseDelay.inMilliseconds,
     );
