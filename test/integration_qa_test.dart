@@ -5,6 +5,7 @@ import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
+import 'package:conquest/game/very_hard_cpu.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -70,11 +71,35 @@ final class _QaMaximumRandom implements Random {
   int nextInt(int max) => max - 1;
 }
 
+/// Keeps the all-difficulty regression local and deterministic. Very Hard
+/// still exercises the controller's preflight and request path, but the
+/// gateway response is a legal candidate selected from the request itself.
+final class _QaAvailableVeryHardGateway implements VeryHardCpuGateway {
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) async {
+    return const VeryHardPreflightResult.available();
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(
+    VeryHardDecisionRequest request,
+  ) async {
+    return VeryHardDecisionResponse(
+      requestId: request.requestId,
+      candidateIdsByFaction: {
+        for (final subject in request.subjects)
+          subject.faction: subject.candidates.first.id,
+      },
+    );
+  }
+}
+
 ProviderContainer _createContainer({
   required _QaManualLoop loop,
   required int islandCount,
   required int seed,
   CpuStrategy? cpuStrategy,
+  VeryHardCpuGateway? veryHardCpuGateway,
 }) {
   return ProviderContainer(
     overrides: [
@@ -89,6 +114,8 @@ ProviderContainer _createContainer({
         cpuStrategyProvider.overrideWithValue(
           CpuStrategy.noop(viewport: GameRules.defaultMapViewport),
         ),
+      if (veryHardCpuGateway != null)
+        veryHardCpuGatewayProvider.overrideWithValue(veryHardCpuGateway),
     ],
   );
 }
@@ -135,6 +162,32 @@ ProviderContainer _createSpectatorContainer({
 GameState _startMatch(ProviderContainer container, _QaManualLoop loop) {
   final controller = container.read(gameControllerProvider.notifier);
   controller.startGame();
+  expect(
+    container.read(gameControllerProvider).phase,
+    GamePhase.startCountdown,
+  );
+  expect(container.read(gameControllerProvider).elapsedMs, 0);
+
+  loop.tickMany(59);
+  final beforeStart = container.read(gameControllerProvider);
+  expect(beforeStart.phase, GamePhase.startCountdown);
+  expect(beforeStart.countdownRemainingMs, 50);
+  expect(beforeStart.elapsedMs, 0);
+
+  loop.tick();
+  final started = container.read(gameControllerProvider);
+  expect(started.phase, GamePhase.playing);
+  expect(started.countdownRemainingMs, 0);
+  expect(started.elapsedMs, 0);
+  return started;
+}
+
+Future<GameState> _startMatchAwaitingPreflight(
+  ProviderContainer container,
+  _QaManualLoop loop,
+) async {
+  final controller = container.read(gameControllerProvider.notifier);
+  await controller.startGame();
   expect(
     container.read(gameControllerProvider).phase,
     GamePhase.startCountdown,
@@ -429,10 +482,11 @@ void main() {
 
   test(
     'starts every map and difficulty with one legal CPU judgment at its deadline',
-    () {
+    () async {
       for (final islandCount in GameConfiguration.allowedIslandCounts) {
         for (final difficulty in CpuDifficulty.values) {
           final loop = _QaManualLoop();
+          final gateway = _QaAvailableVeryHardGateway();
           final container = _createContainer(
             loop: loop,
             islandCount: islandCount,
@@ -442,6 +496,11 @@ void main() {
               qualityRandom: _QaMaximumRandom(),
               viewport: GameRules.defaultMapViewport,
             ),
+            veryHardCpuGateway: gateway,
+          );
+          final subscription = container.listen<GameState>(
+            gameControllerProvider,
+            (_, _) {},
           );
 
           try {
@@ -462,7 +521,7 @@ void main() {
               reason: 'difficulty=$difficulty islands=$islandCount',
             );
 
-            final started = _startMatch(container, loop);
+            final started = await _startMatchAwaitingPreflight(container, loop);
             expect(started.phase, GamePhase.playing);
             expect(started.islands, hasLength(islandCount));
             expect(
@@ -486,6 +545,9 @@ void main() {
             );
 
             loop.tick();
+            if (difficulty == CpuDifficulty.veryHard) {
+              await Future<void>.delayed(Duration.zero);
+            }
             final due = container.read(gameControllerProvider);
             expect(
               _cpuMovingForceCount(due),
@@ -521,6 +583,7 @@ void main() {
               reason: 'difficulty=$difficulty islands=$islandCount',
             );
           } finally {
+            subscription.close();
             container.dispose();
           }
         }

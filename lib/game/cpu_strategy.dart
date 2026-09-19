@@ -3,6 +3,38 @@ import 'dart:math' as math;
 import 'game_rules.dart';
 import 'game_state.dart';
 
+/// Centralized Very Hard tuning and wire-contract constants.
+///
+/// Keep timing and network limits here so gameplay, tests, and the local
+/// comparison harness never drift apart. Product tuning can change these
+/// values without touching controller scheduling or UI code.
+abstract final class VeryHardCpuConfig {
+  static const minDecisionIntervalMs = 1500;
+  static const maxDecisionIntervalMs = 2750;
+  static const decisionTimeout = Duration(milliseconds: 1200);
+  static const preflightTimeout = Duration(milliseconds: 3000);
+  static const maxConcurrentRequestsPerMatch = 1;
+  static const maxCandidatesPerFaction = 133;
+  static const maxSubjects = 2;
+  static const schemaVersion = 1;
+  static const promptVersion = 'very-hard-jev-v1';
+  static const model = 'typesafe-ai/jev';
+  static const endpointPath = '/api/v1/cpu/very-hard';
+
+  /// Empty on Web so the API remains same-origin. Mobile builds can provide
+  /// the same Vercel Production origin with `--dart-define`.
+  static const apiOrigin = String.fromEnvironment('CONQUEST_API_ORIGIN');
+
+  static const debugFallbackNoticeDurationMs = 1500;
+
+  static Uri get defaultEndpoint {
+    final origin = apiOrigin.trim();
+    return origin.isEmpty
+        ? Uri.base.resolve(endpointPath)
+        : Uri.parse(origin).resolve(endpointPath);
+  }
+}
+
 /// The kind of action selected by the standard CPU.
 enum CpuDecisionKind { defense, attack }
 
@@ -83,8 +115,16 @@ final class CpuDifficultyProfile {
 
   static const hard = CpuDifficultyProfile(
     difficulty: CpuDifficulty.hard,
-    minDecisionIntervalMs: 1500,
-    maxDecisionIntervalMs: 2750,
+    minDecisionIntervalMs: VeryHardCpuConfig.minDecisionIntervalMs,
+    maxDecisionIntervalMs: VeryHardCpuConfig.maxDecisionIntervalMs,
+    skipDecisionRatePercent: 0,
+    primaryCandidateRatePercent: 100,
+  );
+
+  static const veryHard = CpuDifficultyProfile(
+    difficulty: CpuDifficulty.veryHard,
+    minDecisionIntervalMs: VeryHardCpuConfig.minDecisionIntervalMs,
+    maxDecisionIntervalMs: VeryHardCpuConfig.maxDecisionIntervalMs,
     skipDecisionRatePercent: 0,
     primaryCandidateRatePercent: 100,
   );
@@ -101,6 +141,7 @@ final class CpuDifficultyProfile {
       CpuDifficulty.easy => easy,
       CpuDifficulty.normal => normal,
       CpuDifficulty.hard => hard,
+      CpuDifficulty.veryHard => veryHard,
     };
   }
 

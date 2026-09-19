@@ -25,7 +25,16 @@ enum GamePhase {
 }
 
 /// The selectable CPU decision interval profile for a match.
-enum CpuDifficulty { veryEasy, easy, normal, hard }
+enum CpuDifficulty { veryEasy, easy, normal, hard, veryHard }
+
+/// Connection state for the required Very Hard start-time Jev preflight.
+enum VeryHardPreflightStatus {
+  notRequired,
+  notChecked,
+  checking,
+  available,
+  unavailable,
+}
 
 enum GameMode { playerVsCpu, cpuVsCpu }
 
@@ -507,7 +516,11 @@ typedef GameOutcome = GameResultType;
 
 /// A language-independent interaction message selected by the game rules.
 /// The UI resolves this value through the active [AppLocalizations] instance.
-enum InteractionFeedbackType { unavailableSource, invalidatedSource }
+enum InteractionFeedbackType {
+  unavailableSource,
+  invalidatedSource,
+  veryHardFallback,
+}
 
 final class GameResult {
   const GameResult({
@@ -624,6 +637,7 @@ final class GameState {
     MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
+    VeryHardPreflightStatus? veryHardPreflightStatus,
     this.viewportUnavailable = false,
   }) : configuration = configuration ?? GameConfiguration.initial,
        islands = List.unmodifiable(islands ?? bases ?? const <IslandState>[]),
@@ -638,7 +652,15 @@ final class GameState {
        interactionFeedbackUntilMs = interactionFeedbackUntilMs,
        matchSummary = matchSummary ?? MatchSummary.empty,
        result = result,
-       countdownRemainingMs = countdownRemainingMs ?? 0 {
+       countdownRemainingMs = countdownRemainingMs ?? 0,
+       veryHardPreflightStatus =
+           veryHardPreflightStatus ??
+           ((configuration?.gameMode == GameMode.cpuVsCpu &&
+                       configuration?.playerCpuDifficulty ==
+                           CpuDifficulty.veryHard) ||
+                   configuration?.cpuDifficulty == CpuDifficulty.veryHard
+               ? VeryHardPreflightStatus.notChecked
+               : VeryHardPreflightStatus.notRequired) {
     if ((phase == GamePhase.result) != (result != null)) {
       throw StateError(
         'Only a result phase may include a GameResult, and it must include one',
@@ -657,6 +679,13 @@ final class GameState {
   final MatchSummary matchSummary;
   final GameResult? result;
   final int countdownRemainingMs;
+  final VeryHardPreflightStatus veryHardPreflightStatus;
+
+  bool get requiresVeryHardPreflight =>
+      configuration.gameMode == GameMode.cpuVsCpu
+      ? configuration.playerCpuDifficulty == CpuDifficulty.veryHard ||
+            configuration.cpuDifficulty == CpuDifficulty.veryHard
+      : configuration.cpuDifficulty == CpuDifficulty.veryHard;
 
   /// True while a match is held because its current window is too small to
   /// render the existing island layout safely. The match data itself remains
@@ -695,6 +724,7 @@ final class GameState {
     MatchSummary? matchSummary,
     GameResult? result,
     int? countdownRemainingMs,
+    VeryHardPreflightStatus? veryHardPreflightStatus,
     bool? viewportUnavailable,
   }) {
     return GameState(
@@ -711,6 +741,8 @@ final class GameState {
       matchSummary: matchSummary ?? this.matchSummary,
       result: result ?? this.result,
       countdownRemainingMs: countdownRemainingMs ?? this.countdownRemainingMs,
+      veryHardPreflightStatus:
+          veryHardPreflightStatus ?? this.veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable ?? this.viewportUnavailable,
     );
   }
@@ -730,6 +762,7 @@ final class GameState {
       matchSummary: matchSummary.withElapsedMs(nextResult.elapsedMs),
       result: nextResult,
       countdownRemainingMs: 0,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -759,6 +792,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -778,6 +812,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -796,6 +831,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -818,6 +854,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: null,
       countdownRemainingMs: countdownRemainingMs,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -844,6 +881,7 @@ final class GameState {
       matchSummary: matchSummary,
       result: result,
       countdownRemainingMs: countdownRemainingMs,
+      veryHardPreflightStatus: veryHardPreflightStatus,
       viewportUnavailable: viewportUnavailable,
     );
   }
@@ -862,6 +900,7 @@ final class GameState {
         other.matchSummary == matchSummary &&
         other.result == result &&
         other.countdownRemainingMs == countdownRemainingMs &&
+        other.veryHardPreflightStatus == veryHardPreflightStatus &&
         other.viewportUnavailable == viewportUnavailable;
   }
 
@@ -878,6 +917,7 @@ final class GameState {
     matchSummary,
     result,
     countdownRemainingMs,
+    veryHardPreflightStatus,
     viewportUnavailable,
   );
 

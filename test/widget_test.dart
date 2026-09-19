@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show SemanticsAction, Tristate;
 import 'dart:math';
 
@@ -7,6 +8,7 @@ import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
+import 'package:conquest/game/very_hard_cpu.dart';
 import 'package:conquest/faction_presentation.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
@@ -82,11 +84,52 @@ final class _WidgetMaxRandom implements Random {
   int nextInt(int max) => max - 1;
 }
 
+final class _WidgetPreflightGateway implements VeryHardCpuGateway {
+  final List<Completer<VeryHardPreflightResult>> preflights =
+      <Completer<VeryHardPreflightResult>>[];
+
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) {
+    final completer = Completer<VeryHardPreflightResult>();
+    preflights.add(completer);
+    return completer.future;
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(VeryHardDecisionRequest request) {
+    return Future<VeryHardDecisionResponse>.error(StateError('not used'));
+  }
+}
+
 void _performSemanticsTap(SemanticsNode node) {
   node.owner!.performAction(node.id, SemanticsAction.tap);
 }
 
 void main() {
+  test('Very Hard fallback feedback is debug-only at the UI boundary', () {
+    expect(
+      shouldShowInteractionFeedback(
+        InteractionFeedbackType.veryHardFallback,
+        debugMode: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldShowInteractionFeedback(
+        InteractionFeedbackType.veryHardFallback,
+        debugMode: true,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldShowInteractionFeedback(
+        InteractionFeedbackType.unavailableSource,
+        debugMode: false,
+      ),
+      isTrue,
+    );
+  });
+
   test('web visibility bridge handles initial hidden state and disposal', () {
     final visibility = ManualWebVisibilitySource(hidden: true);
     var hiddenCount = 0;
@@ -166,6 +209,7 @@ void main() {
       CpuDifficulty.easy: 'Easy',
       CpuDifficulty.normal: 'Normal',
       CpuDifficulty.hard: 'Hard',
+      CpuDifficulty.veryHard: 'Very Hard',
     };
     for (final entry in expectedLabels.entries) {
       expect(
@@ -186,10 +230,31 @@ void main() {
     }
     final normalChip = find.byKey(const ValueKey('cpu-difficulty-normal'));
     expect(tester.widget<ChoiceChip>(normalChip).selected, isTrue);
+    final veryHardChip = find.byKey(const ValueKey('cpu-difficulty-veryHard'));
+    expect(
+      tester.widget<ChoiceChip>(veryHardChip).selectedColor,
+      const Color(0xFFA970FF),
+    );
+    expect(find.text('Jev・オンライン'), findsNothing);
 
     final mapBefore = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
     ).read(gameControllerProvider).islands;
+    await tester.tap(veryHardChip);
+    await tester.pump();
+    final veryHardContainer = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    expect(
+      veryHardContainer
+          .read(gameControllerProvider)
+          .configuration
+          .cpuDifficulty,
+      CpuDifficulty.veryHard,
+    );
+    expect(tester.widget<ChoiceChip>(veryHardChip).selected, isTrue);
+    expect(find.text('Jev・オンライン'), findsOneWidget);
+
     await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
     await tester.pump();
 
@@ -218,6 +283,132 @@ void main() {
       '10島、Very Easy CPUでゲームを開始',
     );
     semantics.dispose();
+  });
+
+  testWidgets(
+    'Very Hard preflight disables and retries the same start action',
+    (tester) async {
+      final loop = ManualWidgetGameLoop();
+      final gateway = _WidgetPreflightGateway();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            gameLoopProvider.overrideWithValue(loop),
+            randomProvider.overrideWithValue(Random(1)),
+            veryHardCpuGatewayProvider.overrideWithValue(gateway),
+          ],
+          child: const MyApp(locale: Locale('ja')),
+        ),
+      );
+      await openMatchSetup(tester);
+
+      await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryHard')));
+      await tester.pump();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('island-0'))),
+      );
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+
+      expect(gateway.preflights, hasLength(1));
+      expect(find.text('Jevの利用可能状況を確認中…'), findsOneWidget);
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('start-game')))
+            .onPressed,
+        isNull,
+      );
+
+      gateway.preflights.single.complete(
+        const VeryHardPreflightResult.unavailable('offline'),
+      );
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Very Hard CPUを利用できません。ゲーム開始で再試行します。'), findsOneWidget);
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('start-game')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        ProviderScope.containerOf(
+          tester.element(find.byKey(const ValueKey('start-game'))),
+        ).read(gameControllerProvider).phase,
+        GamePhase.configuration,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('start-game')));
+      await tester.pump();
+      expect(gateway.preflights, hasLength(2));
+      expect(find.text('Jevの利用可能状況を確認中…'), findsOneWidget);
+
+      gateway.preflights[1].complete(const VeryHardPreflightResult.available());
+      await tester.pump();
+      await tester.pump();
+      expect(
+        container.read(gameControllerProvider).phase,
+        GamePhase.startCountdown,
+      );
+    },
+  );
+
+  testWidgets('returning to the title cancels a pending Very Hard start', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    final gateway = _WidgetPreflightGateway();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          veryHardCpuGatewayProvider.overrideWithValue(gateway),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await openMatchSetup(tester);
+
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryHard')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    expect(gateway.preflights, hasLength(1));
+    expect(
+      container.read(gameControllerProvider).veryHardPreflightStatus,
+      VeryHardPreflightStatus.checking,
+    );
+
+    await tester.ensureVisible(find.byKey(const ValueKey('return-title')));
+    await tester.tap(find.byKey(const ValueKey('return-title')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('title-view')), findsOneWidget);
+
+    gateway.preflights.single.complete(
+      const VeryHardPreflightResult.available(),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final afterCompletion = container.read(gameControllerProvider);
+    expect(afterCompletion.phase, GamePhase.configuration);
+    expect(
+      afterCompletion.veryHardPreflightStatus,
+      VeryHardPreflightStatus.notChecked,
+    );
+    expect(loop.isRunning, isFalse);
+    expect(find.byKey(const ValueKey('title-view')), findsOneWidget);
+
+    await openMatchSetup(tester);
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.configuration,
+    );
   });
 
   testWidgets('switches between standard and spectator settings', (

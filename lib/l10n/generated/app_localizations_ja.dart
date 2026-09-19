@@ -58,6 +58,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get difficultyHard => 'Hard';
 
   @override
+  String get difficultyVeryHard => 'Very Hard';
+
+  @override
   String get settingsStep => '対戦設定 / 01';
 
   @override
@@ -173,6 +176,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get opponentCpuDifficultyLabel => '2P CPU難易度';
 
   @override
+  String get veryHardJevOnline => 'Jev・オンライン';
+
+  @override
   String get bgmLabel => 'BGM';
 
   @override
@@ -202,6 +208,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get viewportReadyDescription => '盤面を表示できます。「再開」を押すと対戦を続けます。';
+
+  @override
+  String get veryHardPreflightChecking => 'Jevの利用可能状況を確認中…';
+
+  @override
+  String get veryHardPreflightUnavailable =>
+      'Very Hard CPUを利用できません。ゲーム開始で再試行します。';
 
   @override
   String selectedSummary({
@@ -489,6 +502,9 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get feedbackInvalidatedSource => '出兵できません。出兵元は自軍が所有し、兵力が2以上必要です。';
+
+  @override
+  String get feedbackVeryHardFallback => 'Very HardをHard CPUへ切り替えて対戦を続けます。';
 
   @override
   String get bgmUnavailableMessage => 'BGMを再生できません。音なしで対戦を続けます。';

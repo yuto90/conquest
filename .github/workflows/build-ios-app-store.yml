@@ -150,6 +150,9 @@ jobs:
       APP_BUNDLE_ID: ${{ vars.APP_BUNDLE_ID }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP }}
+      # Required repository/environment variable. Native clients cannot use
+      # the Web same-origin URL, so this must be the current Vercel origin.
+      CONQUEST_API_ORIGIN: ${{ vars.CONQUEST_API_ORIGIN }}
 
     steps:
       - name: Check out release automation
@@ -182,6 +185,7 @@ jobs:
             APP_BUNDLE_ID \
             APPLE_TEAM_ID \
             TESTFLIGHT_INTERNAL_GROUP \
+            CONQUEST_API_ORIGIN \
             IOS_DISTRIBUTION_CERTIFICATE_BASE64 \
             IOS_DISTRIBUTION_CERTIFICATE_PASSWORD \
             IOS_APP_STORE_PROVISIONING_PROFILE_BASE64 \
@@ -200,6 +204,10 @@ jobs:
           }
           [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || {
             echo "::error::APPLE_TEAM_ID must be a ten-character Apple Team ID"
+            exit 1
+          }
+          [[ "$CONQUEST_API_ORIGIN" =~ ^https://[^[:space:]]+$ ]] || {
+            echo "::error::CONQUEST_API_ORIGIN must be an https Vercel Production origin"
             exit 1
           }
 
@@ -408,6 +416,7 @@ jobs:
             --release \
             --config-only \
             --no-codesign \
+            --dart-define="CONQUEST_API_ORIGIN=$CONQUEST_API_ORIGIN" \
             --build-name "$APP_VERSION" \
             --build-number "${{ github.run_id }}"
           APP_BUNDLE_ID="$APP_BUNDLE_ID" \

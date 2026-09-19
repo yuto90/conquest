@@ -62,6 +62,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get difficultyHard => 'Hard';
 
   @override
+  String get difficultyVeryHard => 'Very Hard';
+
+  @override
   String get settingsStep => 'Match Setup / 01';
 
   @override
@@ -178,6 +181,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get opponentCpuDifficultyLabel => '2P CPU Difficulty';
 
   @override
+  String get veryHardJevOnline => 'Jev · Online';
+
+  @override
   String get bgmLabel => 'BGM';
 
   @override
@@ -208,6 +214,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get viewportReadyDescription =>
       'The current map is ready. Tap Resume to continue the match.';
+
+  @override
+  String get veryHardPreflightChecking => 'Checking Jev availability…';
+
+  @override
+  String get veryHardPreflightUnavailable =>
+      'Very Hard CPU is unavailable. Tap Start Game to retry.';
 
   @override
   String selectedSummary({
@@ -501,6 +514,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get feedbackInvalidatedSource =>
       'Dispatch unavailable: the source must be player-owned and have more than 1 force.';
+
+  @override
+  String get feedbackVeryHardFallback =>
+      'Very Hard fallback: continuing with Hard CPU.';
 
   @override
   String get bgmUnavailableMessage =>

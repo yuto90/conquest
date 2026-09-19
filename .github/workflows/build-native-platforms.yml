@@ -19,6 +19,10 @@ jobs:
     name: Build Android release APK
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    env:
+      # Required repository variable. It must point at the current Vercel
+      # Production origin; native clients cannot use a same-origin URL.
+      CONQUEST_API_ORIGIN: ${{ vars.CONQUEST_API_ORIGIN }}
 
     steps:
       - name: Check out repository
@@ -53,7 +57,15 @@ jobs:
           fvm flutter pub get
 
       - name: Build Android release APK
-        run: fvm flutter build apk --release
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$CONQUEST_API_ORIGIN" ]] || {
+            echo "::error::Configure the repository variable CONQUEST_API_ORIGIN with the Vercel Production origin before building Android"
+            exit 1
+          }
+          fvm flutter build apk --release \
+            --dart-define="CONQUEST_API_ORIGIN=$CONQUEST_API_ORIGIN"
 
   ios-simulator:
     name: Build iOS Simulator debug app
@@ -61,6 +73,9 @@ jobs:
     timeout-minutes: 30
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      # Required repository variable. It must point at the current Vercel
+      # Production origin; native clients cannot use a same-origin URL.
+      CONQUEST_API_ORIGIN: ${{ vars.CONQUEST_API_ORIGIN }}
 
     steps:
       - name: Check out repository
@@ -95,4 +110,12 @@ jobs:
           fvm flutter pub get
 
       - name: Build iOS Simulator debug app
-        run: fvm flutter build ios --simulator --debug --no-codesign
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$CONQUEST_API_ORIGIN" ]] || {
+            echo "::error::Configure the repository variable CONQUEST_API_ORIGIN with the Vercel Production origin before building iOS"
+            exit 1
+          }
+          fvm flutter build ios --simulator --debug --no-codesign \
+            --dart-define="CONQUEST_API_ORIGIN=$CONQUEST_API_ORIGIN"
