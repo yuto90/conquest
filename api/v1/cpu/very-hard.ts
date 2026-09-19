@@ -688,12 +688,48 @@ function providerErrorDiagnostics(
   const name = safeProviderToken(candidate.name);
   const type = safeProviderToken(candidate.type);
   const code = safeProviderToken(candidate.code);
+  const category = providerErrorCategory(error);
   return {
     ...(name === undefined ? {} : { providerErrorName: name }),
     ...(type === undefined ? {} : { providerErrorType: type }),
     ...(code === undefined ? {} : { providerErrorCode: code }),
+    ...(category === undefined ? {} : { providerErrorCategory: category }),
     ...(status === undefined ? {} : { providerStatus: status }),
   };
+}
+
+function providerErrorCategory(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return undefined;
+  }
+  const message = (error as { message?: unknown }).message;
+  if (typeof message !== "string") return undefined;
+  if (
+    /restricted access to this provider|no[_ ]providers[_ ]available|provider.{0,40}(?:allowlist|blocked|disabled|not allowed)/i.test(
+      message,
+    )
+  ) {
+    return "provider_blocked";
+  }
+  if (
+    /payment method|billing|insufficient.{0,20}(?:credit|balance)|(?:credit|balance).{0,20}(?:exhausted|required)|spend limit|budget/i.test(
+      message,
+    )
+  ) {
+    return "billing_required";
+  }
+  if (/authentication|unauthorized|api[ _-]?key|oidc|token/i.test(message)) {
+    return "authentication";
+  }
+  if (/terms|agreement|consent/i.test(message)) return "terms_required";
+  if (
+    /model.{0,40}(?:not found|unavailable|unsupported)|unsupported.{0,20}model/i.test(
+      message,
+    )
+  ) {
+    return "model_unavailable";
+  }
+  return undefined;
 }
 
 function safeProviderToken(value: unknown): string | undefined {

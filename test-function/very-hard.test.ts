@@ -531,6 +531,36 @@ describe("POST /api/v1/cpu/very-hard", () => {
     expect(logged).not.toContain("private provider payload");
   });
 
+  it("classifies provider policy errors without logging their message", async () => {
+    const logger = vi.fn();
+    const error = Object.assign(
+      new Error(
+        "Your team has restricted access to this provider. Contact the owner of the account for more details.",
+      ),
+      {
+        name: "GatewayInternalServerError",
+        type: "internal_server_error",
+        statusCode: 403,
+      },
+    );
+    const handler = createVeryHardHandler({
+      logger,
+      provider: providerReturning(async () => {
+        throw error;
+      }),
+    });
+
+    const response = await handler(request(decisionBody()));
+
+    expect(response.status).toBe(502);
+    expect(logger).toHaveBeenCalledWith(
+      expect.objectContaining({ providerErrorCategory: "provider_blocked" }),
+    );
+    const logged = JSON.stringify(logger.mock.calls);
+    expect(logged).not.toContain("restricted access");
+    expect(logged).not.toContain("Contact the owner");
+  });
+
   it("aborts a provider request when the decision timeout expires", async () => {
     let aborted = false;
     const handler = createVeryHardHandler({
