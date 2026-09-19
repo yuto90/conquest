@@ -341,6 +341,7 @@ export function createVeryHardHandler(
         promptVersion: PROMPT_VERSION,
         latencyMs: Math.max(0, now() - startedAt),
         outcome: normalized.code,
+        ...providerErrorDiagnostics(error),
         subjectCount: parsed.request.subjects.length,
         candidateCounts: parsed.request.subjects.map(
           (subject) => subject.candidates.length,
@@ -430,6 +431,7 @@ async function runPreflight(
       promptVersion: PROMPT_VERSION,
       latencyMs: Math.max(0, now() - startedAt),
       outcome: normalized.code,
+      ...providerErrorDiagnostics(error),
       subjectCount: 1,
       candidateCounts: [1],
     });
@@ -671,6 +673,32 @@ function providerStatus(error: unknown): number | undefined {
     if (typeof value === "number" && Number.isInteger(value)) return value;
   }
   return undefined;
+}
+
+function providerErrorDiagnostics(
+  error: unknown,
+): Record<string, string | number> {
+  if (!error || typeof error !== "object") return {};
+  const candidate = error as {
+    name?: unknown;
+    type?: unknown;
+    code?: unknown;
+  };
+  const status = providerStatus(error);
+  const name = safeProviderToken(candidate.name);
+  const type = safeProviderToken(candidate.type);
+  const code = safeProviderToken(candidate.code);
+  return {
+    ...(name === undefined ? {} : { providerErrorName: name }),
+    ...(type === undefined ? {} : { providerErrorType: type }),
+    ...(code === undefined ? {} : { providerErrorCode: code }),
+    ...(status === undefined ? {} : { providerStatus: status }),
+  };
+}
+
+function safeProviderToken(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  return /^[A-Za-z0-9_.:-]{1,80}$/.test(value) ? value : undefined;
 }
 
 function hasCode(error: unknown, code: string): boolean {

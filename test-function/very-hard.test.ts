@@ -498,6 +498,39 @@ describe("POST /api/v1/cpu/very-hard", () => {
     }
   });
 
+  it("logs only bounded provider error metadata for runtime diagnosis", async () => {
+    const logger = vi.fn();
+    const error = Object.assign(new Error("secret response body"), {
+      name: "GatewayInvalidRequestError",
+      type: "invalid_request_error",
+      code: "AI_GATEWAY_INVALID_REQUEST",
+      statusCode: 400,
+      response: { body: "private provider payload" },
+    });
+    const handler = createVeryHardHandler({
+      logger,
+      provider: providerReturning(async () => {
+        throw error;
+      }),
+    });
+
+    const response = await handler(request(decisionBody()));
+
+    expect(response.status).toBe(502);
+    expect(logger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "provider_error",
+        providerErrorName: "GatewayInvalidRequestError",
+        providerErrorType: "invalid_request_error",
+        providerErrorCode: "AI_GATEWAY_INVALID_REQUEST",
+        providerStatus: 400,
+      }),
+    );
+    const logged = JSON.stringify(logger.mock.calls);
+    expect(logged).not.toContain("secret response body");
+    expect(logged).not.toContain("private provider payload");
+  });
+
   it("aborts a provider request when the decision timeout expires", async () => {
     let aborted = false;
     const handler = createVeryHardHandler({
