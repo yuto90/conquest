@@ -159,6 +159,53 @@ void main() {
     },
   );
 
+  test(
+    'uses the product shared snapshot and fixed order for a mixed due batch',
+    () async {
+      const comparisonCase = BenchmarkCase(
+        islandCount: 6,
+        seed: 6001,
+        veryHardFaction: Faction.player,
+      );
+      const rules = GameRules();
+      final configuration = GameConfiguration(
+        totalIslandCount: comparisonCase.islandCount,
+        gameMode: GameMode.cpuVsCpu,
+        playerCpuDifficulty: CpuDifficulty.veryHard,
+        cpuDifficulty: CpuDifficulty.hard,
+      );
+      var expectedSnapshot = rules.initialState(
+        configuration: configuration,
+        random: math.Random(comparisonCase.seed),
+        viewport: GameRules.referenceMapViewport,
+      );
+      expectedSnapshot = rules.tick(
+        rules.startCountdown(expectedSnapshot),
+        deltaMs: GameRules.startCountdownDurationMs,
+      );
+      expectedSnapshot = rules.tick(expectedSnapshot, deltaMs: 3_000);
+      final gateway = _FakeGateway();
+
+      final report = await VeryHardBenchmarkRunner(gateway: gateway).run(
+        pullRequestNumber: 99,
+        expectedHead: 'head-99',
+        localHead: 'head-99',
+        cases: const [comparisonCase],
+        maxGameTimeMs: 3_000,
+        simulationStepMs: 3_000,
+      );
+
+      expect(gateway.requests, hasLength(1));
+      expect(
+        gateway.requests.single.board.toJson(),
+        VeryHardBoardSnapshot.fromState(expectedSnapshot).toJson(),
+      );
+      expect(report.matches.single.decisionBatches, const [
+        [Faction.player, Faction.cpu],
+      ]);
+    },
+  );
+
   test('uses the Very Hard faction strategy for a Hard fallback', () async {
     final report =
         await VeryHardBenchmarkRunner(
@@ -372,6 +419,7 @@ final class _FakeGateway implements VeryHardCpuGateway {
   final Duration responseDelay;
   int preflightCalls = 0;
   int decisionCalls = 0;
+  final requests = <VeryHardDecisionRequest>[];
 
   @override
   Future<VeryHardPreflightResult> preflight({required String matchId}) async {
@@ -384,6 +432,7 @@ final class _FakeGateway implements VeryHardCpuGateway {
     VeryHardDecisionRequest request,
   ) async {
     decisionCalls++;
+    requests.add(request);
     if (responseDelay > Duration.zero) {
       await Future<void>.delayed(responseDelay);
     }

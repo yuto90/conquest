@@ -116,6 +116,7 @@ final class BenchmarkMatchResult {
     this.promptVersions = const <String>[],
     this.staleResponseCount = 0,
     this.fallbackStrategyFactions = const <Faction>[],
+    this.decisionBatches = const <List<Faction>>[],
   });
 
   final int islandCount;
@@ -134,6 +135,10 @@ final class BenchmarkMatchResult {
 
   /// Aggregate-safe trace used to verify fallbacks stay on the Very Hard side.
   final List<Faction> fallbackStrategyFactions;
+
+  /// Faction-only trace proving simultaneous CPU decisions use product order.
+  /// It intentionally retains no board state or decision payload.
+  final List<List<Faction>> decisionBatches;
 }
 
 /// Aggregate metrics for either one island-count bucket or all matches.
@@ -515,23 +520,36 @@ final class _MatchSimulation {
   final _resolvedModels = <String>{};
   final _promptVersions = <String>{};
   final _fallbackStrategyFactions = <Faction>[];
+  final _decisionBatches = <List<Faction>>[];
 
   Future<BenchmarkMatchResult> run() async {
     while (_state.phase == GamePhase.playing &&
         _state.elapsedMs < maxGameTimeMs) {
       final remaining = maxGameTimeMs - _state.elapsedMs;
-      _advanceFixed(math.min(simulationStepMs, remaining));
+      _advanceRulesOnly(math.min(simulationStepMs, remaining));
       if (_state.phase != GamePhase.playing) break;
 
-      if (_state.elapsedMs >= _nextVeryHardDecisionAtMs) {
-        await _runVeryHardDecision();
+      final veryHardDue = _state.elapsedMs >= _nextVeryHardDecisionAtMs;
+      final hardDue = _state.elapsedMs >= _nextHardDecisionAtMs;
+      if (veryHardDue) {
+        await _runVeryHardDecision(hardDue: hardDue);
         if (_state.phase == GamePhase.playing) {
           _nextVeryHardDecisionAtMs =
               _state.elapsedMs +
               _veryHardStrategy.nextDecisionDelayMs(
                 difficulty: CpuDifficulty.veryHard,
               );
+          if (hardDue) _scheduleNextHardDecision();
         }
+      } else if (hardDue) {
+        final decision = _hardStrategy.decide(
+          _state,
+          difficulty: CpuDifficulty.hard,
+        );
+        _applyCpuDecisionBatch(<Faction, CpuDecision?>{
+          comparisonCase.hardFaction: decision,
+        });
+        if (_state.phase == GamePhase.playing) _scheduleNextHardDecision();
       }
     }
 
@@ -550,10 +568,13 @@ final class _MatchSimulation {
       promptVersions: List.unmodifiable(_promptVersions),
       staleResponseCount: _staleResponseCount,
       fallbackStrategyFactions: List.unmodifiable(_fallbackStrategyFactions),
+      decisionBatches: List.unmodifiable([
+        for (final batch in _decisionBatches) List<Faction>.unmodifiable(batch),
+      ]),
     );
   }
 
-  void _advanceFixed(int durationMs) {
+  void _advanceRulesOnly(int durationMs) {
     var remaining = math.min(
       math.max(0, durationMs),
       math.max(0, maxGameTimeMs - _state.elapsedMs),
@@ -562,31 +583,26 @@ final class _MatchSimulation {
       final step = math.min(simulationStepMs, remaining);
       _state = rules.tick(_state, deltaMs: step);
       remaining -= step;
-      if (_state.phase == GamePhase.playing) _runHardDecisionIfDue();
     }
   }
 
-  void _runHardDecisionIfDue() {
-    if (_state.elapsedMs < _nextHardDecisionAtMs) return;
-    final decision = _hardStrategy.decide(
-      _state,
-      difficulty: CpuDifficulty.hard,
-    );
-    if (decision != null) {
-      _state = _hardStrategy.applyDecision(
-        _state,
-        decision,
-        movingForceId: _takeMovingForceId(),
-      );
-    }
+  void _scheduleNextHardDecision() {
     _nextHardDecisionAtMs =
         _state.elapsedMs +
         _hardStrategy.nextDecisionDelayMs(difficulty: CpuDifficulty.hard);
   }
 
-  Future<void> _runVeryHardDecision() async {
+  Future<void> _runVeryHardDecision({required bool hardDue}) async {
+    final snapshot = _state;
+    final localDecisions = <Faction, CpuDecision?>{
+      if (hardDue)
+        comparisonCase.hardFaction: _hardStrategy.decide(
+          snapshot,
+          difficulty: CpuDifficulty.hard,
+        ),
+    };
     final request = VeryHardDecisionRequest.fromState(
-      _state,
+      snapshot,
       matchId: 'benchmark-${comparisonCase.id}',
       requestId: 'decision-${_nextDecisionSerial++}',
       factions: [comparisonCase.veryHardFaction],
@@ -605,17 +621,24 @@ final class _MatchSimulation {
       final response = await transport.timeout(decisionTimeout);
       final elapsedMs = stopwatch.elapsedMilliseconds;
       _recordLatency(elapsedMs);
-      _advanceFixed(elapsedMs);
+      _advanceRulesOnly(elapsedMs);
       _recordDiagnostics(response);
-      _applyResponse(request, response);
+      final resolved = _resolveResponse(request, response);
+      _applyCpuDecisionBatch(<Faction, CpuDecision?>{
+        ...localDecisions,
+        comparisonCase.veryHardFaction: resolved.decision,
+      }, countVeryHardStale: resolved.countStale);
       return;
     } on TimeoutException {
       _recordLatency(
         math.max(decisionTimeout.inMilliseconds, stopwatch.elapsedMilliseconds),
       );
       _recordError('timeout');
-      _advanceFixed(decisionTimeout.inMilliseconds);
-      _applyHardFallback(errorCode: 'timeout');
+      _advanceRulesOnly(decisionTimeout.inMilliseconds);
+      _applyCpuDecisionBatch(<Faction, CpuDecision?>{
+        ...localDecisions,
+        comparisonCase.veryHardFaction: _hardFallbackDecision(),
+      });
 
       try {
         await transportSettled.timeout(transportGrace);
@@ -623,19 +646,19 @@ final class _MatchSimulation {
         _recordError('timeout_pending');
         throw const BenchmarkTransportUnsettled();
       }
-      final totalElapsedMs = stopwatch.elapsedMilliseconds;
-      final extraElapsedMs = totalElapsedMs - decisionTimeout.inMilliseconds;
-      if (extraElapsedMs > 0) _advanceFixed(extraElapsedMs);
     } on Object catch (error) {
       final elapsedMs = stopwatch.elapsedMilliseconds;
       _recordLatency(elapsedMs);
-      _advanceFixed(elapsedMs);
+      _advanceRulesOnly(elapsedMs);
       _recordError(_providerErrorCode(error));
-      _applyHardFallback(errorCode: 'provider_error');
+      _applyCpuDecisionBatch(<Faction, CpuDecision?>{
+        ...localDecisions,
+        comparisonCase.veryHardFaction: _hardFallbackDecision(),
+      });
     }
   }
 
-  void _applyResponse(
+  ({CpuDecision? decision, bool countStale}) _resolveResponse(
     VeryHardDecisionRequest request,
     VeryHardDecisionResponse response,
   ) {
@@ -643,8 +666,7 @@ final class _MatchSimulation {
         response.candidateIdsByFaction[comparisonCase.veryHardFaction];
     if (candidateId == null) {
       _recordError('invalid_response');
-      _applyHardFallback(errorCode: 'invalid_response');
-      return;
+      return (decision: _hardFallbackDecision(), countStale: false);
     }
     final subject = request.subjectFor(comparisonCase.veryHardFaction);
     VeryHardCandidate? selected;
@@ -656,43 +678,48 @@ final class _MatchSimulation {
     }
     if (selected == null) {
       _recordError('invalid_response');
-      _applyHardFallback(errorCode: 'invalid_response');
-      return;
+      return (decision: _hardFallbackDecision(), countStale: false);
     }
-    final decision = selected.decision;
-    if (decision == null || _state.phase != GamePhase.playing) return;
-    final before = _state;
-    final next = _veryHardStrategy.applyDecision(
-      _state,
-      decision,
-      movingForceId: _takeMovingForceId(),
-    );
-    if (identical(before, next) || before == next) {
-      _staleResponseCount++;
-    } else {
-      _state = next;
-    }
+    return (decision: selected.decision, countStale: true);
   }
 
-  void _applyHardFallback({required String errorCode}) {
+  CpuDecision? _hardFallbackDecision() {
     _fallbackCount++;
-    if (_state.phase != GamePhase.playing) return;
+    if (_state.phase != GamePhase.playing) return null;
     _fallbackStrategyFactions.add(_veryHardStrategy.controlledFaction);
-    final decision = _veryHardStrategy.decide(
-      _state,
-      difficulty: CpuDifficulty.hard,
-    );
-    if (decision != null) {
-      _state = _veryHardStrategy.applyDecision(
+    return _veryHardStrategy.decide(_state, difficulty: CpuDifficulty.hard);
+  }
+
+  void _applyCpuDecisionBatch(
+    Map<Faction, CpuDecision?> decisions, {
+    bool countVeryHardStale = false,
+  }) {
+    if (_state.phase != GamePhase.playing) return;
+    final factions = <Faction>[
+      for (final faction in const [Faction.player, Faction.cpu])
+        if (decisions.containsKey(faction)) faction,
+    ];
+    _decisionBatches.add(List<Faction>.unmodifiable(factions));
+    for (final faction in factions) {
+      final decision = decisions[faction];
+      if (decision == null) continue;
+      final strategy = faction == comparisonCase.veryHardFaction
+          ? _veryHardStrategy
+          : _hardStrategy;
+      final before = _state;
+      final next = strategy.applyDecision(
         _state,
         decision,
         movingForceId: _takeMovingForceId(),
       );
+      if (countVeryHardStale &&
+          faction == comparisonCase.veryHardFaction &&
+          (identical(before, next) || before == next)) {
+        _staleResponseCount++;
+      } else {
+        _state = next;
+      }
     }
-    // The concrete fallback reason is already represented in the provider or
-    // timeout error map. Keep this parameter explicit to make the product
-    // fallback boundary visible to the simulator without logging board data.
-    if (errorCode.isEmpty) _recordError('provider_error');
   }
 
   void _recordDiagnostics(VeryHardDecisionResponse response) {

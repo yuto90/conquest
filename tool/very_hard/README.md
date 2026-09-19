@@ -57,6 +57,7 @@ Codexへ渡す固定プロンプトは次のとおりです。
 - 島数6・8・10・12それぞれ固定seed 10件。
 - 同じseedでVery Hardを`player`/`cpu`へ入れ替え、合計80試合。
 - マップ、候補生成、移動時間、戦闘、増加は既存の`GameRules`と`VeryHardCandidateGenerator`を使用。
+- Jev待機中はルールtickだけを進め、同じtickで期限を迎えたHard/Very Hardは製品と同じ共有snapshot・`player`→`cpu`順のbatchで適用する。
 - 判断間隔は製品と同じ1,500〜2,750ms、判断期限は1,200ms。
 - ゲームは50ms固定stepで進め、実際のJev応答待ち時間もゲーム内時刻へ加算。
 - 1試合の観測上限はゲーム内10分。
