@@ -428,15 +428,26 @@ final class HttpVeryHardCpuGateway implements VeryHardCpuGateway {
     http.Client? client,
     Uri? endpoint,
     Map<String, String> requestHeaders = const {},
+    Duration decisionRequestTimeout = VeryHardCpuConfig.decisionTimeout,
+    Duration preflightRequestTimeout = VeryHardCpuConfig.preflightTimeout,
   }) : _client = client ?? http.Client(),
        endpoint = endpoint ?? VeryHardCpuConfig.defaultEndpoint,
+       _decisionRequestTimeout = decisionRequestTimeout,
+       _preflightRequestTimeout = preflightRequestTimeout,
        _requestHeaders = Map<String, String>.unmodifiable({
          ...requestHeaders,
          'content-type': 'application/json',
-       });
+       }) {
+    if (decisionRequestTimeout <= Duration.zero ||
+        preflightRequestTimeout <= Duration.zero) {
+      throw ArgumentError('HTTP request timeouts must be positive');
+    }
+  }
 
   final http.Client _client;
   final Uri endpoint;
+  final Duration _decisionRequestTimeout;
+  final Duration _preflightRequestTimeout;
   final Map<String, String> _requestHeaders;
 
   @override
@@ -448,7 +459,7 @@ final class HttpVeryHardCpuGateway implements VeryHardCpuGateway {
         'kind': 'preflight',
         'matchId': matchId,
         'requestId': requestId,
-      }).timeout(VeryHardCpuConfig.preflightTimeout);
+      }, abortAfter: _preflightRequestTimeout);
       final map = _asMap(jsonDecode(response.body), 'preflight response');
       if (map['schemaVersion'] != VeryHardCpuConfig.schemaVersion ||
           map['requestId'] != requestId ||
@@ -474,26 +485,41 @@ final class HttpVeryHardCpuGateway implements VeryHardCpuGateway {
   ) async {
     final response = await _post(
       request.toJson(),
-    ).timeout(VeryHardCpuConfig.decisionTimeout);
+      abortAfter: _decisionRequestTimeout,
+    );
     return VeryHardDecisionResponse.fromJson(
       jsonDecode(response.body),
       request: request,
     );
   }
 
-  Future<http.Response> _post(Map<String, Object?> body) async {
-    final response = await _client.post(
-      endpoint,
-      headers: _requestHeaders,
-      body: jsonEncode(body),
-    );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw VeryHardCpuHttpException(
-        response.statusCode,
-        'Very Hard API request failed',
+  Future<http.Response> _post(
+    Map<String, Object?> body, {
+    required Duration abortAfter,
+  }) async {
+    final abort = Completer<void>();
+    final abortTimer = Timer(abortAfter, abort.complete);
+    final request =
+        http.AbortableRequest('POST', endpoint, abortTrigger: abort.future)
+          ..followRedirects = false
+          ..headers.addAll(_requestHeaders)
+          ..body = jsonEncode(body);
+    try {
+      final response = await http.Response.fromStream(
+        await _client.send(request),
       );
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw VeryHardCpuHttpException(
+          response.statusCode,
+          'Very Hard API request failed',
+        );
+      }
+      return response;
+    } on http.RequestAbortedException {
+      throw TimeoutException('Very Hard API request timed out', abortAfter);
+    } finally {
+      abortTimer.cancel();
     }
-    return response;
   }
 
   void close() => _client.close();

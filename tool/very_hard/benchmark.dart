@@ -347,6 +347,13 @@ final class BenchmarkPreflightUnavailable implements Exception {
   String toString() => 'BenchmarkPreflightUnavailable';
 }
 
+final class BenchmarkTransportUnsettled implements Exception {
+  const BenchmarkTransportUnsettled();
+
+  @override
+  String toString() => 'BenchmarkTransportUnsettled';
+}
+
 /// Runs the fixed comparison matrix against an injected gateway.
 ///
 /// The CLI supplies [HttpVeryHardCpuGateway] pointed at a Preview URL. Tests
@@ -502,7 +509,6 @@ final class _MatchSimulation {
   var _fallbackCount = 0;
   var _decisionRequestCount = 0;
   var _staleResponseCount = 0;
-  var _veryHardBlocked = false;
   final _decisionLatenciesMs = <int>[];
   final _providerApiErrors = <String, int>{};
   final _modelAliases = <String>{};
@@ -517,9 +523,9 @@ final class _MatchSimulation {
       _advanceFixed(math.min(simulationStepMs, remaining));
       if (_state.phase != GamePhase.playing) break;
 
-      if (!_veryHardBlocked && _state.elapsedMs >= _nextVeryHardDecisionAtMs) {
+      if (_state.elapsedMs >= _nextVeryHardDecisionAtMs) {
         await _runVeryHardDecision();
-        if (!_veryHardBlocked && _state.phase == GamePhase.playing) {
+        if (_state.phase == GamePhase.playing) {
           _nextVeryHardDecisionAtMs =
               _state.elapsedMs +
               _veryHardStrategy.nextDecisionDelayMs(
@@ -590,6 +596,10 @@ final class _MatchSimulation {
     final transport = Future<VeryHardDecisionResponse>.sync(
       () => gateway.decide(request),
     );
+    final transportSettled = transport.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {},
+    );
     final stopwatch = Stopwatch()..start();
     try {
       final response = await transport.timeout(decisionTimeout);
@@ -607,23 +617,15 @@ final class _MatchSimulation {
       _advanceFixed(decisionTimeout.inMilliseconds);
       _applyHardFallback(errorCode: 'timeout');
 
-      var settled = false;
       try {
-        await transport.timeout(transportGrace);
-        settled = true;
-      } on Object {
-        // A late response is never applied. The transport remains gated so a
-        // second request cannot overlap it; a bounded grace period prevents a
-        // broken Preview from hanging the complete 80-match report forever.
+        await transportSettled.timeout(transportGrace);
+      } on TimeoutException {
+        _recordError('timeout_pending');
+        throw const BenchmarkTransportUnsettled();
       }
       final totalElapsedMs = stopwatch.elapsedMilliseconds;
       final extraElapsedMs = totalElapsedMs - decisionTimeout.inMilliseconds;
       if (extraElapsedMs > 0) _advanceFixed(extraElapsedMs);
-      if (!settled) {
-        _veryHardBlocked = true;
-        _recordError('timeout_pending');
-        _consumeLateTransport(transport);
-      }
     } on Object catch (error) {
       final elapsedMs = stopwatch.elapsedMilliseconds;
       _recordLatency(elapsedMs);
@@ -727,10 +729,6 @@ final class _MatchSimulation {
   }
 
   int _randomSeed(int stream) => comparisonCase.seed * 100 + stream;
-}
-
-void _consumeLateTransport(Future<VeryHardDecisionResponse> transport) {
-  transport.then<void>((_) {}, onError: (Object _, StackTrace __) {});
 }
 
 String _providerErrorCode(Object error) {

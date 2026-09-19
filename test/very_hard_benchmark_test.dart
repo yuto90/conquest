@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:conquest/game/game_rules.dart';
@@ -177,7 +178,7 @@ void main() {
           ],
           maxGameTimeMs: 1_839,
           decisionTimeout: const Duration(milliseconds: 5),
-          transportGrace: Duration.zero,
+          transportGrace: const Duration(milliseconds: 100),
         );
 
     expect(report.matches.single.fallbackStrategyFactions, isNotEmpty);
@@ -231,7 +232,7 @@ void main() {
           ],
           maxGameTimeMs: 1_839,
           decisionTimeout: const Duration(milliseconds: 5),
-          transportGrace: Duration.zero,
+          transportGrace: const Duration(milliseconds: 100),
         );
 
     expect(report.matches.single.elapsedMs, 1_839);
@@ -260,6 +261,50 @@ void main() {
 
     expect(report.total.fallbackCount, greaterThanOrEqualTo(1));
     expect(report.total.providerApiErrors['timeout'], greaterThanOrEqualTo(1));
+  });
+
+  test('continues after a timeout error from a settled transport', () async {
+    final gateway = _TimeoutErrorGateway();
+    final report = await VeryHardBenchmarkRunner(gateway: gateway).run(
+      pullRequestNumber: 99,
+      expectedHead: 'head-99',
+      localHead: 'head-99',
+      cases: const [
+        BenchmarkCase(
+          islandCount: 6,
+          seed: 6001,
+          veryHardFaction: Faction.player,
+        ),
+      ],
+      maxGameTimeMs: 4_000,
+      decisionTimeout: const Duration(milliseconds: 5),
+      transportGrace: const Duration(milliseconds: 10),
+    );
+
+    expect(gateway.decisionCalls, greaterThan(1));
+    expect(report.total.fallbackCount, gateway.decisionCalls);
+    expect(report.total.providerApiErrors['timeout_pending'], isNull);
+  });
+
+  test('fails the comparison when a transport remains pending', () async {
+    await expectLater(
+      VeryHardBenchmarkRunner(gateway: _PendingGateway()).run(
+        pullRequestNumber: 99,
+        expectedHead: 'head-99',
+        localHead: 'head-99',
+        cases: const [
+          BenchmarkCase(
+            islandCount: 6,
+            seed: 6001,
+            veryHardFaction: Faction.player,
+          ),
+        ],
+        maxGameTimeMs: 4_000,
+        decisionTimeout: const Duration(milliseconds: 1),
+        transportGrace: const Duration(milliseconds: 1),
+      ),
+      throwsA(isA<BenchmarkTransportUnsettled>()),
+    );
   });
 
   test(
@@ -353,5 +398,34 @@ final class _FakeGateway implements VeryHardCpuGateway {
       promptVersion: VeryHardCpuConfig.promptVersion,
       latencyMs: responseDelay.inMilliseconds,
     );
+  }
+}
+
+final class _TimeoutErrorGateway implements VeryHardCpuGateway {
+  int decisionCalls = 0;
+
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) async {
+    return const VeryHardPreflightResult.available();
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(
+    VeryHardDecisionRequest request,
+  ) async {
+    decisionCalls++;
+    throw TimeoutException('request aborted');
+  }
+}
+
+final class _PendingGateway implements VeryHardCpuGateway {
+  @override
+  Future<VeryHardPreflightResult> preflight({required String matchId}) async {
+    return const VeryHardPreflightResult.available();
+  }
+
+  @override
+  Future<VeryHardDecisionResponse> decide(VeryHardDecisionRequest request) {
+    return Completer<VeryHardDecisionResponse>().future;
   }
 }

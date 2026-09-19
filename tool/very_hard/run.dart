@@ -26,7 +26,10 @@ Future<void> main(List<String> arguments) async {
 
     final gateway = HttpVeryHardCpuGateway(
       endpoint: previewUrl.resolve(VeryHardCpuConfig.endpointPath),
-      requestHeaders: previewProtectionHeaders(Platform.environment),
+      requestHeaders: previewProtectionHeaders(
+        Platform.environment,
+        previewUrl: previewUrl,
+      ),
     );
     try {
       final report = await VeryHardBenchmarkRunner(gateway: gateway).run(

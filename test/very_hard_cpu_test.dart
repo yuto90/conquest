@@ -218,6 +218,7 @@ void main() {
 
   test('HTTP gateway adds configured Preview protection headers', () async {
     Map<String, String>? capturedHeaders;
+    bool? capturedFollowRedirects;
     final gateway = HttpVeryHardCpuGateway(
       endpoint: Uri.parse('https://preview.example/api/v1/cpu/very-hard'),
       requestHeaders: const {
@@ -225,6 +226,7 @@ void main() {
       },
       client: MockClient((request) async {
         capturedHeaders = request.headers;
+        capturedFollowRedirects = request.followRedirects;
         final body = jsonDecode(request.body) as Map<String, Object?>;
         return http.Response(
           jsonEncode(<String, Object?>{
@@ -248,7 +250,53 @@ void main() {
       'local-benchmark-secret',
     );
     expect(capturedHeaders!['content-type'], 'application/json');
+    expect(capturedFollowRedirects, isFalse);
   });
+
+  test(
+    'HTTP timeout keeps the coordinator gate until abort completes',
+    () async {
+      final client = _AbortAwareHangingClient();
+      final gateway = HttpVeryHardCpuGateway(
+        endpoint: Uri.parse('https://preview.example/api/v1/cpu/very-hard'),
+        client: client,
+        decisionRequestTimeout: const Duration(milliseconds: 25),
+      );
+      addTearDown(gateway.close);
+      final coordinator = VeryHardCpuCoordinator(
+        gateway: gateway,
+        timeout: const Duration(milliseconds: 1),
+      );
+      final state = _playing(
+        islands: [
+          _island(id: 0, faction: Faction.cpu, forces: 20),
+          _island(id: 1, faction: Faction.player, forces: 10),
+        ],
+      );
+
+      final first = await coordinator.decide(
+        state: state,
+        matchId: 'match-1',
+        factions: const [Faction.cpu],
+        fallback: (faction) => null,
+      );
+
+      expect(first.usedFallback, isTrue);
+      expect(first.timedOut, isTrue);
+      expect(coordinator.hasInFlightRequest, isTrue);
+      final second = await coordinator.decide(
+        state: state,
+        matchId: 'match-1',
+        factions: const [Faction.cpu],
+        fallback: (faction) => null,
+      );
+      expect(second.skipped, isTrue);
+      expect(client.sendCalls, 1);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(coordinator.hasInFlightRequest, isFalse);
+    },
+  );
 
   test('evaluates a fallback against the caller latest state', () async {
     final request = Completer<VeryHardDecisionResponse>();
@@ -384,5 +432,19 @@ final class FakeVeryHardCpuGateway implements VeryHardCpuGateway {
   @override
   Future<VeryHardDecisionResponse> decide(VeryHardDecisionRequest request) {
     return decision(request);
+  }
+}
+
+final class _AbortAwareHangingClient extends http.BaseClient {
+  int sendCalls = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    sendCalls++;
+    if (request case http.Abortable(:final abortTrigger?)) {
+      await abortTrigger;
+      throw http.RequestAbortedException(request.url);
+    }
+    throw StateError('request must be abortable');
   }
 }

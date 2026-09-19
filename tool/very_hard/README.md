@@ -9,6 +9,7 @@ PRのPreview Deploymentが作成された直後に、ローカルCodexから実J
 - `--pr-head`はPR画面から取得した40桁の小文字SHAをそのまま指定すること。
 - Preview URLへquery、fragment、ユーザー名、パスワードを付けないこと。
 - Jevのtokenはコマンド、環境変数、レポートへ渡さないこと。PreviewがDeployment Protectionで保護されている場合だけ、VercelのAutomation Bypass secretを`VERCEL_AUTOMATION_BYPASS_SECRET`環境変数へ設定する。secretをコマンド引数・レポート・リポジトリへ記録しない。
+- Automation Bypass secretはHTTPSの`conquest-*-yuto90s-projects.vercel.app`だけへ送信し、HTTP・別ホスト・redirectでは安全側へ停止する。
 
 ## 外部設定ゲート
 
