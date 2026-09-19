@@ -689,11 +689,13 @@ function providerErrorDiagnostics(
   const type = safeProviderToken(candidate.type);
   const code = safeProviderToken(candidate.code);
   const category = providerErrorCategory(error);
+  const hints = providerErrorHints(error);
   return {
     ...(name === undefined ? {} : { providerErrorName: name }),
     ...(type === undefined ? {} : { providerErrorType: type }),
     ...(code === undefined ? {} : { providerErrorCode: code }),
     ...(category === undefined ? {} : { providerErrorCategory: category }),
+    ...(hints === undefined ? {} : { providerErrorHints: hints }),
     ...(status === undefined ? {} : { providerStatus: status }),
   };
 }
@@ -725,7 +727,7 @@ function providerErrorCategory(error: unknown): string | undefined {
     return "provider_blocked";
   }
   if (
-    /payment method.{0,20}(?:required|missing|not found)|billing account.{0,20}(?:required|inactive)|insufficient.{0,20}(?:credit|balance)|(?:credit balance|spend limit|budget).{0,20}(?:exhausted|exceeded|reached|required)/i.test(
+    /payment method.{0,20}(?:required|missing|not found)|billing account.{0,20}(?:required|inactive)|insufficient.{0,20}(?:credit|balance)|(?:credit balance|spend limit|(?:billing|account|spend) budget).{0,20}(?:exhausted|exceeded|reached|required)/i.test(
       message,
     )
   ) {
@@ -753,6 +755,56 @@ function providerErrorCategory(error: unknown): string | undefined {
     return "model_unavailable";
   }
   return undefined;
+}
+
+const providerHintVocabulary = [
+  "account",
+  "access",
+  "agreement",
+  "allowlist",
+  "authentication",
+  "authorized",
+  "balance",
+  "billing",
+  "budget",
+  "card",
+  "consent",
+  "credit",
+  "credits",
+  "evaluation",
+  "experimental",
+  "forbidden",
+  "funds",
+  "key",
+  "limit",
+  "model",
+  "oidc",
+  "payment",
+  "permission",
+  "plan",
+  "provider",
+  "restricted",
+  "spend",
+  "team",
+  "terms",
+  "token",
+  "unauthorized",
+  "unavailable",
+  "unsupported",
+  "upgrade",
+] as const;
+
+function providerErrorHints(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return undefined;
+  }
+  const message = (error as { message?: unknown }).message;
+  if (typeof message !== "string") return undefined;
+  const words = new Set(message.toLowerCase().match(/[a-z]+/g) ?? []);
+  const hints = providerHintVocabulary
+    .filter((word) => words.has(word))
+    .slice(0, 8);
+  return hints.length === 0 ? undefined : hints.join(":");
 }
 
 function safeProviderToken(value: unknown): string | undefined {

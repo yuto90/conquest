@@ -554,7 +554,10 @@ describe("POST /api/v1/cpu/very-hard", () => {
 
     expect(response.status).toBe(502);
     expect(logger).toHaveBeenCalledWith(
-      expect.objectContaining({ providerErrorCategory: "provider_blocked" }),
+      expect.objectContaining({
+        providerErrorCategory: "provider_blocked",
+        providerErrorHints: "account:access:provider:restricted:team",
+      }),
     );
     const logged = JSON.stringify(logger.mock.calls);
     expect(logged).not.toContain("restricted access");
@@ -565,6 +568,8 @@ describe("POST /api/v1/cpu/very-hard", () => {
     for (const message of [
       "input exceeds the maximum token limit",
       "budget must be a numeric evaluation criterion",
+      "token budget exceeded",
+      "reasoning budget is required for this model",
     ]) {
       const logger = vi.fn();
       const handler = createVeryHardHandler({
