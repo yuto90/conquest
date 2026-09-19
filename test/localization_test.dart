@@ -54,14 +54,14 @@ void main() {
   ) async {
     await tester.pumpWidget(const MyApp(locale: Locale('en', 'US')));
     await openMatchSetup(tester);
-    expect(find.text('Match Setup / 01'), findsOneWidget);
+    expect(find.text('Match Setup / 01'), findsNothing);
     expect(find.text('Match Setup'), findsOneWidget);
     expect(find.text('Start Game'), findsOneWidget);
 
     await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
     await openMatchSetup(tester);
     await tester.pump();
-    expect(find.text('対戦設定 / 01'), findsOneWidget);
+    expect(find.text('対戦設定 / 01'), findsNothing);
     expect(find.text('対戦設定'), findsOneWidget);
     expect(find.text('ゲーム開始'), findsOneWidget);
   });
@@ -111,7 +111,7 @@ void main() {
     );
     final before = beforeContainer.read(gameControllerProvider);
     expect(before.phase, GamePhase.playing);
-    expect(find.text('Tactical Chart / 10 islands'), findsOneWidget);
+    expect(find.text('Normal / 10 islands'), findsOneWidget);
 
     locale.value = const Locale('ja', 'JP');
     await tester.pump();
@@ -119,7 +119,7 @@ void main() {
     expect(after.phase, before.phase);
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.configuration, before.configuration);
-    expect(find.text('戦術海図 / 10島'), findsOneWidget);
+    expect(find.text('Normal / 10島'), findsOneWidget);
     expect(find.text('CONQUEST'), findsNothing);
   });
 }

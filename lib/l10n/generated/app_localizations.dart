@@ -538,11 +538,21 @@ abstract class AppLocalizations {
   /// **'Island map, {islandCount} islands'**
   String boardMapSemantics({required int islandCount});
 
-  /// The tactical board title.
+  /// The current CPU difficulty and island count shown on a player-versus-CPU board.
   ///
   /// In en, this message translates to:
-  /// **'Tactical Chart / {islandCount} islands'**
-  String boardTitle({required int islandCount});
+  /// **'{difficulty} / {islandCount} islands'**
+  String boardTitle({required String difficulty, required int islandCount});
+
+  /// Both current CPU difficulties and the island count shown on a spectator board.
+  ///
+  /// In en, this message translates to:
+  /// **'1P {playerDifficulty} / 2P {cpuDifficulty} / {islandCount} islands'**
+  String boardTitleSpectator({
+    required String playerDifficulty,
+    required String cpuDifficulty,
+    required int islandCount,
+  });
 
   /// The board status after selecting a source.
   ///

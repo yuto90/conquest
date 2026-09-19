@@ -662,16 +662,8 @@ void main() {
           .data,
       '観戦中',
     );
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('board-status-detail')))
-          .data,
-      'CPU同士の対戦を表示中',
-    );
-    for (final key in [
-      const ValueKey('board-status-label'),
-      const ValueKey('board-status-detail'),
-    ]) {
+    expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
+    for (final key in [const ValueKey('board-status-label')]) {
       final visibleText = tester.widget<Text>(find.byKey(key)).data!;
       final semanticsNode = tester.getSemantics(find.byKey(key));
       for (final term in forbiddenTerms) {

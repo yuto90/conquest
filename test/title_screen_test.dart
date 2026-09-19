@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_state.dart';
@@ -10,7 +12,37 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/match_setup.dart';
 
+double _contrastRatio(Color first, Color second) {
+  final lighter = math.max(first.computeLuminance(), second.computeLuminance());
+  final darker = math.min(first.computeLuminance(), second.computeLuminance());
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 void main() {
+  testWidgets('uses a light START action with legible dark text', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MyApp(locale: Locale('en'))),
+    );
+
+    final button = tester.widget<OutlinedButton>(
+      find.byKey(const ValueKey('title-start')),
+    );
+    final background = button.style?.backgroundColor?.resolve(
+      const <WidgetState>{},
+    );
+    final foreground = button.style?.foregroundColor?.resolve(
+      const <WidgetState>{},
+    );
+
+    expect(background, isNotNull);
+    expect(foreground, isNotNull);
+    expect(background!.computeLuminance(), greaterThan(0.5));
+    expect(foreground!.computeLuminance(), lessThan(0.05));
+    expect(_contrastRatio(background, foreground), greaterThanOrEqualTo(4.5));
+  });
+
   testWidgets(
     'keeps title actions at least 48 pixels tall on desktop',
     (tester) async {

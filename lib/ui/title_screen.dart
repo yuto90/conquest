@@ -9,7 +9,7 @@ import '../l10n/generated/app_localizations_en.dart';
 import 'tactical_theme.dart';
 
 const _ink = Color(0xFF002C36);
-const _paper = Color(0xFFF6F8F7);
+const _seaGlass = Color(0xFFB3DCD9);
 const _referenceSize = Size(941, 1672);
 const _wideNativeContentMaxWidth = 720.0;
 // トップ画面の補助ボタンは、再表示するまで一時的に非表示にする。
@@ -377,12 +377,10 @@ class _TitleButton extends StatelessWidget {
             horizontal: math.max(6, 20 * scale),
             vertical: math.max(12, 20 * scale),
           ),
-          backgroundColor: primary
-              ? const Color(0xFF032B36)
-              : Colors.transparent,
-          foregroundColor: primary ? _paper : _ink,
+          backgroundColor: primary ? _seaGlass : Colors.transparent,
+          foregroundColor: _ink,
           side: BorderSide(
-            color: primary ? const Color(0xFFB3DCD9) : _ink,
+            color: _ink,
             width: math.max(1, (primary ? 1.5 : 2.5) * scale),
           ),
           shape: RoundedRectangleBorder(
