@@ -13,6 +13,7 @@
 .buildlog/
 .history
 .svn/
+.agents/
 
 # IntelliJ related
 *.iml
