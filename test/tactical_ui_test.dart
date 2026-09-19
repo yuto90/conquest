@@ -58,7 +58,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('tactical-map-background')), findsOne);
     expect(find.byKey(const ValueKey('settings-view')), findsOne);
-    expect(find.text('対戦設定 / 01'), findsOne);
+    expect(find.text('対戦設定 / 01'), findsNothing);
     expect(find.text('対戦設定'), findsOne);
     expect(find.text('海域の規模とCPUの判断速度を選択してください。'), findsOne);
     expect(find.text('島数'), findsOne);
@@ -164,10 +164,7 @@ void main() {
     final titleRect = tester.getRect(titleFinder);
     final pauseRect = tester.getRect(find.byKey(const ValueKey('pause-game')));
     final paragraph = tester.renderObject<RenderParagraph>(titleFinder);
-    expect(
-      find.text('1P Very Easy / 2P Very Easy / 10 islands'),
-      findsOne,
-    );
+    expect(find.text('1P Very Easy / 2P Very Easy / 10 islands'), findsOne);
     expect(titleRect.right, lessThanOrEqualTo(pauseRect.left));
     expect(titleRect.right, lessThanOrEqualTo(viewport.width));
     expect(paragraph.didExceedMaxLines, isFalse);
@@ -184,9 +181,9 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('pause-sheet')), findsOne);
-    expect(find.text('対戦を一時停止'), findsOne);
+    expect(find.text('対戦を一時停止'), findsNothing);
     expect(find.text('一時停止'), findsOne);
-    expect(find.text('現在の盤面を確認できます。'), findsOne);
+    expect(find.text('現在の盤面を確認できます。'), findsNothing);
     expect(find.text('再開'), findsOne);
     expect(find.text('設定へ戻る'), findsOne);
     expect(find.text('Normal / 10島'), findsOne);

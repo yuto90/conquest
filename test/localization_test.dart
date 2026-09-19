@@ -54,14 +54,14 @@ void main() {
   ) async {
     await tester.pumpWidget(const MyApp(locale: Locale('en', 'US')));
     await openMatchSetup(tester);
-    expect(find.text('Match Setup / 01'), findsOneWidget);
+    expect(find.text('Match Setup / 01'), findsNothing);
     expect(find.text('Match Setup'), findsOneWidget);
     expect(find.text('Start Game'), findsOneWidget);
 
     await tester.pumpWidget(const MyApp(locale: Locale('ja', 'JP')));
     await openMatchSetup(tester);
     await tester.pump();
-    expect(find.text('対戦設定 / 01'), findsOneWidget);
+    expect(find.text('対戦設定 / 01'), findsNothing);
     expect(find.text('対戦設定'), findsOneWidget);
     expect(find.text('ゲーム開始'), findsOneWidget);
   });

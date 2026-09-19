@@ -446,22 +446,21 @@ class _BoardChrome extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Flexible(
-                      child: Text(
-                        key: const ValueKey('board-status-detail'),
-                        isSpectator
-                            ? l10n.spectatorDetail
-                            : l10n.boardStatusSelectedDetail,
-                        textAlign: TextAlign.right,
-                        style: TacticalTypography.of(context).body(
-                          fontSize: 10,
-                          color: TacticalPalette.seaDeep.withValues(
-                            alpha: 0.85,
+                    if (!isSpectator)
+                      Flexible(
+                        child: Text(
+                          key: const ValueKey('board-status-detail'),
+                          l10n.boardStatusSelectedDetail,
+                          textAlign: TextAlign.right,
+                          style: TacticalTypography.of(context).body(
+                            fontSize: 10,
+                            color: TacticalPalette.seaDeep.withValues(
+                              alpha: 0.85,
+                            ),
+                            height: 1.35,
                           ),
-                          height: 1.35,
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -558,28 +557,10 @@ class _PauseMenu extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  l10n.pauseHeading,
-                  style: TacticalTypography.of(context).mono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: TacticalPalette.muted,
-                    height: 1.2,
-                    letterSpacing: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
                   l10n.pauseTitle,
                   style: TacticalTypography.of(
                     context,
                   ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  l10n.pauseDescription,
-                  style: TacticalTypography.of(
-                    context,
-                  ).body(fontSize: 12, color: TacticalPalette.muted),
                 ),
                 const SizedBox(height: 14),
                 _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
@@ -1214,17 +1195,6 @@ class _ConfigurationPanel extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            l10n.settingsStep,
-                            style: TacticalTypography.of(context).mono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: TacticalPalette.muted,
-                              height: 1.2,
-                              letterSpacing: 1.6,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
                           Semantics(
                             header: true,
                             child: Text(
