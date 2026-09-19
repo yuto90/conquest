@@ -402,12 +402,12 @@ class _BoardChrome extends StatelessWidget {
           Positioned(
             top: 16,
             left: 17,
+            right: 73,
             child: IgnorePointer(
               child: Text(
-                l10n.boardTitle(
-                  islandCount: state.configuration.totalIslandCount,
-                ),
+                _boardTitle(l10n, state.configuration),
                 key: const ValueKey('board-title-block'),
+                maxLines: 3,
                 style: TacticalTypography.of(context).mono(
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
@@ -1704,6 +1704,22 @@ String _selectionSummary(
         islandCount: configuration.totalIslandCount,
         difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
       );
+
+String _boardTitle(AppLocalizations l10n, GameConfiguration configuration) =>
+    switch (configuration.gameMode) {
+      GameMode.playerVsCpu => l10n.boardTitle(
+        difficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+        islandCount: configuration.totalIslandCount,
+      ),
+      GameMode.cpuVsCpu => l10n.boardTitleSpectator(
+        playerDifficulty: _difficultyLabel(
+          l10n,
+          configuration.playerCpuDifficulty,
+        ),
+        cpuDifficulty: _difficultyLabel(l10n, configuration.cpuDifficulty),
+        islandCount: configuration.totalIslandCount,
+      ),
+    };
 
 String _resultTitle(
   AppLocalizations l10n,

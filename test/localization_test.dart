@@ -111,7 +111,7 @@ void main() {
     );
     final before = beforeContainer.read(gameControllerProvider);
     expect(before.phase, GamePhase.playing);
-    expect(find.text('Tactical Chart / 10 islands'), findsOneWidget);
+    expect(find.text('Normal / 10 islands'), findsOneWidget);
 
     locale.value = const Locale('ja', 'JP');
     await tester.pump();
@@ -119,7 +119,7 @@ void main() {
     expect(after.phase, before.phase);
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.configuration, before.configuration);
-    expect(find.text('戦術海図 / 10島'), findsOneWidget);
+    expect(find.text('Normal / 10島'), findsOneWidget);
     expect(find.text('CONQUEST'), findsNothing);
   });
 }

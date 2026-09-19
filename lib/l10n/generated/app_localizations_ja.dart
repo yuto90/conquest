@@ -259,8 +259,17 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String boardTitle({required int islandCount}) {
-    return '戦術海図 / $islandCount島';
+  String boardTitle({required String difficulty, required int islandCount}) {
+    return '$difficulty / $islandCount島';
+  }
+
+  @override
+  String boardTitleSpectator({
+    required String playerDifficulty,
+    required String cpuDifficulty,
+    required int islandCount,
+  }) {
+    return '1P $playerDifficulty / 2P $cpuDifficulty / $islandCount島';
   }
 
   @override

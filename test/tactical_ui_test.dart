@@ -5,6 +5,7 @@ import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -85,7 +86,7 @@ void main() {
     loop.tickMany(60);
     await tester.pump();
     expect(find.text('CONQUEST'), findsNothing);
-    expect(find.text('戦術海図 / 10島'), findsOne);
+    expect(find.text('Normal / 10島'), findsOne);
     expect(find.byKey(const ValueKey('pause-game')), findsOne);
     expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
     expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
@@ -111,6 +112,67 @@ void main() {
     expect(find.text('タップで目標を指定\n兵力の半分を派遣'), findsOne);
   });
 
+  testWidgets('shows both current CPU difficulties in the spectator HUD', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    await _pumpApp(tester, loop: loop);
+
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('island-count-8')));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('player-cpu-difficulty-hard')),
+    );
+    await tester.tap(find.byKey(const ValueKey('player-cpu-difficulty-hard')));
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-easy')));
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    loop.tickMany(60);
+    await tester.pump();
+
+    expect(find.text('1P Hard / 2P Easy / 8島'), findsOne);
+  });
+
+  testWidgets('keeps the longest English spectator HUD clear of pause', (
+    tester,
+  ) async {
+    final loop = _ManualGameLoop();
+    const viewport = Size(280, 500);
+    await _pumpApp(
+      tester,
+      loop: loop,
+      locale: const Locale('en'),
+      size: viewport,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
+    await tester.pump();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('player-cpu-difficulty-veryEasy')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('player-cpu-difficulty-veryEasy')),
+    );
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryEasy')));
+    await tester.ensureVisible(find.byKey(const ValueKey('start-game')));
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    loop.tickMany(60);
+    await tester.pump();
+
+    final titleFinder = find.byKey(const ValueKey('board-title-block'));
+    final titleRect = tester.getRect(titleFinder);
+    final pauseRect = tester.getRect(find.byKey(const ValueKey('pause-game')));
+    final paragraph = tester.renderObject<RenderParagraph>(titleFinder);
+    expect(
+      find.text('1P Very Easy / 2P Very Easy / 10 islands'),
+      findsOne,
+    );
+    expect(titleRect.right, lessThanOrEqualTo(pauseRect.left));
+    expect(titleRect.right, lessThanOrEqualTo(viewport.width));
+    expect(paragraph.didExceedMaxLines, isFalse);
+  });
+
   testWidgets('matches the tactical pause sheet', (tester) async {
     final loop = _ManualGameLoop();
     await _pumpApp(tester, loop: loop);
@@ -127,6 +189,7 @@ void main() {
     expect(find.text('現在の盤面を確認できます。'), findsOne);
     expect(find.text('再開'), findsOne);
     expect(find.text('設定へ戻る'), findsOne);
+    expect(find.text('Normal / 10島'), findsOne);
   });
 
   testWidgets('renders each result with its own Japanese outcome', (
@@ -191,7 +254,7 @@ void main() {
     );
     expect(current.height, greaterThan(capacity.height));
     expect(find.text('CONQUEST'), findsNothing);
-    expect(find.text('戦術海図 / 10島'), findsOne);
+    expect(find.text('Normal / 10島'), findsOne);
     expect(find.byKey(const ValueKey('board-status-label')), findsNothing);
     expect(find.byKey(const ValueKey('board-status-detail')), findsNothing);
     expect(tester.takeException(), isNull);
@@ -205,7 +268,7 @@ void main() {
     loop.tickMany(60);
     await tester.pump();
 
-    expect(find.text('Tactical Chart / 10 islands'), findsOne);
+    expect(find.text('Normal / 10 islands'), findsOne);
     expect(find.text('CONQUEST'), findsNothing);
     expect(find.text('Select one of your islands'), findsNothing);
     expect(
