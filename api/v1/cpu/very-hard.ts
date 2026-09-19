@@ -702,28 +702,51 @@ function providerErrorCategory(error: unknown): string | undefined {
   if (!error || typeof error !== "object" || !("message" in error)) {
     return undefined;
   }
-  const message = (error as { message?: unknown }).message;
+  const candidate = error as {
+    message?: unknown;
+    type?: unknown;
+    code?: unknown;
+  };
+  const type = safeProviderToken(candidate.type);
+  const code = safeProviderToken(candidate.code);
+  const status = providerStatus(error);
+  if (status === 401 || type === "authentication_error") {
+    return "authentication";
+  }
+  if (status === 402) return "billing_required";
+  if (code === "no_providers_available") return "provider_blocked";
+  const message = candidate.message;
   if (typeof message !== "string") return undefined;
   if (
-    /restricted access to this provider|no[_ ]providers[_ ]available|provider.{0,40}(?:allowlist|blocked|disabled|not allowed)/i.test(
+    /restricted access to this provider|no[_ ]providers[_ ]available|provider.{0,30}(?:disabled by|blocked by|not present in).{0,20}(?:the )?(?:provider )?allowlist/i.test(
       message,
     )
   ) {
     return "provider_blocked";
   }
   if (
-    /payment method|billing|insufficient.{0,20}(?:credit|balance)|(?:credit|balance).{0,20}(?:exhausted|required)|spend limit|budget/i.test(
+    /payment method.{0,20}(?:required|missing|not found)|billing account.{0,20}(?:required|inactive)|insufficient.{0,20}(?:credit|balance)|(?:credit balance|spend limit|budget).{0,20}(?:exhausted|exceeded|reached|required)/i.test(
       message,
     )
   ) {
     return "billing_required";
   }
-  if (/authentication|unauthorized|api[ _-]?key|oidc|token/i.test(message)) {
+  if (
+    /authentication.{0,20}(?:failed|required)|unauthorized|(?:invalid|missing|expired).{0,20}(?:api[ _-]?key|oidc token|authentication token)|(?:api[ _-]?key|oidc token|authentication token).{0,20}(?:invalid|missing|expired|required)/i.test(
+      message,
+    )
+  ) {
     return "authentication";
   }
-  if (/terms|agreement|consent/i.test(message)) return "terms_required";
   if (
-    /model.{0,40}(?:not found|unavailable|unsupported)|unsupported.{0,20}model/i.test(
+    /(?:terms(?: of service)?|agreement|consent).{0,30}(?:required|not accepted|not granted|must be accepted)/i.test(
+      message,
+    )
+  ) {
+    return "terms_required";
+  }
+  if (
+    /model (?:is )?(?:not found|unavailable|unsupported)|unsupported model/i.test(
       message,
     )
   ) {

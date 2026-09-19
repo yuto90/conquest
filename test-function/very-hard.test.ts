@@ -561,6 +561,33 @@ describe("POST /api/v1/cpu/very-hard", () => {
     expect(logged).not.toContain("Contact the owner");
   });
 
+  it("does not misclassify unrelated token or budget messages", async () => {
+    for (const message of [
+      "input exceeds the maximum token limit",
+      "budget must be a numeric evaluation criterion",
+    ]) {
+      const logger = vi.fn();
+      const handler = createVeryHardHandler({
+        logger,
+        provider: providerReturning(async () => {
+          throw Object.assign(new Error(message), {
+            name: "GatewayInternalServerError",
+            type: "internal_server_error",
+            statusCode: 403,
+          });
+        }),
+      });
+
+      await handler(request(decisionBody()));
+
+      expect(logger).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          providerErrorCategory: expect.any(String),
+        }),
+      );
+    }
+  });
+
   it("aborts a provider request when the decision timeout expires", async () => {
     let aborted = false;
     const handler = createVeryHardHandler({
