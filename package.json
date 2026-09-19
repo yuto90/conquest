@@ -14,9 +14,9 @@
     "build:vercel-output:check": "tsx scripts/build_vercel_output.ts --check"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "3.0.196",
+    "@ai-sdk/gateway": "4.0.87",
     "@vercel/firewall": "1.2.5",
-    "ai": "6.0.286",
+    "ai": "7.0.107",
     "zod": "4.6.5"
   },
   "devDependencies": {

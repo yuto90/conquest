@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { experimental_evaluate as evaluate } from "ai";
 import { gateway } from "@ai-sdk/gateway";
 import { checkRateLimit } from "@vercel/firewall";
 import { z } from "zod";
@@ -119,10 +119,6 @@ const requestSchema = z.discriminatedUnion("kind", [
   decisionRequestSchema,
 ]);
 
-const choiceSchema = z
-  .object({ candidateId: z.string().min(1).max(128) })
-  .strict();
-
 type Faction = "player" | "cpu";
 type Candidate = z.infer<typeof candidateSchema>;
 type DecisionSubject = z.infer<typeof subjectSchema>;
@@ -155,19 +151,32 @@ export interface JevProvider {
 
 export class VercelGatewayJevProvider implements JevProvider {
   async choose(input: JevChoiceInput, options: { signal?: AbortSignal } = {}) {
-    const result = await generateObject({
-      model: gateway(FIXED_MODEL),
-      schema: choiceSchema,
-      schemaName: "very_hard_cpu_choice",
-      schemaDescription:
-        "Exactly one candidate ID from the supplied legal candidates.",
-      system: input.system,
-      prompt: input.prompt,
+    const criteria = Object.fromEntries(
+      input.subject.candidates.map((candidate) => [
+        candidate.id,
+        JSON.stringify(candidate),
+      ]),
+    );
+    const result = await evaluate({
+      model: gateway.evaluationModel(FIXED_MODEL),
+      state: {
+        kind: input.kind,
+        promptVersion: input.promptVersion,
+        board: input.board,
+        faction: input.subject.faction,
+      },
+      questions: {
+        candidateId: {
+          type: "choice",
+          instructions: input.system,
+          criteria,
+        },
+      },
       maxRetries: 0,
       abortSignal: options.signal,
     });
     return {
-      candidateId: result.object.candidateId,
+      candidateId: result.answers.candidateId.choice,
       resolvedModel: result.response.modelId,
     };
   }

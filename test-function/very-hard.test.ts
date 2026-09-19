@@ -7,10 +7,30 @@ import {
   PROMPT_VERSION,
   RATE_LIMIT_RULE_ID,
   SCHEMA_VERSION,
+  VercelGatewayJevProvider,
   createVeryHardHandler,
   type JevChoiceInput,
   type JevProvider,
 } from "../api/v1/cpu/very-hard.js";
+
+const aiSdkMocks = vi.hoisted(() => ({
+  evaluate: vi.fn(),
+  generateObject: vi.fn(),
+}));
+const gatewayMocks = vi.hoisted(() => ({
+  evaluationModel: vi.fn(),
+  legacyModel: vi.fn(),
+}));
+
+vi.mock("ai", () => ({
+  experimental_evaluate: aiSdkMocks.evaluate,
+  generateObject: aiSdkMocks.generateObject,
+}));
+vi.mock("@ai-sdk/gateway", () => ({
+  gateway: Object.assign(gatewayMocks.legacyModel, {
+    evaluationModel: gatewayMocks.evaluationModel,
+  }),
+}));
 
 vi.mock("@vercel/firewall", () => ({
   checkRateLimit: vi.fn(async () => ({ rateLimited: false })),
@@ -95,6 +115,69 @@ function providerReturning(
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(checkRateLimit).mockResolvedValue({ rateLimited: false });
+});
+
+describe("VercelGatewayJevProvider", () => {
+  it("selects a legal candidate through the Jev evaluation choice contract", async () => {
+    const evaluationModel = { modelId: FIXED_MODEL };
+    const signal = new AbortController().signal;
+    gatewayMocks.evaluationModel.mockReturnValue(evaluationModel);
+    aiSdkMocks.evaluate.mockResolvedValue({
+      answers: {
+        candidateId: {
+          type: "choice",
+          choice: "cpu-wait",
+          probabilities: { "cpu-c0": 0.25, "cpu-wait": 0.75 },
+        },
+      },
+      response: { modelId: FIXED_MODEL },
+    });
+    const provider = new VercelGatewayJevProvider();
+
+    const result = await provider.choose(
+      {
+        kind: "decision",
+        model: FIXED_MODEL,
+        promptVersion: PROMPT_VERSION,
+        system: "Select the strongest legal action.",
+        prompt: "legacy prompt that must not be sent as a generation request",
+        board: structuredClone(board) as unknown as JevChoiceInput["board"],
+        subject: structuredClone(
+          subject,
+        ) as unknown as JevChoiceInput["subject"],
+      },
+      { signal },
+    );
+
+    expect(gatewayMocks.evaluationModel).toHaveBeenCalledWith(FIXED_MODEL);
+    expect(aiSdkMocks.evaluate).toHaveBeenCalledWith({
+      model: evaluationModel,
+      state: {
+        kind: "decision",
+        promptVersion: PROMPT_VERSION,
+        board,
+        faction: "cpu",
+      },
+      questions: {
+        candidateId: {
+          type: "choice",
+          instructions: "Select the strongest legal action.",
+          criteria: {
+            "cpu-c0": JSON.stringify(subject.candidates[0]),
+            "cpu-wait": JSON.stringify(subject.candidates[1]),
+          },
+        },
+      },
+      maxRetries: 0,
+      abortSignal: signal,
+    });
+    expect(aiSdkMocks.generateObject).not.toHaveBeenCalled();
+    expect(gatewayMocks.legacyModel).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      candidateId: "cpu-wait",
+      resolvedModel: FIXED_MODEL,
+    });
+  });
 });
 
 describe("POST /api/v1/cpu/very-hard", () => {

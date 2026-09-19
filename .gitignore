@@ -37,6 +37,7 @@
 /build/
 
 # Web related
+node_modules/
 
 # Symbolication related
 app.*.symbols
