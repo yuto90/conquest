@@ -206,7 +206,8 @@ class GameController extends _$GameController {
         veryHardPreflightStatus: VeryHardPreflightStatus.checking,
       );
       final matchId = _currentMatchId;
-      final operation = _runVeryHardPreflight(matchId);
+      final generation = _veryHardRequestGeneration;
+      final operation = _runVeryHardPreflight(matchId, generation);
       _veryHardPreflight = operation;
       try {
         await operation;
@@ -221,7 +222,21 @@ class GameController extends _$GameController {
     _startGameAfterPreflight();
   }
 
-  Future<void> _runVeryHardPreflight(String matchId) async {
+  void cancelPendingStart() {
+    if (_disposed ||
+        state.phase != GamePhase.configuration ||
+        _veryHardPreflight == null) {
+      return;
+    }
+
+    _veryHardRequestGeneration++;
+    _veryHardPreflight = null;
+    state = state.copyWith(
+      veryHardPreflightStatus: _preflightStatusFor(state.configuration),
+    );
+  }
+
+  Future<void> _runVeryHardPreflight(String matchId, int generation) async {
     late VeryHardPreflightResult result;
     try {
       result = await _veryHardCpuGateway
@@ -233,6 +248,7 @@ class GameController extends _$GameController {
     if (_disposed ||
         state.phase != GamePhase.configuration ||
         _currentMatchId != matchId ||
+        _veryHardRequestGeneration != generation ||
         !state.requiresVeryHardPreflight) {
       return;
     }

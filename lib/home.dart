@@ -366,6 +366,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   }
 
   void _showTitleScreen() {
+    ref.read(gameControllerProvider.notifier).cancelPendingStart();
     _appBgmController.handleSurface(AppBgmSurface.title);
     if (mounted) setState(() => _showTitle = true);
   }

@@ -354,6 +354,63 @@ void main() {
     },
   );
 
+  testWidgets('returning to the title cancels a pending Very Hard start', (
+    tester,
+  ) async {
+    final loop = ManualWidgetGameLoop();
+    final gateway = _WidgetPreflightGateway();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          veryHardCpuGatewayProvider.overrideWithValue(gateway),
+        ],
+        child: const MyApp(locale: Locale('ja')),
+      ),
+    );
+    await openMatchSetup(tester);
+
+    await tester.tap(find.byKey(const ValueKey('cpu-difficulty-veryHard')));
+    await tester.pump();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('island-0'))),
+    );
+    await tester.tap(find.byKey(const ValueKey('start-game')));
+    await tester.pump();
+    expect(gateway.preflights, hasLength(1));
+    expect(
+      container.read(gameControllerProvider).veryHardPreflightStatus,
+      VeryHardPreflightStatus.checking,
+    );
+
+    await tester.ensureVisible(find.byKey(const ValueKey('return-title')));
+    await tester.tap(find.byKey(const ValueKey('return-title')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('title-view')), findsOneWidget);
+
+    gateway.preflights.single.complete(
+      const VeryHardPreflightResult.available(),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    final afterCompletion = container.read(gameControllerProvider);
+    expect(afterCompletion.phase, GamePhase.configuration);
+    expect(
+      afterCompletion.veryHardPreflightStatus,
+      VeryHardPreflightStatus.notChecked,
+    );
+    expect(loop.isRunning, isFalse);
+    expect(find.byKey(const ValueKey('title-view')), findsOneWidget);
+
+    await openMatchSetup(tester);
+    expect(
+      container.read(gameControllerProvider).phase,
+      GamePhase.configuration,
+    );
+  });
+
   testWidgets('switches between standard and spectator settings', (
     tester,
   ) async {
