@@ -8,7 +8,7 @@ PRのPreview Deploymentが作成された直後に、ローカルCodexから実J
 - ローカルの`HEAD`が、比較対象PRのHEAD SHAと一致していること。
 - `--pr-head`はPR画面から取得した40桁の小文字SHAをそのまま指定すること。
 - Preview URLへquery、fragment、ユーザー名、パスワードを付けないこと。
-- JevのtokenやVercelのsecretをコマンド、環境変数、レポートへ渡さないこと。初期版のPreview Functionは未認証で利用する。
+- Jevのtokenはコマンド、環境変数、レポートへ渡さないこと。PreviewがDeployment Protectionで保護されている場合だけ、VercelのAutomation Bypass secretを`VERCEL_AUTOMATION_BYPASS_SECRET`環境変数へ設定する。secretをコマンド引数・レポート・リポジトリへ記録しない。
 
 ## 外部設定ゲート
 
@@ -23,11 +23,16 @@ PRのPreview Deploymentが作成された直後に、ローカルCodexから実J
 PR番号、PR HEAD SHA、Preview URLを埋めて、リポジトリのルートから実行します。
 
 ```sh
+IFS= read -rsp 'Automation Bypass secret: ' VERCEL_AUTOMATION_BYPASS_SECRET
+printf '\n'
+export VERCEL_AUTOMATION_BYPASS_SECRET
 fvm dart run tool/very_hard/run.dart \
   --pr-number <PR番号> \
   --pr-head <PRの40桁HEAD SHA> \
   --preview-url https://<Previewのホスト>
 ```
+
+保護されていないPreviewでは`export`行は不要です。実行後に同じshellでsecretが不要なら`unset VERCEL_AUTOMATION_BYPASS_SECRET`で破棄します。
 
 記録用ファイルへ保存する場合は、出力だけを保存します。
 

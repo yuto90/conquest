@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+
 import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/game/very_hard_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 const _viewport = IslandMapViewport(width: 320, height: 320);
 
@@ -210,6 +214,40 @@ void main() {
       }, request: request),
       throwsA(isA<VeryHardCpuProtocolException>()),
     );
+  });
+
+  test('HTTP gateway adds configured Preview protection headers', () async {
+    Map<String, String>? capturedHeaders;
+    final gateway = HttpVeryHardCpuGateway(
+      endpoint: Uri.parse('https://preview.example/api/v1/cpu/very-hard'),
+      requestHeaders: const {
+        'x-vercel-protection-bypass': 'local-benchmark-secret',
+      },
+      client: MockClient((request) async {
+        capturedHeaders = request.headers;
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        return http.Response(
+          jsonEncode(<String, Object?>{
+            'schemaVersion': VeryHardCpuConfig.schemaVersion,
+            'kind': 'preflight',
+            'requestId': body['requestId'],
+            'available': true,
+          }),
+          200,
+          headers: const {'content-type': 'application/json'},
+        );
+      }),
+    );
+    addTearDown(gateway.close);
+
+    final result = await gateway.preflight(matchId: 'match-1');
+
+    expect(result.available, isTrue);
+    expect(
+      capturedHeaders!['x-vercel-protection-bypass'],
+      'local-benchmark-secret',
+    );
+    expect(capturedHeaders!['content-type'], 'application/json');
   });
 
   test('evaluates a fallback against the caller latest state', () async {

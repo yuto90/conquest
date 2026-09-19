@@ -424,12 +424,20 @@ final class VeryHardCpuProtocolException extends FormatException {
 
 /// Browser/native HTTP client for the same-origin Vercel Function.
 final class HttpVeryHardCpuGateway implements VeryHardCpuGateway {
-  HttpVeryHardCpuGateway({http.Client? client, Uri? endpoint})
-    : _client = client ?? http.Client(),
-      endpoint = endpoint ?? VeryHardCpuConfig.defaultEndpoint;
+  HttpVeryHardCpuGateway({
+    http.Client? client,
+    Uri? endpoint,
+    Map<String, String> requestHeaders = const {},
+  }) : _client = client ?? http.Client(),
+       endpoint = endpoint ?? VeryHardCpuConfig.defaultEndpoint,
+       _requestHeaders = Map<String, String>.unmodifiable({
+         ...requestHeaders,
+         'content-type': 'application/json',
+       });
 
   final http.Client _client;
   final Uri endpoint;
+  final Map<String, String> _requestHeaders;
 
   @override
   Future<VeryHardPreflightResult> preflight({required String matchId}) async {
@@ -476,7 +484,7 @@ final class HttpVeryHardCpuGateway implements VeryHardCpuGateway {
   Future<http.Response> _post(Map<String, Object?> body) async {
     final response = await _client.post(
       endpoint,
-      headers: const {'content-type': 'application/json'},
+      headers: _requestHeaders,
       body: jsonEncode(body),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {

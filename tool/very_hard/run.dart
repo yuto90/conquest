@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:conquest/game/very_hard_cpu.dart';
 
 import 'benchmark.dart';
+import 'preview_protection.dart';
 
 Future<void> main(List<String> arguments) async {
   if (arguments.contains('--help')) {
@@ -25,6 +26,7 @@ Future<void> main(List<String> arguments) async {
 
     final gateway = HttpVeryHardCpuGateway(
       endpoint: previewUrl.resolve(VeryHardCpuConfig.endpointPath),
+      requestHeaders: previewProtectionHeaders(Platform.environment),
     );
     try {
       final report = await VeryHardBenchmarkRunner(gateway: gateway).run(
@@ -70,6 +72,9 @@ The command refuses to run when `git rev-parse HEAD` differs from --pr-head.
 The Preview URL must be an https/http origin without query parameters or
 credentials. The endpoint path is added locally as
 ${VeryHardCpuConfig.endpointPath}.
+For a protected Preview, put its Automation Bypass secret in
+$vercelAutomationBypassSecretEnvironmentVariable. Do not pass the secret as a
+command argument.
 ''';
 
 Map<String, String> _parseArguments(List<String> arguments) {
