@@ -131,11 +131,11 @@ class _CpuDifficultySliderState extends State<CpuDifficultySlider> {
       ),
     );
 
-    // Recreating the Slider while reduced motion is enabled skips its small
-    // internal thumb transition without changing the normal interaction.
+    // Keep the reduced-motion subtree stable across value updates so a
+    // multi-step drag retains the Slider element and gesture recognizer.
     final animatedSlider = KeyedSubtree(
       key: animationsDisabled
-          ? ValueKey('${widget.keyPrefix}-reduced-motion-${widget.value.index}')
+          ? ValueKey('${widget.keyPrefix}-reduced-motion')
           : null,
       child: Semantics(
         key: sliderKey,

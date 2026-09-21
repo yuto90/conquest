@@ -320,10 +320,33 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cpu-difficulty-hard')));
     await tester.pump();
     expect(
-      find.byKey(const ValueKey('cpu-difficulty-reduced-motion-3')),
+      find.byKey(const ValueKey('cpu-difficulty-reduced-motion')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('keeps a reduced-motion drag active across multiple steps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const _Harness(width: 320, disableAnimations: true),
+    );
+
+    final slider = find.byKey(const ValueKey('cpu-difficulty-slider'));
+    final sliderRect = tester.getRect(slider);
+    final gesture = await tester.startGesture(
+      Offset(sliderRect.left + 200, sliderRect.center.dy),
+    );
+    await tester.pump();
+    for (final delta in <double>[-50, -40, -40]) {
+      await gesture.moveBy(Offset(delta, 0));
+      await tester.pump();
+    }
+    await gesture.up();
+    await tester.pump();
+
+    expect(_testValue, CpuDifficulty.veryEasy);
   });
 
   testWidgets('supports 2x text in a wide parent inside vertical scrolling', (
