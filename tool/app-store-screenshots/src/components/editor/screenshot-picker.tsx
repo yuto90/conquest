@@ -23,12 +23,12 @@ async function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-async function uploadDataUrl(dataUrl: string): Promise<string | null> {
+async function uploadDataUrl(dataUrl: string, targetPath?: string): Promise<string | null> {
   try {
     const resp = await fetch("/api/upload", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ dataUrl }),
+      body: JSON.stringify({ dataUrl, targetPath }),
     });
     if (!resp.ok) return null;
     const json = (await resp.json()) as { ok: boolean; path?: string };
@@ -68,12 +68,19 @@ export function ScreenshotPicker({ label, value, locale, onChange }: Props) {
     // Try to persist to disk so the screenshot survives a git clone.
     // If the upload endpoint is unreachable (e.g. static export), fall back
     // to the inline data URI — still works in the current session.
+    const localizedTarget = value.includes("{locale}") && locale
+      ? resolveScreenshot(value, locale)
+      : undefined;
     setUploading(true);
-    const uploadedPath = await uploadDataUrl(dataUrl);
+    const uploadedPath = await uploadDataUrl(dataUrl, localizedTarget);
     setUploading(false);
     if (uploadedPath) {
       setImage(uploadedPath, dataUrl);
-      onChange(uploadedPath);
+      // Keep the {locale} template in project state; only the active locale's
+      // on-disk image was replaced by the upload endpoint.
+      onChange(localizedTarget ? value : uploadedPath);
+    } else if (localizedTarget) {
+      setError("Localized screenshots must be saved by the local editor server");
     } else {
       setImage(dataUrl, dataUrl);
       onChange(dataUrl);
@@ -81,6 +88,7 @@ export function ScreenshotPicker({ label, value, locale, onChange }: Props) {
   }
 
   const hasValue = !!value;
+  const localizedTemplate = hasValue && value.includes("{locale}");
   const isData = hasValue && value.startsWith("data:");
   const resolvedValue = hasValue && !isData && locale ? resolveScreenshot(value, locale) : value;
   const previewSrc = isData ? value : hasValue ? img(resolvedValue) : "";
@@ -166,8 +174,9 @@ export function ScreenshotPicker({ label, value, locale, onChange }: Props) {
               onChange("");
               setError(null);
             }}
+            disabled={localizedTemplate}
             aria-label="Clear screenshot"
-            title="Clear"
+            title={localizedTemplate ? "Localized paths are replaced per locale" : "Clear"}
           >
             <X className="h-4 w-4" />
           </Button>

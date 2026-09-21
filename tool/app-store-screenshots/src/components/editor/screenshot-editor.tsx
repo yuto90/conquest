@@ -6,12 +6,11 @@ import { Toaster, toast } from "sonner";
 import {
   getExportSizes,
   hasTheme,
-  supportsLandscape,
   themeById,
 } from "@/lib/constants";
 import { detectPlatform, nid } from "@/lib/defaults";
 import { isBuiltInElementId, isTextElementId, textElementKey } from "@/lib/elements";
-import { preloadImages } from "@/lib/image-cache";
+import { didFail, preloadImages } from "@/lib/image-cache";
 import { resolveScreenshot, writeLocalized } from "@/lib/locale";
 import { useProject } from "@/lib/storage";
 import type {
@@ -57,7 +56,9 @@ export function ScreenshotEditor() {
   }, [hydrated, currentSlides, activeSlide]);
 
   React.useEffect(() => {
-    if (!supportsLandscape(state.device) && state.orientation !== "portrait") {
+    if (state.device !== "iphone" && state.device !== "ipad") {
+      setState((p) => ({ ...p, device: "iphone", orientation: "portrait" }));
+    } else if (state.orientation !== "portrait") {
       setState((p) => ({ ...p, orientation: "portrait" }));
     }
   }, [state.device, state.orientation, setState]);
@@ -373,8 +374,20 @@ export function ScreenshotEditor() {
       return;
     }
     const locales = state.locales;
-    await preloadImages(assetPaths, { retryFailed: true });
+    const requiredExportPaths = new Set<string>(["/mockup.png"]);
+    for (const locale of locales) {
+      for (const slide of currentSlides) {
+        for (const raw of [slide.screenshot, slide.screenshotSecondary]) {
+          if (raw && !raw.startsWith("data:")) {
+            requiredExportPaths.add(resolveScreenshot(raw, locale));
+          }
+        }
+      }
+    }
+    await preloadImages(Array.from(requiredExportPaths), { retryFailed: true });
     await waitForPaint();
+
+    const missingPaths = Array.from(requiredExportPaths).filter((path) => didFail(path));
 
     const missingScreens = currentSlides
       .map((slide, index) => ({ slide, index }))
@@ -388,11 +401,20 @@ export function ScreenshotEditor() {
           slide.screenshot &&
           !slide.screenshotSecondary,
       );
-    if (missingScreens.length > 0 || reusedBackScreens.length > 0) {
+    if (missingScreens.length > 0 || missingPaths.length > 0) {
       const details = [
-        missingScreens.length
-          ? `${missingScreens.length} screen${missingScreens.length === 1 ? "" : "s"} will export with an empty device.`
-          : null,
+        ...missingScreens.map(({ index }) => `screen ${index + 1}: screenshot is empty`),
+        ...missingPaths.map((path) => `missing: ${path}`),
+      ];
+      toast.error("Export blocked: screenshot assets are missing", {
+        description: details.slice(0, 5).join(" · "),
+        duration: 10000,
+      });
+      return;
+    }
+
+    if (reusedBackScreens.length > 0) {
+      const details = [
         reusedBackScreens.length
           ? `${reusedBackScreens.length} two-device screen${reusedBackScreens.length === 1 ? "" : "s"} will reuse the primary screenshot in back.`
           : null,

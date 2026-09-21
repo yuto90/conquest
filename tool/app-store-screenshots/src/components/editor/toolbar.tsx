@@ -17,12 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DEVICE_LABEL,
   supportsLandscape,
 } from "@/lib/constants";
-import { detectPlatform } from "@/lib/defaults";
 import type { Device, Orientation } from "@/lib/types";
 
 type Props = {
@@ -47,18 +45,8 @@ type Props = {
 };
 
 export function Toolbar(props: Props) {
-  const platform = detectPlatform(props.device);
   const hasLandscape = supportsLandscape(props.device);
   const [resetOpen, setResetOpen] = React.useState(false);
-
-  // Track last device per platform so iOS/Android tabs preserve user's choice.
-  const lastByPlatform = React.useRef<{ ios: Device; android: Device }>({
-    ios: platform === "ios" ? props.device : "iphone",
-    android: platform === "android" ? props.device : "android",
-  });
-  React.useEffect(() => {
-    lastByPlatform.current[platform] = props.device;
-  }, [platform, props.device]);
 
   const showLocale = props.locales.length > 1;
 
@@ -98,24 +86,6 @@ export function Toolbar(props: Props) {
 
       <span aria-hidden className="mx-1 h-5 w-px bg-border" />
 
-      <Tabs
-        value={platform}
-        onValueChange={(p) => {
-          if (props.busy) return;
-          const next = p === "ios" ? lastByPlatform.current.ios : lastByPlatform.current.android;
-          props.setDevice(next);
-        }}
-      >
-        <TabsList className="h-8 p-0.5">
-          <TabsTrigger value="ios" className="h-7 px-3 text-xs" disabled={props.busy}>
-            iOS
-          </TabsTrigger>
-          <TabsTrigger value="android" className="h-7 px-3 text-xs" disabled={props.busy}>
-            Android
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-
       <Select
         value={props.device}
         onValueChange={(v) => props.setDevice(v as Device)}
@@ -125,19 +95,8 @@ export function Toolbar(props: Props) {
           <SelectValue placeholder="Device">{deviceLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {platform === "ios" ? (
-            <>
-              <SelectItem value="iphone">{DEVICE_LABEL.iphone}</SelectItem>
-              <SelectItem value="ipad">{DEVICE_LABEL.ipad}</SelectItem>
-            </>
-          ) : (
-            <>
-              <SelectItem value="android">{DEVICE_LABEL.android}</SelectItem>
-              <SelectItem value="android-7">{DEVICE_LABEL["android-7"]}</SelectItem>
-              <SelectItem value="android-10">{DEVICE_LABEL["android-10"]}</SelectItem>
-              <SelectItem value="feature-graphic">{DEVICE_LABEL["feature-graphic"]}</SelectItem>
-            </>
-          )}
+          <SelectItem value="iphone">{DEVICE_LABEL.iphone}</SelectItem>
+          <SelectItem value="ipad">{DEVICE_LABEL.ipad}</SelectItem>
         </SelectContent>
       </Select>
 

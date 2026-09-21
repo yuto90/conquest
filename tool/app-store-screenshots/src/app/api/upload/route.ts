@@ -5,7 +5,8 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const UPLOAD_DIR_REL = path.join("public", "screenshots", "uploaded");
+const SCREENSHOTS_DIR_REL = path.join("public", "screenshots");
+const UPLOAD_DIR_REL = path.join(SCREENSHOTS_DIR_REL, "uploaded");
 const PUBLIC_PREFIX = "/screenshots/uploaded";
 
 const MIME_EXT: Record<string, string> = {
@@ -22,10 +23,21 @@ function parseDataUrl(dataUrl: string): { mime: string; bytes: Buffer } | null {
   return { mime, bytes };
 }
 
+function localizedTarget(targetPath: string, ext: string): { absFile: string; publicPath: string } | null {
+  const normalized = path.posix.normalize(targetPath);
+  if (!normalized.startsWith("/screenshots/") || path.posix.extname(normalized) !== `.${ext}`) {
+    return null;
+  }
+  const screenshotsRoot = path.resolve(process.cwd(), SCREENSHOTS_DIR_REL);
+  const absFile = path.resolve(process.cwd(), "public", normalized.slice(1));
+  if (!absFile.startsWith(`${screenshotsRoot}${path.sep}`)) return null;
+  return { absFile, publicPath: normalized };
+}
+
 export async function POST(req: Request) {
-  let body: { dataUrl?: string };
+  let body: { dataUrl?: string; targetPath?: string };
   try {
-    body = (await req.json()) as { dataUrl?: string };
+    body = (await req.json()) as { dataUrl?: string; targetPath?: string };
   } catch {
     return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
   }
@@ -47,19 +59,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Image too large (>8MB)" }, { status: 413 });
   }
 
+  const target = body.targetPath ? localizedTarget(body.targetPath, ext) : null;
+  if (body.targetPath && !target) {
+    return NextResponse.json(
+      { ok: false, error: "Invalid localized screenshot target" },
+      { status: 400 },
+    );
+  }
+
   const hash = createHash("sha1").update(parsed.bytes).digest("hex").slice(0, 16);
   const filename = `${hash}.${ext}`;
-  const absDir = path.join(process.cwd(), UPLOAD_DIR_REL);
-  const absFile = path.join(absDir, filename);
+  const absFile = target?.absFile ?? path.join(process.cwd(), UPLOAD_DIR_REL, filename);
+  const publicPath = target?.publicPath ?? `${PUBLIC_PREFIX}/${filename}`;
 
   try {
-    await fs.mkdir(absDir, { recursive: true });
-    try {
-      await fs.access(absFile);
-    } catch {
+    await fs.mkdir(path.dirname(absFile), { recursive: true });
+    if (target) {
       await fs.writeFile(absFile, parsed.bytes);
+    } else {
+      try {
+        await fs.access(absFile);
+      } catch {
+        await fs.writeFile(absFile, parsed.bytes);
+      }
     }
-    return NextResponse.json({ ok: true, path: `${PUBLIC_PREFIX}/${filename}` });
+    return NextResponse.json({ ok: true, path: publicPath });
   } catch (e) {
     return NextResponse.json(
       { ok: false, error: e instanceof Error ? e.message : String(e) },
