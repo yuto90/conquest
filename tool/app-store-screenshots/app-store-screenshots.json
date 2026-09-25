@@ -1,0 +1,384 @@
+{
+  "schemaVersion": 2,
+  "appName": "Conquest Isles",
+  "themeId": "conquest-chart",
+  "connectedCanvas": true,
+  "locales": [
+    "en",
+    "ja"
+  ],
+  "locale": "en",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "conquest-iphone-01",
+        "layout": "hero",
+        "label": {
+          "en": "ISLAND STRATEGY",
+          "ja": "島取り戦略"
+        },
+        "headline": {
+          "en": "Outsmart\nyour opponent.",
+          "ja": "相手の一手を\n読み切れ。"
+        },
+        "screenshot": "/screenshots/apple/iphone/en/01.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Real-time island strategy.",
+              "ja": "島を奪い合うリアルタイム戦略。"
+            },
+            "transform": {
+              "x": 130,
+              "y": 690,
+              "width": 1060,
+              "height": 130,
+              "zIndex": 6
+            },
+            "fontSize": 42,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-iphone-02",
+        "layout": "device-top",
+        "label": {
+          "en": "FOUR DIFFICULTIES",
+          "ja": "4つの難易度"
+        },
+        "headline": {
+          "en": "Choose your\nchallenge.",
+          "ja": "自分に合う\n難易度で。"
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/02.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "From Very Easy to Hard.",
+              "ja": "Very EasyからHardまで。"
+            },
+            "transform": {
+              "x": 130,
+              "y": 2470,
+              "width": 1060,
+              "height": 130,
+              "zIndex": 6
+            },
+            "fontSize": 42,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-iphone-03",
+        "layout": "device-bottom",
+        "label": {
+          "en": "SPECTATOR MODE",
+          "ja": "観戦モード"
+        },
+        "headline": {
+          "en": "Watch CPUs\nbattle.",
+          "ja": "CPUの戦いを\n見届けよう。"
+        },
+        "screenshot": "/screenshots/apple/iphone/en/03.png",
+        "inverted": true,
+        "transforms": {
+          "device": {
+            "x": 160,
+            "y": 740,
+            "width": 1000,
+            "height": 2037,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Pick the matchup. Enjoy the showdown.",
+              "ja": "組み合わせを選んで、勝負を楽しもう。"
+            },
+            "transform": {
+              "x": 100,
+              "y": 500,
+              "width": 1120,
+              "height": 120,
+              "zIndex": 6
+            },
+            "fontSize": 38,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-iphone-04",
+        "layout": "hero",
+        "label": {
+          "en": "SIMPLE CONTROLS",
+          "ja": "シンプル操作"
+        },
+        "headline": {
+          "en": "Tap. Send.\nConquer.",
+          "ja": "タップして\n島を奪え。"
+        },
+        "screenshot": "/screenshots/apple/iphone/en/04.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Simple controls. Smart decisions.",
+              "ja": "操作はシンプル。判断は奥深い。"
+            },
+            "transform": {
+              "x": 110,
+              "y": 690,
+              "width": 1100,
+              "height": 130,
+              "zIndex": 6
+            },
+            "fontSize": 40,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-iphone-05",
+        "layout": "two-devices",
+        "label": {
+          "en": "RANDOM MAPS",
+          "ja": "ランダムマップ"
+        },
+        "headline": {
+          "en": "New map.\nNew strategy.",
+          "ja": "新しい盤面。\n新しい戦略。"
+        },
+        "screenshot": "/screenshots/apple/iphone/en/05-1.png",
+        "screenshotSecondary": "/screenshots/apple/iphone/en/05-2.png",
+        "transforms": {
+          "deviceSecondary": {
+            "x": 40,
+            "y": 950,
+            "width": 871.2,
+            "height": 1774.8,
+            "zIndex": 2
+          }
+        },
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Randomized maps. Fresh decisions.",
+              "ja": "変化する島々で、毎回違う駆け引き。"
+            },
+            "transform": {
+              "x": 105,
+              "y": 690,
+              "width": 1110,
+              "height": 135,
+              "zIndex": 6
+            },
+            "fontSize": 39,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      }
+    ],
+    "android": [],
+    "ipad": [
+      {
+        "id": "conquest-ipad-01",
+        "layout": "hero",
+        "label": {
+          "en": "ISLAND STRATEGY",
+          "ja": "島取り戦略"
+        },
+        "headline": {
+          "en": "Outsmart\nyour opponent.",
+          "ja": "相手の一手を\n読み切れ。"
+        },
+        "screenshot": "/screenshots/apple/ipad/en/01.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Real-time island strategy.",
+              "ja": "島を奪い合うリアルタイム戦略。"
+            },
+            "transform": {
+              "x": 180,
+              "y": 735,
+              "width": 1704,
+              "height": 150,
+              "zIndex": 6
+            },
+            "fontSize": 52,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-ipad-02",
+        "layout": "device-top",
+        "label": {
+          "en": "FOUR DIFFICULTIES",
+          "ja": "4つの難易度"
+        },
+        "headline": {
+          "en": "Choose your\nchallenge.",
+          "ja": "自分に合う\n難易度で。"
+        },
+        "screenshot": "/screenshots/apple/ipad/{locale}/02.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "From Very Easy to Hard.",
+              "ja": "Very EasyからHardまで。"
+            },
+            "transform": {
+              "x": 180,
+              "y": 2440,
+              "width": 1704,
+              "height": 150,
+              "zIndex": 6
+            },
+            "fontSize": 52,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-ipad-03",
+        "layout": "device-bottom",
+        "label": {
+          "en": "SPECTATOR MODE",
+          "ja": "観戦モード"
+        },
+        "headline": {
+          "en": "Watch CPUs\nbattle.",
+          "ja": "CPUの戦いを\n見届けよう。"
+        },
+        "screenshot": "/screenshots/apple/ipad/en/03.png",
+        "inverted": true,
+        "transforms": {
+          "device": {
+            "x": 307,
+            "y": 820,
+            "width": 1450,
+            "height": 1883.1,
+            "zIndex": 3
+          }
+        },
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Pick the matchup. Enjoy the showdown.",
+              "ja": "組み合わせを選んで、勝負を楽しもう。"
+            },
+            "transform": {
+              "x": 140,
+              "y": 640,
+              "width": 1784,
+              "height": 130,
+              "zIndex": 6
+            },
+            "fontSize": 48,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-ipad-04",
+        "layout": "hero",
+        "label": {
+          "en": "SIMPLE CONTROLS",
+          "ja": "シンプル操作"
+        },
+        "headline": {
+          "en": "Tap. Send.\nConquer.",
+          "ja": "タップして\n島を奪え。"
+        },
+        "screenshot": "/screenshots/apple/ipad/en/04.png",
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Simple controls. Smart decisions.",
+              "ja": "操作はシンプル。判断は奥深い。"
+            },
+            "transform": {
+              "x": 150,
+              "y": 735,
+              "width": 1764,
+              "height": 150,
+              "zIndex": 6
+            },
+            "fontSize": 50,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "id": "conquest-ipad-05",
+        "layout": "two-devices",
+        "label": {
+          "en": "RANDOM MAPS",
+          "ja": "ランダムマップ"
+        },
+        "headline": {
+          "en": "New map.\nNew strategy.",
+          "ja": "新しい盤面。\n新しい戦略。"
+        },
+        "screenshot": "/screenshots/apple/ipad/en/05-1.png",
+        "screenshotSecondary": "/screenshots/apple/ipad/en/05-2.png",
+        "transforms": {
+          "deviceSecondary": {
+            "x": 40,
+            "y": 1006,
+            "width": 1238.4,
+            "height": 1608.3,
+            "zIndex": 2
+          }
+        },
+        "textElements": [
+          {
+            "id": "subtitle",
+            "text": {
+              "en": "Randomized maps. Fresh decisions.",
+              "ja": "変化する島々で、毎回違う駆け引き。"
+            },
+            "transform": {
+              "x": 140,
+              "y": 735,
+              "width": 1784,
+              "height": 160,
+              "zIndex": 6
+            },
+            "fontSize": 48,
+            "fontWeight": 600,
+            "align": "center"
+          }
+        ]
+      }
+    ],
+    "android-7": [],
+    "android-10": [],
+    "feature-graphic": []
+  }
+}
