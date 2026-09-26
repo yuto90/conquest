@@ -89,6 +89,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                   builder: (context, constraints) => Column(
                     children: [
                       _TutorialInfoCard(
+                        key: ValueKey(session.step),
                         session: session,
                         spectatorSelected: widget.spectatorSelected,
                         onExit: widget.onExit,
@@ -126,6 +127,7 @@ class _TutorialInfoCard extends StatelessWidget {
     required this.spectatorSelected,
     required this.onExit,
     required this.maxHeight,
+    super.key,
   });
 
   final TutorialSession session;
@@ -176,12 +178,12 @@ class _TutorialInfoCard extends StatelessWidget {
               ),
             ),
           ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                child: Row(
                   children: [
                     Expanded(
                       child: Text(
@@ -194,170 +196,190 @@ class _TutorialInfoCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Flexible(
+                    SizedBox(
+                      key: const ValueKey('tutorial-back'),
+                      width: 88,
+                      height: 56,
                       child: TextButton(
-                        key: const ValueKey('tutorial-back'),
                         onPressed: onExit,
                         style: TextButton.styleFrom(
-                          minimumSize: const Size(48, 48),
+                          minimumSize: Size.zero,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           foregroundColor: TacticalPalette.foreground,
                         ),
-                        child: Text(
-                          l10n.tutorialBack,
-                          maxLines: 2,
-                          softWrap: true,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TacticalTypography.of(
-                          context,
-                        ).display(fontSize: 25, height: 1, letterSpacing: -0.5),
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        l10n.tutorialProgress(step: stepNumber),
-                        maxLines: 2,
-                        softWrap: true,
-                        textAlign: TextAlign.end,
-                        style: TacticalTypography.of(context).mono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: TacticalPalette.muted,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  description,
-                  style: TacticalTypography.of(context).body(
-                    fontSize: 12,
-                    color: TacticalPalette.muted,
-                    height: 1.35,
-                  ),
-                ),
-                if (spectatorSelected) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.tutorialSpectatorNotice,
-                    key: const ValueKey('tutorial-spectator-notice'),
-                    style: TacticalTypography.of(context).body(
-                      fontSize: 11,
-                      color: TacticalPalette.cpuDeep,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-                if (retry != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    retry,
-                    key: const ValueKey('tutorial-retry-prompt'),
-                    style: TacticalTypography.of(context).body(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: TacticalPalette.playerDeep,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-                if (step == TutorialStep.watchCapture &&
-                    session.dispatchedStrength > 0) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    l10n.tutorialDispatchFromTo(
-                      remaining: session.sourceForcesAfterDispatch,
-                    ),
-                    style: TacticalTypography.of(context).mono(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: TacticalPalette.foreground,
-                    ),
-                  ),
-                  Text(
-                    l10n.tutorialDispatchBreakdown(
-                      sent: session.dispatchedStrength,
-                      remaining: session.sourceForcesAfterDispatch,
-                    ),
-                    style: TacticalTypography.of(
-                      context,
-                    ).mono(fontSize: 11, color: TacticalPalette.muted),
-                  ),
-                  if (session.hasArrived) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
                           child: Text(
-                            l10n.tutorialCaptureValues(
-                              attack: session.dispatchedStrength,
-                              defense: 10,
-                            ),
+                            l10n.tutorialBack,
+                            maxLines: 2,
                             softWrap: true,
-                            style: TacticalTypography.of(context).mono(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: TacticalPalette.playerDeep,
-                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            l10n.tutorialCaptureComplete,
-                            softWrap: true,
-                            style: TacticalTypography.of(context).body(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: TacticalPalette.playerDeep,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  key: const ValueKey('tutorial-info-scroll'),
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TacticalTypography.of(context).display(
+                                fontSize: 25,
+                                height: 1,
+                                letterSpacing: -0.5,
+                              ),
                             ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              l10n.tutorialProgress(step: stepNumber),
+                              maxLines: 2,
+                              softWrap: true,
+                              textAlign: TextAlign.end,
+                              style: TacticalTypography.of(context).mono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: TacticalPalette.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: TacticalTypography.of(context).body(
+                          fontSize: 12,
+                          color: TacticalPalette.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (spectatorSelected) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.tutorialSpectatorNotice,
+                          key: const ValueKey('tutorial-spectator-notice'),
+                          style: TacticalTypography.of(context).body(
+                            fontSize: 11,
+                            color: TacticalPalette.cpuDeep,
+                            height: 1.3,
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 5),
-                    _TutorialActionButton(
-                      key: const ValueKey('tutorial-next'),
-                      label: l10n.tutorialNext,
-                      onPressed: session.advanceAfterCapture,
-                    ),
-                  ],
-                ],
-                if (step == TutorialStep.explainVictory) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    l10n.tutorialGrowthDemo(growth: session.growthDemonstrated),
-                    key: const ValueKey('tutorial-growth-demo'),
-                    style: TacticalTypography.of(context).mono(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: TacticalPalette.playerDeep,
-                    ),
+                      if (retry != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          retry,
+                          key: const ValueKey('tutorial-retry-prompt'),
+                          style: TacticalTypography.of(context).body(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: TacticalPalette.playerDeep,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                      if (step == TutorialStep.watchCapture &&
+                          session.dispatchedStrength > 0) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          l10n.tutorialDispatchFromTo(
+                            remaining: session.sourceForcesAfterDispatch,
+                          ),
+                          style: TacticalTypography.of(context).mono(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: TacticalPalette.foreground,
+                          ),
+                        ),
+                        Text(
+                          l10n.tutorialDispatchBreakdown(
+                            sent: session.dispatchedStrength,
+                            remaining: session.sourceForcesAfterDispatch,
+                          ),
+                          style: TacticalTypography.of(
+                            context,
+                          ).mono(fontSize: 11, color: TacticalPalette.muted),
+                        ),
+                        if (session.hasArrived) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  l10n.tutorialCaptureValues(
+                                    attack: session.dispatchedStrength,
+                                    defense: 10,
+                                  ),
+                                  softWrap: true,
+                                  style: TacticalTypography.of(context).mono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: TacticalPalette.playerDeep,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  l10n.tutorialCaptureComplete,
+                                  softWrap: true,
+                                  style: TacticalTypography.of(context).body(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: TacticalPalette.playerDeep,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 5),
+                          _TutorialActionButton(
+                            key: const ValueKey('tutorial-next'),
+                            label: l10n.tutorialNext,
+                            onPressed: session.advanceAfterCapture,
+                          ),
+                        ],
+                      ],
+                      if (step == TutorialStep.explainVictory) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          l10n.tutorialGrowthDemo(
+                            growth: session.growthDemonstrated,
+                          ),
+                          key: const ValueKey('tutorial-growth-demo'),
+                          style: TacticalTypography.of(context).mono(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: TacticalPalette.playerDeep,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _TutorialRuleCallouts(l10n: l10n),
+                        const SizedBox(height: 6),
+                        _TutorialActionButton(
+                          key: const ValueKey('tutorial-return-settings'),
+                          label: l10n.tutorialReturnSettings,
+                          onPressed: onExit,
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  _TutorialRuleCallouts(l10n: l10n),
-                  const SizedBox(height: 6),
-                  _TutorialActionButton(
-                    key: const ValueKey('tutorial-return-settings'),
-                    label: l10n.tutorialReturnSettings,
-                    onPressed: onExit,
-                  ),
-                ],
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

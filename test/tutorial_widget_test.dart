@@ -30,11 +30,21 @@ Future<void> _pumpTutorialApp(
   Locale locale = const Locale('ja'),
   Size size = const Size(390, 844),
   Size? stageSize,
+  ValueNotifier<Size>? stageSizeNotifier,
   TextScaler textScaler = const TextScaler.linear(1),
   bool disableAnimations = false,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  final app = MediaQuery(
+    data: MediaQueryData(
+      size: size,
+      textScaler: textScaler,
+      disableAnimations: disableAnimations,
+    ),
+    child: MyApp(locale: locale),
+  );
+  final stage = stageSize ?? size;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -42,18 +52,17 @@ Future<void> _pumpTutorialApp(
         randomProvider.overrideWithValue(Random(1)),
       ],
       child: Center(
-        child: SizedBox(
-          width: stageSize?.width ?? size.width,
-          height: stageSize?.height ?? size.height,
-          child: MediaQuery(
-            data: MediaQueryData(
-              size: size,
-              textScaler: textScaler,
-              disableAnimations: disableAnimations,
-            ),
-            child: MyApp(locale: locale),
-          ),
-        ),
+        child: stageSizeNotifier == null
+            ? SizedBox(width: stage.width, height: stage.height, child: app)
+            : ValueListenableBuilder<Size>(
+                valueListenable: stageSizeNotifier,
+                builder: (context, currentStage, child) => SizedBox(
+                  width: currentStage.width,
+                  height: currentStage.height,
+                  child: child,
+                ),
+                child: app,
+              ),
       ),
     ),
   );
@@ -120,6 +129,7 @@ void main() {
       expect(find.text('占領'), findsOneWidget);
       expect(find.byKey(const ValueKey('tutorial-next')), findsOneWidget);
 
+      await tester.ensureVisible(find.byKey(const ValueKey('tutorial-next')));
       await tester.tap(find.byKey(const ValueKey('tutorial-next')));
       await tester.pump();
       expect(find.text('手順 4 / 4'), findsOneWidget);
@@ -177,6 +187,71 @@ void main() {
     },
   );
 
+  testWidgets('preserves the normal map through a moving tutorial resize', (
+    tester,
+  ) async {
+    final stageSize = ValueNotifier(const Size(390, 844));
+    addTearDown(stageSize.dispose);
+    await _pumpTutorialApp(tester, stageSizeNotifier: stageSize);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('settings-view'))),
+    );
+    final before = container.read(gameControllerProvider).islands;
+
+    await tester.tap(find.byKey(const ValueKey('how-to-play')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('tutorial-island-button-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('tutorial-island-button-2')));
+    await tester.pump();
+    stageSize.value = const Size(280, 500);
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('tutorial-back')));
+    await tester.pump();
+
+    final restored = container.read(gameControllerProvider);
+    expect(restored.islands, orderedEquals(before));
+    expect(restored.viewportUnavailable, isTrue);
+  });
+
+  testWidgets(
+    'preserves the normal map when tutorial resize reaches an unsafe viewport',
+    (tester) async {
+      final stageSize = ValueNotifier(const Size(390, 844));
+      addTearDown(stageSize.dispose);
+      await _pumpTutorialApp(tester, stageSizeNotifier: stageSize);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('settings-view'))),
+      );
+      final before = container.read(gameControllerProvider).islands;
+
+      await tester.tap(find.byKey(const ValueKey('how-to-play')));
+      await tester.pump();
+      stageSize.value = const Size(180, 200);
+      await tester.pump();
+
+      await tester.tap(find.byKey(const ValueKey('tutorial-back')));
+      await tester.pump();
+
+      final restored = container.read(gameControllerProvider);
+      expect(restored.islands, orderedEquals(before));
+      expect(restored.viewportUnavailable, isTrue);
+      expect(
+        find.byKey(const ValueKey('viewport-unavailable-sheet')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<ElevatedButton>(find.byKey(const ValueKey('start-game')))
+            .onPressed,
+        isNull,
+      );
+    },
+  );
+
   testWidgets(
     'keeps tutorial controls reachable at compact size and large text',
     (tester) async {
@@ -193,6 +268,11 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('tutorial-back')), findsOneWidget);
+      final initialBackSize = tester.getSize(
+        find.byKey(const ValueKey('tutorial-back')),
+      );
+      expect(initialBackSize.width, greaterThanOrEqualTo(48));
+      expect(initialBackSize.height, greaterThanOrEqualTo(48));
       expect(
         find.byKey(const ValueKey('tutorial-island-button-0')),
         findsOneWidget,
@@ -223,9 +303,19 @@ void main() {
       screen.session.tick(force.durationMs + 2000);
       await tester.pump();
       await tester.ensureVisible(find.byKey(const ValueKey('tutorial-next')));
+      final scrolledBackRect = tester.getRect(
+        find.byKey(const ValueKey('tutorial-back')),
+      );
+      expect(scrolledBackRect.width, greaterThanOrEqualTo(48));
+      expect(scrolledBackRect.height, greaterThanOrEqualTo(48));
+      expect(scrolledBackRect.top, greaterThanOrEqualTo(0));
+      expect(scrolledBackRect.bottom, lessThanOrEqualTo(500));
       await tester.tap(find.byKey(const ValueKey('tutorial-next')));
       await tester.pump();
 
+      final victoryTitleRect = tester.getRect(find.text('4. Your goal'));
+      expect(victoryTitleRect.top, greaterThanOrEqualTo(0));
+      expect(victoryTitleRect.bottom, lessThanOrEqualTo(500));
       await tester.ensureVisible(
         find.byKey(const ValueKey('tutorial-rule-equal-forces')),
       );

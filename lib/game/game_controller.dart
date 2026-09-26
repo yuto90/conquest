@@ -474,6 +474,27 @@ class GameController extends _$GameController {
     return nextState;
   }
 
+  /// Restores the configuration map that was visible before the optional
+  /// tutorial opened. The tutorial owns its own session, so a viewport change
+  /// while it is visible must not consume a new map-generation result for the
+  /// normal match. An unsafe viewport keeps the restored map held until the
+  /// player enlarges the window.
+  void restoreConfigurationAfterTutorial({
+    required GameState state,
+    required IslandMapViewport viewport,
+  }) {
+    if (_disposed || state.phase != GamePhase.configuration) return;
+    _gameLoop.stop();
+    _lastTickMs = null;
+    _clearCpuDecisionDeadlines();
+    final viewportUnavailable = !viewport.canRenderIslands(state.islands);
+    final restored = state.copyWith(viewportUnavailable: viewportUnavailable);
+    _cachedConfiguration = restored.configuration;
+    _cachedViewport = _placementViewport(viewport);
+    _cachedInitialState = restored;
+    this.state = restored;
+  }
+
   IslandMapViewport _placementViewport(IslandMapViewport viewport) {
     // A tablet-sized logical window must be safe after swapping width and
     // height. Keep narrower phone-sized layouts on their existing placement
