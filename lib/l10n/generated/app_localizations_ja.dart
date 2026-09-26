@@ -67,6 +67,100 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String get howToPlay => '遊び方';
+
+  @override
+  String get tutorialTitle => '遊び方';
+
+  @override
+  String get tutorialStepSourceTitle => '1. 出兵元を選ぶ';
+
+  @override
+  String get tutorialStepDestinationTitle => '2. 行き先を選ぶ';
+
+  @override
+  String get tutorialStepCaptureTitle => '3. 移動と占領';
+
+  @override
+  String get tutorialStepVictoryTitle => '4. 勝利条件';
+
+  @override
+  String get tutorialSourceInstruction => '緑の本陣をタップして出兵元を選びます。';
+
+  @override
+  String get tutorialDestinationInstruction => '灰色の島をタップして兵力の半分を送ります。';
+
+  @override
+  String get tutorialCaptureInstruction => '部隊が移動します。50が10を上回ると島を占領できます。';
+
+  @override
+  String get tutorialVictoryInstruction =>
+      '自分の島は毎秒兵力が+1されます。島を増やし、赤い島と移動中の部隊をすべてなくすと勝利です。';
+
+  @override
+  String tutorialDispatchFromTo({required int remaining}) {
+    return '100 → $remaining';
+  }
+
+  @override
+  String tutorialDispatchBreakdown({
+    required int sent,
+    required int remaining,
+  }) {
+    return '$sentを送る / $remainingを残す';
+  }
+
+  @override
+  String tutorialCaptureValues({required int attack, required int defense}) {
+    return '$attack > $defense';
+  }
+
+  @override
+  String get tutorialCaptureComplete => '占領';
+
+  @override
+  String tutorialGrowthDemo({required int growth}) {
+    return '+$growth 成長';
+  }
+
+  @override
+  String tutorialProgress({required int step}) {
+    return '手順 $step / 4';
+  }
+
+  @override
+  String tutorialBoardSemantics({required int step}) {
+    return '遊び方マップ、4手順中$step手順目';
+  }
+
+  @override
+  String get tutorialBack => '戻る';
+
+  @override
+  String get tutorialNext => '次へ';
+
+  @override
+  String get tutorialReturnSettings => '対戦設定へ戻る';
+
+  @override
+  String get tutorialLifecyclePaused => '遊び方を一時停止しています。準備ができたら再開をタップしてください。';
+
+  @override
+  String get tutorialResume => '再開';
+
+  @override
+  String get tutorialSpectatorNotice => '観戦を選択中でも、遊び方は通常CPU戦の操作です。';
+
+  @override
+  String get tutorialRetrySource => '枠で示した緑の本陣を選んでください。';
+
+  @override
+  String get tutorialRetryDestination => '枠で示した灰色の島を選んでください。';
+
+  @override
+  String get tutorialRetryCapture => '部隊が島へ到着するまで待ってください。';
+
+  @override
   String get rankTitleRecruit => '新兵';
 
   @override

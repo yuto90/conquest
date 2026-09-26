@@ -72,6 +72,106 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String get howToPlay => 'How to Play';
+
+  @override
+  String get tutorialTitle => 'How to Play';
+
+  @override
+  String get tutorialStepSourceTitle => '1. Choose your island';
+
+  @override
+  String get tutorialStepDestinationTitle => '2. Choose a destination';
+
+  @override
+  String get tutorialStepCaptureTitle => '3. Watch the capture';
+
+  @override
+  String get tutorialStepVictoryTitle => '4. Your goal';
+
+  @override
+  String get tutorialSourceInstruction =>
+      'Tap the green headquarters to choose where troops leave from.';
+
+  @override
+  String get tutorialDestinationInstruction =>
+      'Tap the gray island to send half your forces.';
+
+  @override
+  String get tutorialCaptureInstruction =>
+      'The troop is moving. When 50 is greater than 10, the island becomes yours.';
+
+  @override
+  String get tutorialVictoryInstruction =>
+      'Your islands gain +1 force each second. Capture islands and remove every red island and moving troop to win.';
+
+  @override
+  String tutorialDispatchFromTo({required int remaining}) {
+    return '100 to $remaining';
+  }
+
+  @override
+  String tutorialDispatchBreakdown({
+    required int sent,
+    required int remaining,
+  }) {
+    return 'Send $sent / keep $remaining';
+  }
+
+  @override
+  String tutorialCaptureValues({required int attack, required int defense}) {
+    return 'Attack $attack > defense $defense';
+  }
+
+  @override
+  String get tutorialCaptureComplete => 'Capture complete';
+
+  @override
+  String tutorialGrowthDemo({required int growth}) {
+    return '+$growth growth';
+  }
+
+  @override
+  String tutorialProgress({required int step}) {
+    return 'Step $step / 4';
+  }
+
+  @override
+  String tutorialBoardSemantics({required int step}) {
+    return 'Tutorial map, step $step of 4';
+  }
+
+  @override
+  String get tutorialBack => 'Back';
+
+  @override
+  String get tutorialNext => 'Continue';
+
+  @override
+  String get tutorialReturnSettings => 'Back to Match Setup';
+
+  @override
+  String get tutorialLifecyclePaused =>
+      'The tutorial is paused. Tap Resume when you are ready.';
+
+  @override
+  String get tutorialResume => 'Resume';
+
+  @override
+  String get tutorialSpectatorNotice =>
+      'Even in spectator selection, this tutorial teaches standard CPU battle controls.';
+
+  @override
+  String get tutorialRetrySource =>
+      'Choose the highlighted green headquarters.';
+
+  @override
+  String get tutorialRetryDestination => 'Choose the highlighted gray island.';
+
+  @override
+  String get tutorialRetryCapture => 'Watch the troop reach the island.';
+
+  @override
   String get rankTitleRecruit => 'Recruit';
 
   @override

@@ -212,6 +212,162 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
+  /// The match setup button that opens the hands-on tutorial.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get howToPlay;
+
+  /// The hands-on tutorial title.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get tutorialTitle;
+
+  /// The first tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Choose your island'**
+  String get tutorialStepSourceTitle;
+
+  /// The second tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Choose a destination'**
+  String get tutorialStepDestinationTitle;
+
+  /// The third tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Watch the capture'**
+  String get tutorialStepCaptureTitle;
+
+  /// The final tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'4. Your goal'**
+  String get tutorialStepVictoryTitle;
+
+  /// The first hands-on tutorial instruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the green headquarters to choose where troops leave from.'**
+  String get tutorialSourceInstruction;
+
+  /// The second hands-on tutorial instruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the gray island to send half your forces.'**
+  String get tutorialDestinationInstruction;
+
+  /// The movement and capture explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'The troop is moving. When 50 is greater than 10, the island becomes yours.'**
+  String get tutorialCaptureInstruction;
+
+  /// The tutorial victory condition explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your islands gain +1 force each second. Capture islands and remove every red island and moving troop to win.'**
+  String get tutorialVictoryInstruction;
+
+  /// The dispatch source forces visual explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'100 to {remaining}'**
+  String tutorialDispatchFromTo({required int remaining});
+
+  /// The dispatch amount visual explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Send {sent} / keep {remaining}'**
+  String tutorialDispatchBreakdown({required int sent, required int remaining});
+
+  /// The tutorial attack and defense comparison.
+  ///
+  /// In en, this message translates to:
+  /// **'Attack {attack} > defense {defense}'**
+  String tutorialCaptureValues({required int attack, required int defense});
+
+  /// The tutorial capture result label.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture complete'**
+  String get tutorialCaptureComplete;
+
+  /// The tutorial growth demonstration label.
+  ///
+  /// In en, this message translates to:
+  /// **'+{growth} growth'**
+  String tutorialGrowthDemo({required int growth});
+
+  /// The tutorial progress indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {step} / 4'**
+  String tutorialProgress({required int step});
+
+  /// The tutorial map accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Tutorial map, step {step} of 4'**
+  String tutorialBoardSemantics({required int step});
+
+  /// The tutorial action that returns to match setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get tutorialBack;
+
+  /// The tutorial action that advances after capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get tutorialNext;
+
+  /// The final tutorial action that returns to match setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Match Setup'**
+  String get tutorialReturnSettings;
+
+  /// The tutorial lifecycle pause explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'The tutorial is paused. Tap Resume when you are ready.'**
+  String get tutorialLifecyclePaused;
+
+  /// The tutorial lifecycle resume action.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get tutorialResume;
+
+  /// Explains that the tutorial uses standard player controls while spectator mode is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Even in spectator selection, this tutorial teaches standard CPU battle controls.'**
+  String get tutorialSpectatorNotice;
+
+  /// The tutorial retry prompt for the source step.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the highlighted green headquarters.'**
+  String get tutorialRetrySource;
+
+  /// The tutorial retry prompt for the destination step.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the highlighted gray island.'**
+  String get tutorialRetryDestination;
+
+  /// The tutorial retry prompt while the troop is moving.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the troop reach the island.'**
+  String get tutorialRetryCapture;
+
   /// The English and Japanese base title for rank 0.
   ///
   /// In en, this message translates to:

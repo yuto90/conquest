@@ -530,7 +530,7 @@ class GameController extends _$GameController {
     }
 
     final source = selectedSource!;
-    final strength = source.currentForces ~/ 2;
+    final strength = _rules.dispatchStrength(source);
     if (strength <= 0) {
       state = state.clearSelection();
       _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
@@ -539,9 +539,7 @@ class GameController extends _$GameController {
 
     final islands = [...state.islands];
     final sourceIndex = islands.indexWhere((island) => island.id == source.id);
-    islands[sourceIndex] = source.copyWith(
-      currentForces: source.currentForces - strength,
-    );
+    islands[sourceIndex] = _rules.dispatchSource(source);
 
     final movingForces = [...state.movingForces];
     final nextForce = _rules.createMovingForce(
