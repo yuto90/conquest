@@ -145,6 +145,16 @@ class GameController extends _$GameController {
       return previousState;
     }
 
+    if (previousState != null &&
+        previousState.phase == GamePhase.configuration &&
+        previousState.viewportUnavailable) {
+      // A tutorial can restore the original map while the current viewport
+      // is too small to show it. Keep that map held through later resizes;
+      // the explicit Resume action clears this hold, while a normal island
+      // count change still calls _initialStateFor and generates a new map.
+      return previousState;
+    }
+
     return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 

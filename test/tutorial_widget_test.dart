@@ -253,6 +253,44 @@ void main() {
   );
 
   testWidgets(
+    'holds the restored map through resize until settings resume it',
+    (tester) async {
+      final stageSize = ValueNotifier(const Size(390, 844));
+      addTearDown(stageSize.dispose);
+      await _pumpTutorialApp(tester, stageSizeNotifier: stageSize);
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('settings-view'))),
+      );
+      final before = container.read(gameControllerProvider).islands;
+
+      await tester.tap(find.byKey(const ValueKey('how-to-play')));
+      await tester.pump();
+      stageSize.value = const Size(180, 200);
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('tutorial-back')));
+      await tester.pump();
+
+      stageSize.value = const Size(390, 844);
+      await tester.pump();
+      expect(
+        container.read(gameControllerProvider).islands,
+        orderedEquals(before),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('resume-after-resize')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('island-count-8')));
+      await tester.pump();
+
+      final changed = container.read(gameControllerProvider);
+      expect(changed.configuration.totalIslandCount, 8);
+      expect(changed.islands, hasLength(8));
+      expect(changed.islands, isNot(orderedEquals(before)));
+    },
+  );
+
+  testWidgets(
     'keeps tutorial controls reachable at compact size and large text',
     (tester) async {
       await _pumpTutorialApp(
