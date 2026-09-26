@@ -73,33 +73,33 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tutorialTitle => '遊び方';
 
   @override
-  String get tutorialStepSourceTitle => '1. 出兵元を選ぶ';
+  String get tutorialStepSourceTitle => '1. 自分の島を選ぼう';
 
   @override
-  String get tutorialStepDestinationTitle => '2. 行き先を選ぶ';
+  String get tutorialStepDestinationTitle => '2. 兵士を送ろう';
 
   @override
-  String get tutorialStepCaptureTitle => '3. 移動と占領';
+  String get tutorialStepCaptureTitle => '3. 島を手に入れよう';
 
   @override
-  String get tutorialStepVictoryTitle => '4. 勝利条件';
+  String get tutorialStepVictoryTitle => '4. 相手を倒して勝利！';
 
   @override
-  String get tutorialSourceInstruction => '緑の本陣をタップして出兵元を選びます。';
+  String get tutorialSourceInstruction => '緑の島があなたの島です。「100」の島をタップしましょう。';
 
   @override
-  String get tutorialDestinationInstruction => '灰色の島をタップして兵力の半分を送ります。';
+  String get tutorialDestinationInstruction => '枠の付いた灰色の島をタップ。兵士の半分を送ります。';
 
   @override
-  String get tutorialCaptureInstruction => '部隊が移動します。50が10を上回ると島を占領できます。';
+  String get tutorialCaptureInstruction => '送った兵士が島の数字より多いと、自分の島にできます。';
 
   @override
   String get tutorialVictoryInstruction =>
-      '自分の島は毎秒兵力が+1されます。島を増やし、赤い島と移動中の部隊をすべてなくすと勝利です。';
+      '自分の島では兵士が1秒に1人増えます。赤い島と移動中の相手部隊をすべてなくすと勝利！';
 
   @override
   String tutorialDispatchFromTo({required int remaining}) {
-    return '100 → $remaining';
+    return '出発時：100 → $remaining人';
   }
 
   @override
@@ -107,20 +107,24 @@ class AppLocalizationsJa extends AppLocalizations {
     required int sent,
     required int remaining,
   }) {
-    return '$sentを送る / $remainingを残す';
+    return '$sent人を送る / $remaining人を残す';
   }
 
   @override
-  String tutorialCaptureValues({required int attack, required int defense}) {
-    return '$attack > $defense';
+  String tutorialCaptureValues({
+    required int attack,
+    required int defense,
+    required int captured,
+  }) {
+    return '$attack − $defense = $captured人';
   }
 
   @override
-  String get tutorialCaptureComplete => '占領';
+  String get tutorialCaptureComplete => '島が緑になりました！';
 
   @override
   String tutorialGrowthDemo({required int growth}) {
-    return '+$growth 成長';
+    return '+$growth / 秒';
   }
 
   @override
@@ -143,7 +147,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tutorialReturnSettings => '対戦設定へ戻る';
 
   @override
-  String get tutorialLifecyclePaused => '遊び方を一時停止しています。準備ができたら再開をタップしてください。';
+  String get tutorialLifecyclePaused => '練習を一時停止しました。「再開」で続けられます。';
 
   @override
   String get tutorialLifecycleResizeRequired => '画面を広げると再開できます。';
@@ -152,28 +156,28 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tutorialResume => '再開';
 
   @override
-  String get tutorialSpectatorNotice => '観戦を選択中でも、遊び方は通常CPU戦の操作です。';
+  String get tutorialSpectatorNotice => '観戦を選んでいても、遊び方では自分で島を選び、兵士を送ります。';
 
   @override
-  String get tutorialRetrySource => '枠で示した緑の本陣を選んでください。';
+  String get tutorialRetrySource => '緑の島をタップしてください。';
 
   @override
-  String get tutorialRetryDestination => '枠で示した灰色の島を選んでください。';
+  String get tutorialRetryDestination => '枠の付いた灰色の島をタップしてください。';
 
   @override
-  String get tutorialRetryCapture => '部隊が島へ到着するまで待ってください。';
+  String get tutorialRetryCapture => '兵士が島に着くまで待ってください。';
 
   @override
   String get tutorialRulesHeading => '覚えておくルール';
 
   @override
-  String get tutorialRuleEqualForces => '同数では占領不可';
+  String get tutorialRuleEqualForces => '同じ数では島を取れません';
 
   @override
-  String get tutorialRuleReinforce => '自軍島へ増援';
+  String get tutorialRuleReinforce => '自分の島にも兵士を送れます';
 
   @override
-  String get tutorialRuleMinimumForces => '兵力1以下は出兵不可';
+  String get tutorialRuleMinimumForces => '兵士が1人以下の島からは送れません';
 
   @override
   String get rankTitleRecruit => '新兵';

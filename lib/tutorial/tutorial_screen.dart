@@ -86,26 +86,30 @@ class _TutorialScreenState extends State<TutorialScreen> {
               children: [
                 const TacticalMapBackground(),
                 LayoutBuilder(
-                  builder: (context, constraints) => Column(
-                    children: [
-                      _TutorialInfoCard(
-                        key: ValueKey(session.step),
-                        session: session,
-                        spectatorSelected: widget.spectatorSelected,
-                        onExit: widget.onExit,
-                        maxHeight: math.min(
-                          230,
-                          math.max(154, constraints.maxHeight * 0.38),
-                        ),
-                      ),
-                      Expanded(
-                        child: _TutorialMap(
+                  builder: (context, constraints) {
+                    final screenSize = Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    );
+                    return Column(
+                      children: [
+                        _TutorialInfoCard(
+                          key: ValueKey(session.step),
                           session: session,
-                          onIslandTap: session.tapIsland,
+                          spectatorSelected: widget.spectatorSelected,
+                          onExit: widget.onExit,
+                          maxHeight: constraints.maxHeight * 0.5,
                         ),
-                      ),
-                    ],
-                  ),
+                        Expanded(
+                          child: _TutorialMap(
+                            session: session,
+                            onIslandTap: session.tapIsland,
+                            screenSize: screenSize,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 if (session.lifecyclePaused)
                   _TutorialLifecycleOverlay(
@@ -159,12 +163,12 @@ class _TutorialInfoCard extends StatelessWidget {
       TutorialStep.explainVictory || null => null,
     };
 
-    return SizedBox(
-      height: maxHeight,
-      child: Semantics(
-        container: true,
-        liveRegion: true,
-        label: '$title. $description',
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: '$title. $description',
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
         child: DecoratedBox(
           key: const ValueKey('tutorial-info-card'),
           decoration: BoxDecoration(
@@ -179,6 +183,7 @@ class _TutorialInfoCard extends StatelessWidget {
             ),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
@@ -221,40 +226,55 @@ class _TutorialInfoCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: SingleChildScrollView(
                   key: const ValueKey('tutorial-info-scroll'),
                   padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: TacticalTypography.of(context).display(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final titleStyle = TacticalTypography.of(context)
+                              .display(
                                 fontSize: 25,
                                 height: 1,
                                 letterSpacing: -0.5,
-                              ),
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              l10n.tutorialProgress(step: stepNumber),
-                              maxLines: 2,
-                              softWrap: true,
-                              textAlign: TextAlign.end,
-                              style: TacticalTypography.of(context).mono(
+                              );
+                          final progressStyle = TacticalTypography.of(context)
+                              .mono(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 color: TacticalPalette.muted,
-                              ),
-                            ),
-                          ),
-                        ],
+                              );
+                          final progress = Text(
+                            l10n.tutorialProgress(step: stepNumber),
+                            maxLines: 2,
+                            softWrap: true,
+                            textAlign: TextAlign.end,
+                            style: progressStyle,
+                          );
+                          if (constraints.maxWidth < 460) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(title, style: titleStyle),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: progress,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(child: Text(title, style: titleStyle)),
+                              Flexible(child: progress),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -314,36 +334,56 @@ class _TutorialInfoCard extends StatelessWidget {
                         ),
                         if (session.hasArrived) ...[
                           const SizedBox(height: 4),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  l10n.tutorialCaptureValues(
-                                    attack: session.dispatchedStrength,
-                                    defense: 10,
-                                  ),
-                                  softWrap: true,
-                                  style: TacticalTypography.of(context).mono(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: TacticalPalette.playerDeep,
-                                  ),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final captureValues = Text(
+                                l10n.tutorialCaptureValues(
+                                  attack: session.dispatchedStrength,
+                                  defense: 10,
+                                  captured: session.gameState.islands
+                                      .firstWhere(
+                                        (island) =>
+                                            island.id ==
+                                            TutorialSession.targetIslandId,
+                                      )
+                                      .currentForces,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: Text(
-                                  l10n.tutorialCaptureComplete,
-                                  softWrap: true,
-                                  style: TacticalTypography.of(context).body(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: TacticalPalette.playerDeep,
-                                  ),
+                                softWrap: true,
+                                style: TacticalTypography.of(context).mono(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: TacticalPalette.playerDeep,
                                 ),
-                              ),
-                            ],
+                              );
+                              final captureComplete = Text(
+                                l10n.tutorialCaptureComplete,
+                                softWrap: true,
+                                style: TacticalTypography.of(context).body(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: TacticalPalette.playerDeep,
+                                ),
+                              );
+                              if (constraints.maxWidth < 460) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    captureValues,
+                                    const SizedBox(height: 2),
+                                    captureComplete,
+                                  ],
+                                );
+                              }
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: captureValues),
+                                  const SizedBox(width: 8),
+                                  Flexible(child: captureComplete),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 5),
                           _TutorialActionButton(
@@ -366,9 +406,9 @@ class _TutorialInfoCard extends StatelessWidget {
                             color: TacticalPalette.playerDeep,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         _TutorialRuleCallouts(l10n: l10n),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 5),
                         _TutorialActionButton(
                           key: const ValueKey('tutorial-return-settings'),
                           label: l10n.tutorialReturnSettings,
@@ -576,17 +616,22 @@ class _TutorialRuleCallout extends StatelessWidget {
 }
 
 class _TutorialMap extends StatefulWidget {
-  const _TutorialMap({required this.session, required this.onIslandTap});
+  const _TutorialMap({
+    required this.session,
+    required this.onIslandTap,
+    required this.screenSize,
+  });
 
   final TutorialSession session;
   final ValueChanged<int> onIslandTap;
+  final Size screenSize;
 
   @override
   State<_TutorialMap> createState() => _TutorialMapState();
 }
 
 class _TutorialMapState extends State<_TutorialMap> {
-  Size? _lastMapSize;
+  Size? _lastScreenSize;
   var _pauseScheduled = false;
 
   @override
@@ -599,9 +644,8 @@ class _TutorialMapState extends State<_TutorialMap> {
           width: constraints.maxWidth,
           height: constraints.maxHeight,
         );
-        final mapSize = Size(viewport.width, viewport.height);
-        if (_lastMapSize != null &&
-            _lastMapSize != mapSize &&
+        if (_lastScreenSize != null &&
+            _lastScreenSize != widget.screenSize &&
             !session.lifecyclePaused &&
             !_pauseScheduled) {
           // A resize never advances a troop automatically. The overlay stays
@@ -612,7 +656,7 @@ class _TutorialMapState extends State<_TutorialMap> {
             if (mounted) session.pauseForLifecycle();
           });
         }
-        _lastMapSize = mapSize;
+        _lastScreenSize = widget.screenSize;
         session.updateViewport(viewport);
         final state = session.gameState;
         final canTap =

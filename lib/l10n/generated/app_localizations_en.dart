@@ -81,33 +81,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tutorialStepSourceTitle => '1. Choose your island';
 
   @override
-  String get tutorialStepDestinationTitle => '2. Choose a destination';
+  String get tutorialStepDestinationTitle => '2. Send soldiers';
 
   @override
-  String get tutorialStepCaptureTitle => '3. Watch the capture';
+  String get tutorialStepCaptureTitle => '3. Take the island';
 
   @override
-  String get tutorialStepVictoryTitle => '4. Your goal';
+  String get tutorialStepVictoryTitle => '4. Defeat the enemy to win!';
 
   @override
   String get tutorialSourceInstruction =>
-      'Tap the green headquarters to choose where troops leave from.';
+      'Green islands are yours. Tap the island marked \"100\".';
 
   @override
   String get tutorialDestinationInstruction =>
-      'Tap the gray island to send half your forces.';
+      'Tap the outlined gray island. Half of your soldiers will move there.';
 
   @override
   String get tutorialCaptureInstruction =>
-      'The troop is moving. When 50 is greater than 10, the island becomes yours.';
+      'If your soldiers outnumber the island number, it becomes yours.';
 
   @override
   String get tutorialVictoryInstruction =>
-      'Your islands gain +1 force each second. Capture islands and remove every red island and moving troop to win.';
+      'Your islands gain one soldier each second. Remove every red island and moving enemy troop to win!';
 
   @override
   String tutorialDispatchFromTo({required int remaining}) {
-    return '100 to $remaining';
+    return 'At start: 100 → $remaining soldiers';
   }
 
   @override
@@ -115,20 +115,24 @@ class AppLocalizationsEn extends AppLocalizations {
     required int sent,
     required int remaining,
   }) {
-    return 'Send $sent / keep $remaining';
+    return 'Send $sent soldiers / keep $remaining';
   }
 
   @override
-  String tutorialCaptureValues({required int attack, required int defense}) {
-    return 'Attack $attack > defense $defense';
+  String tutorialCaptureValues({
+    required int attack,
+    required int defense,
+    required int captured,
+  }) {
+    return '$attack - island number $defense = $captured soldiers';
   }
 
   @override
-  String get tutorialCaptureComplete => 'Capture complete';
+  String get tutorialCaptureComplete => 'The island is green!';
 
   @override
   String tutorialGrowthDemo({required int growth}) {
-    return '+$growth growth';
+    return '+$growth / second';
   }
 
   @override
@@ -152,7 +156,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialLifecyclePaused =>
-      'The tutorial is paused. Tap Resume when you are ready.';
+      'Practice paused. Tap Resume to continue.';
 
   @override
   String get tutorialLifecycleResizeRequired =>
@@ -163,29 +167,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialSpectatorNotice =>
-      'Even in spectator selection, this tutorial teaches standard CPU battle controls.';
+      'Even in spectator mode, choose islands and send soldiers here.';
 
   @override
-  String get tutorialRetrySource =>
-      'Choose the highlighted green headquarters.';
+  String get tutorialRetrySource => 'Tap the green island.';
 
   @override
-  String get tutorialRetryDestination => 'Choose the highlighted gray island.';
+  String get tutorialRetryDestination => 'Tap the outlined gray island.';
 
   @override
-  String get tutorialRetryCapture => 'Watch the troop reach the island.';
+  String get tutorialRetryCapture =>
+      'Wait for the soldiers to reach the island.';
 
   @override
   String get tutorialRulesHeading => 'Rules to remember';
 
   @override
-  String get tutorialRuleEqualForces => 'Equal forces cannot capture';
+  String get tutorialRuleEqualForces => 'Equal numbers cannot take islands';
 
   @override
-  String get tutorialRuleReinforce => 'Send reinforcements to your island';
+  String get tutorialRuleReinforce => 'Send soldiers to your island';
 
   @override
-  String get tutorialRuleMinimumForces => 'One force or fewer cannot deploy';
+  String get tutorialRuleMinimumForces => 'One soldier cannot send';
 
   @override
   String get rankTitleRecruit => 'Recruit';

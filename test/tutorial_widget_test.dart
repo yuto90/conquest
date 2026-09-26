@@ -69,6 +69,28 @@ Future<void> _pumpTutorialApp(
   await openMatchSetup(tester);
 }
 
+double _tutorialScrollExtent(WidgetTester tester) {
+  final scrollable = find.descendant(
+    of: find.byKey(const ValueKey('tutorial-info-scroll')),
+    matching: find.byType(Scrollable),
+  );
+  return tester.state<ScrollableState>(scrollable).position.maxScrollExtent;
+}
+
+Future<void> _advanceTutorialToVictory(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('tutorial-island-button-0')));
+  await tester.pump();
+  await tester.tap(find.byKey(const ValueKey('tutorial-island-button-2')));
+  await tester.pump();
+  final screen = tester.widget<TutorialScreen>(find.byType(TutorialScreen));
+  final force = screen.session.gameState.movingForces.single;
+  screen.session.tick(force.durationMs + 2000);
+  await tester.pump();
+  await tester.ensureVisible(find.byKey(const ValueKey('tutorial-next')));
+  await tester.tap(find.byKey(const ValueKey('tutorial-next')));
+  await tester.pump();
+}
+
 void main() {
   testWidgets('opens the hands-on tutorial from match setup', (tester) async {
     await _pumpTutorialApp(tester);
@@ -91,6 +113,115 @@ void main() {
     );
     expect(find.byKey(const ValueKey('tutorial-back')), findsOneWidget);
   });
+
+  testWidgets(
+    'fits every normal-size tutorial step without unnecessary scrolling',
+    (tester) async {
+      for (final scenario in [
+        (locale: const Locale('ja'), size: const Size(440, 956)),
+        (locale: const Locale('en'), size: const Size(440, 956)),
+        (locale: const Locale('ja'), size: const Size(390, 844)),
+        (locale: const Locale('en'), size: const Size(390, 844)),
+      ]) {
+        await _pumpTutorialApp(
+          tester,
+          locale: scenario.locale,
+          size: scenario.size,
+        );
+        await tester.tap(find.byKey(const ValueKey('how-to-play')));
+        await tester.pump();
+
+        void expectNaturalCard() {
+          final cardHeight = tester
+              .getSize(find.byKey(const ValueKey('tutorial-info-card')))
+              .height;
+          final extent = _tutorialScrollExtent(tester);
+          expect(cardHeight, lessThanOrEqualTo(scenario.size.height * 0.5));
+          expect(extent, 0);
+        }
+
+        expectNaturalCard();
+        await tester.tap(
+          find.byKey(const ValueKey('tutorial-island-button-0')),
+        );
+        await tester.pump();
+        expectNaturalCard();
+        await tester.tap(
+          find.byKey(const ValueKey('tutorial-island-button-2')),
+        );
+        await tester.pump();
+        expectNaturalCard();
+
+        final screen = tester.widget<TutorialScreen>(
+          find.byType(TutorialScreen),
+        );
+        final force = screen.session.gameState.movingForces.single;
+        screen.session.tick(force.durationMs + 2000);
+        await tester.pump();
+        expectNaturalCard();
+        await tester.tap(find.byKey(const ValueKey('tutorial-next')));
+        await tester.pump();
+        expectNaturalCard();
+        await tester.tap(find.byKey(const ValueKey('tutorial-back')));
+        await tester.pump();
+      }
+    },
+  );
+
+  testWidgets(
+    'caps compact large-text cards and scrolls only when the content needs it',
+    (tester) async {
+      await _pumpTutorialApp(
+        tester,
+        locale: const Locale('ja'),
+        size: const Size(280, 500),
+        stageSize: const Size(231, 500),
+        textScaler: const TextScaler.linear(2),
+        disableAnimations: true,
+      );
+      await tester.ensureVisible(find.byKey(const ValueKey('how-to-play')));
+      await tester.tap(find.byKey(const ValueKey('how-to-play')));
+      await tester.pump();
+      expect(
+        tester.getSize(find.byKey(const ValueKey('tutorial-info-card'))).height,
+        lessThanOrEqualTo(250),
+      );
+      expect(
+        find.byKey(const ValueKey('tutorial-island-button-0')),
+        findsOneWidget,
+      );
+
+      await _advanceTutorialToVictory(tester);
+
+      expect(
+        tester.getSize(find.byKey(const ValueKey('tutorial-info-card'))).height,
+        lessThanOrEqualTo(250),
+      );
+      expect(_tutorialScrollExtent(tester), greaterThan(0));
+      expect(find.byKey(const ValueKey('tutorial-resume')), findsNothing);
+      expect(find.byKey(const ValueKey('tutorial-map')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'does not pause when the tutorial card changes the board height',
+    (tester) async {
+      await _pumpTutorialApp(tester, size: const Size(390, 844));
+      await tester.tap(find.byKey(const ValueKey('how-to-play')));
+      await tester.pump();
+
+      await _advanceTutorialToVictory(tester);
+
+      final screen = tester.widget<TutorialScreen>(find.byType(TutorialScreen));
+      expect(screen.session.lifecyclePaused, isFalse);
+      expect(find.byKey(const ValueKey('tutorial-resume')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('tutorial-moving-force-1')),
+        findsNothing,
+      );
+      expect(find.byKey(const ValueKey('island-highlight-1')), findsOneWidget);
+    },
+  );
 
   testWidgets('exits to match setup when Escape is pressed immediately', (
     tester,
@@ -118,15 +249,15 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('tutorial-island-button-2')));
       await tester.pump();
-      expect(find.text('100 → 50'), findsOneWidget);
-      expect(find.text('50を送る / 50を残す'), findsOneWidget);
+      expect(find.text('出発時：100 → 50人'), findsOneWidget);
+      expect(find.text('50人を送る / 50人を残す'), findsOneWidget);
 
       final screen = tester.widget<TutorialScreen>(find.byType(TutorialScreen));
       final force = screen.session.gameState.movingForces.single;
       screen.session.tick(force.durationMs + 2000);
       await tester.pump();
-      expect(find.text('50 > 10'), findsOneWidget);
-      expect(find.text('占領'), findsOneWidget);
+      expect(find.text('50 − 10 = 40人'), findsOneWidget);
+      expect(find.text('島が緑になりました！'), findsOneWidget);
       expect(find.byKey(const ValueKey('tutorial-next')), findsOneWidget);
 
       await tester.ensureVisible(find.byKey(const ValueKey('tutorial-next')));
@@ -143,16 +274,16 @@ void main() {
       );
       expect(find.byKey(const ValueKey('island-highlight-1')), findsOneWidget);
       expect(find.text('覚えておくルール'), findsOneWidget);
-      expect(find.text('同数では占領不可'), findsOneWidget);
-      expect(find.text('自軍島へ増援'), findsOneWidget);
-      expect(find.text('兵力1以下は出兵不可'), findsOneWidget);
+      expect(find.text('同じ数では島を取れません'), findsOneWidget);
+      expect(find.text('自分の島にも兵士を送れます'), findsOneWidget);
+      expect(find.text('兵士が1人以下の島からは送れません'), findsOneWidget);
       expect(
         tester
             .getSemantics(
               find.byKey(const ValueKey('tutorial-rule-equal-forces')),
             )
             .label,
-        '同数では占領不可',
+        '同じ数では島を取れません',
       );
     },
   );
@@ -351,16 +482,18 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('tutorial-next')));
       await tester.pump();
 
-      final victoryTitleRect = tester.getRect(find.text('4. Your goal'));
+      final victoryTitleRect = tester.getRect(
+        find.text('4. Defeat the enemy to win!'),
+      );
       expect(victoryTitleRect.top, greaterThanOrEqualTo(0));
       expect(victoryTitleRect.bottom, lessThanOrEqualTo(500));
       await tester.ensureVisible(
         find.byKey(const ValueKey('tutorial-rule-equal-forces')),
       );
       expect(find.text('Rules to remember'), findsOneWidget);
-      expect(find.text('Equal forces cannot capture'), findsOneWidget);
-      expect(find.text('Send reinforcements to your island'), findsOneWidget);
-      expect(find.text('One force or fewer cannot deploy'), findsOneWidget);
+      expect(find.text('Equal numbers cannot take islands'), findsOneWidget);
+      expect(find.text('Send soldiers to your island'), findsOneWidget);
+      expect(find.text('One soldier cannot send'), findsOneWidget);
       await tester.ensureVisible(
         find.byKey(const ValueKey('tutorial-return-settings')),
       );
