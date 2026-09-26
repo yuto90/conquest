@@ -67,6 +67,119 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsDescription => '海域の規模とCPUの判断速度を選択してください。';
 
   @override
+  String get howToPlay => '遊び方';
+
+  @override
+  String get tutorialTitle => '遊び方';
+
+  @override
+  String get tutorialStepSourceTitle => '1. 自分の島を選ぼう';
+
+  @override
+  String get tutorialStepDestinationTitle => '2. 兵士を送ろう';
+
+  @override
+  String get tutorialStepCaptureTitle => '3. 島を手に入れよう';
+
+  @override
+  String get tutorialStepVictoryTitle => '4. 相手を倒して勝利！';
+
+  @override
+  String get tutorialSourceInstruction => '緑の島があなたの島です。「100」の島をタップしましょう。';
+
+  @override
+  String get tutorialDestinationInstruction => '枠の付いた灰色の島をタップ。兵士の半分を送ります。';
+
+  @override
+  String get tutorialCaptureInstruction => '送った兵士が島の数字より多いと、自分の島にできます。';
+
+  @override
+  String get tutorialVictoryInstruction =>
+      '自分の島では兵士が1秒に1人増えます。赤い島と移動中の相手部隊をすべてなくすと勝利！';
+
+  @override
+  String tutorialDispatchFromTo({required int remaining}) {
+    return '出発時：100 → $remaining人';
+  }
+
+  @override
+  String tutorialDispatchBreakdown({
+    required int sent,
+    required int remaining,
+  }) {
+    return '$sent人を送る / $remaining人を残す';
+  }
+
+  @override
+  String tutorialCaptureValues({
+    required int attack,
+    required int defense,
+    required int captured,
+  }) {
+    return '$attack − $defense = $captured人';
+  }
+
+  @override
+  String get tutorialCaptureComplete => '島が緑になりました！';
+
+  @override
+  String tutorialGrowthDemo({required int growth}) {
+    return '+$growth / 秒';
+  }
+
+  @override
+  String tutorialProgress({required int step}) {
+    return '手順 $step / 4';
+  }
+
+  @override
+  String tutorialBoardSemantics({required int step}) {
+    return '遊び方マップ、4手順中$step手順目';
+  }
+
+  @override
+  String get tutorialBack => '戻る';
+
+  @override
+  String get tutorialNext => '次へ';
+
+  @override
+  String get tutorialReturnSettings => '対戦設定へ戻る';
+
+  @override
+  String get tutorialLifecyclePaused => '練習を一時停止しました。「再開」で続けられます。';
+
+  @override
+  String get tutorialLifecycleResizeRequired => '画面を広げると再開できます。';
+
+  @override
+  String get tutorialResume => '再開';
+
+  @override
+  String get tutorialSpectatorNotice => '観戦を選んでいても、遊び方では自分で島を選び、兵士を送ります。';
+
+  @override
+  String get tutorialRetrySource => '緑の島をタップしてください。';
+
+  @override
+  String get tutorialRetryDestination => '枠の付いた灰色の島をタップしてください。';
+
+  @override
+  String get tutorialRetryCapture => '兵士が島に着くまで待ってください。';
+
+  @override
+  String get tutorialRulesHeading => '覚えておくルール';
+
+  @override
+  String get tutorialRuleEqualForces => '同じ数では島を取れません';
+
+  @override
+  String get tutorialRuleReinforce => '自分の島にも兵士を送れます';
+
+  @override
+  String get tutorialRuleMinimumForces => '兵士が1人以下の島からは送れません';
+
+  @override
   String get rankTitleRecruit => '新兵';
 
   @override

@@ -72,6 +72,126 @@ class AppLocalizationsEn extends AppLocalizations {
       'Choose the battlefield size and CPU decision speed.';
 
   @override
+  String get howToPlay => 'How to Play';
+
+  @override
+  String get tutorialTitle => 'How to Play';
+
+  @override
+  String get tutorialStepSourceTitle => '1. Choose your island';
+
+  @override
+  String get tutorialStepDestinationTitle => '2. Send soldiers';
+
+  @override
+  String get tutorialStepCaptureTitle => '3. Take the island';
+
+  @override
+  String get tutorialStepVictoryTitle => '4. Defeat the enemy to win!';
+
+  @override
+  String get tutorialSourceInstruction =>
+      'Green islands are yours. Tap the island marked \"100\".';
+
+  @override
+  String get tutorialDestinationInstruction =>
+      'Tap the outlined gray island. Half of your soldiers will move there.';
+
+  @override
+  String get tutorialCaptureInstruction =>
+      'If your soldiers outnumber the island number, it becomes yours.';
+
+  @override
+  String get tutorialVictoryInstruction =>
+      'Your islands gain one soldier each second. Remove every red island and moving enemy troop to win!';
+
+  @override
+  String tutorialDispatchFromTo({required int remaining}) {
+    return 'At start: 100 → $remaining soldiers';
+  }
+
+  @override
+  String tutorialDispatchBreakdown({
+    required int sent,
+    required int remaining,
+  }) {
+    return 'Send $sent soldiers / keep $remaining';
+  }
+
+  @override
+  String tutorialCaptureValues({
+    required int attack,
+    required int defense,
+    required int captured,
+  }) {
+    return '$attack - island number $defense = $captured soldiers';
+  }
+
+  @override
+  String get tutorialCaptureComplete => 'The island is green!';
+
+  @override
+  String tutorialGrowthDemo({required int growth}) {
+    return '+$growth / second';
+  }
+
+  @override
+  String tutorialProgress({required int step}) {
+    return 'Step $step / 4';
+  }
+
+  @override
+  String tutorialBoardSemantics({required int step}) {
+    return 'Tutorial map, step $step of 4';
+  }
+
+  @override
+  String get tutorialBack => 'Back';
+
+  @override
+  String get tutorialNext => 'Continue';
+
+  @override
+  String get tutorialReturnSettings => 'Back to Match Setup';
+
+  @override
+  String get tutorialLifecyclePaused =>
+      'Practice paused. Tap Resume to continue.';
+
+  @override
+  String get tutorialLifecycleResizeRequired =>
+      'Make the window larger to resume the tutorial.';
+
+  @override
+  String get tutorialResume => 'Resume';
+
+  @override
+  String get tutorialSpectatorNotice =>
+      'Even in spectator mode, choose islands and send soldiers here.';
+
+  @override
+  String get tutorialRetrySource => 'Tap the green island.';
+
+  @override
+  String get tutorialRetryDestination => 'Tap the outlined gray island.';
+
+  @override
+  String get tutorialRetryCapture =>
+      'Wait for the soldiers to reach the island.';
+
+  @override
+  String get tutorialRulesHeading => 'Rules to remember';
+
+  @override
+  String get tutorialRuleEqualForces => 'Equal numbers cannot take islands';
+
+  @override
+  String get tutorialRuleReinforce => 'Send soldiers to your island';
+
+  @override
+  String get tutorialRuleMinimumForces => 'One soldier cannot send';
+
+  @override
   String get rankTitleRecruit => 'Recruit';
 
   @override

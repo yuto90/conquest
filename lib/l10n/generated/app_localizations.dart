@@ -212,157 +212,347 @@ abstract class AppLocalizations {
   /// **'Choose the battlefield size and CPU decision speed.'**
   String get settingsDescription;
 
-  /// The English and Japanese base title for rank 0.
+  /// The match setup button that opens the hands-on tutorial.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get howToPlay;
+
+  /// The hands-on tutorial title.
+  ///
+  /// In en, this message translates to:
+  /// **'How to Play'**
+  String get tutorialTitle;
+
+  /// The first tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Choose your island'**
+  String get tutorialStepSourceTitle;
+
+  /// The second tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Send soldiers'**
+  String get tutorialStepDestinationTitle;
+
+  /// The third tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Take the island'**
+  String get tutorialStepCaptureTitle;
+
+  /// The final tutorial step heading.
+  ///
+  /// In en, this message translates to:
+  /// **'4. Defeat the enemy to win!'**
+  String get tutorialStepVictoryTitle;
+
+  /// The first hands-on tutorial instruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Green islands are yours. Tap the island marked \"100\".'**
+  String get tutorialSourceInstruction;
+
+  /// The second hands-on tutorial instruction.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the outlined gray island. Half of your soldiers will move there.'**
+  String get tutorialDestinationInstruction;
+
+  /// The condition for taking an island after the moving troop arrives.
+  ///
+  /// In en, this message translates to:
+  /// **'If your soldiers outnumber the island number, it becomes yours.'**
+  String get tutorialCaptureInstruction;
+
+  /// The tutorial victory condition explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Your islands gain one soldier each second. Remove every red island and moving enemy troop to win!'**
+  String get tutorialVictoryInstruction;
+
+  /// The dispatch source forces visual explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'At start: 100 → {remaining} soldiers'**
+  String tutorialDispatchFromTo({required int remaining});
+
+  /// The dispatch amount visual explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Send {sent} soldiers / keep {remaining}'**
+  String tutorialDispatchBreakdown({required int sent, required int remaining});
+
+  /// Shows the soldiers sent, the island number, and the soldiers on your island.
+  ///
+  /// In en, this message translates to:
+  /// **'{attack} - island number {defense} = {captured} soldiers'**
+  String tutorialCaptureValues({
+    required int attack,
+    required int defense,
+    required int captured,
+  });
+
+  /// The tutorial capture result label.
+  ///
+  /// In en, this message translates to:
+  /// **'The island is green!'**
+  String get tutorialCaptureComplete;
+
+  /// The tutorial growth demonstration label.
+  ///
+  /// In en, this message translates to:
+  /// **'+{growth} / second'**
+  String tutorialGrowthDemo({required int growth});
+
+  /// The tutorial progress indicator.
+  ///
+  /// In en, this message translates to:
+  /// **'Step {step} / 4'**
+  String tutorialProgress({required int step});
+
+  /// The tutorial map accessibility label.
+  ///
+  /// In en, this message translates to:
+  /// **'Tutorial map, step {step} of 4'**
+  String tutorialBoardSemantics({required int step});
+
+  /// The tutorial action that returns to match setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get tutorialBack;
+
+  /// The tutorial action that advances after capture.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get tutorialNext;
+
+  /// The final tutorial action that returns to match setup.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Match Setup'**
+  String get tutorialReturnSettings;
+
+  /// The tutorial lifecycle pause explanation.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice paused. Tap Resume to continue.'**
+  String get tutorialLifecyclePaused;
+
+  /// The tutorial message shown when the current viewport cannot fit the practice map.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the window larger to resume the tutorial.'**
+  String get tutorialLifecycleResizeRequired;
+
+  /// The tutorial lifecycle resume action.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get tutorialResume;
+
+  /// Explains that the tutorial uses standard player controls while spectator mode is selected.
+  ///
+  /// In en, this message translates to:
+  /// **'Even in spectator mode, choose islands and send soldiers here.'**
+  String get tutorialSpectatorNotice;
+
+  /// The tutorial retry prompt for the source step.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the green island.'**
+  String get tutorialRetrySource;
+
+  /// The tutorial retry prompt for the destination step.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the outlined gray island.'**
+  String get tutorialRetryDestination;
+
+  /// The tutorial retry prompt while the troop is moving.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for the soldiers to reach the island.'**
+  String get tutorialRetryCapture;
+
+  /// Heading for the tutorial's final rule callouts.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules to remember'**
+  String get tutorialRulesHeading;
+
+  /// The tutorial rule that equal numbers cannot take islands.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal numbers cannot take islands'**
+  String get tutorialRuleEqualForces;
+
+  /// The tutorial rule for sending soldiers to a friendly island.
+  ///
+  /// In en, this message translates to:
+  /// **'Send soldiers to your island'**
+  String get tutorialRuleReinforce;
+
+  /// The tutorial rule that an island with one soldier cannot send soldiers.
+  ///
+  /// In en, this message translates to:
+  /// **'One soldier cannot send'**
+  String get tutorialRuleMinimumForces;
+
+  /// The English title for rank 0.
   ///
   /// In en, this message translates to:
   /// **'Recruit'**
   String get rankTitleRecruit;
 
-  /// The English and Japanese base title for ranks 1 through 5.
+  /// The English title for ranks 1 through 5.
   ///
   /// In en, this message translates to:
   /// **'Private First Class'**
   String get rankTitlePrivateFirstClass;
 
-  /// The English and Japanese base title for ranks 6 through 10.
+  /// The English title for ranks 6 through 10.
   ///
   /// In en, this message translates to:
   /// **'Lance Corporal'**
   String get rankTitleLanceCorporal;
 
-  /// The English and Japanese base title for ranks 11 through 15.
+  /// The English title for ranks 11 through 15.
   ///
   /// In en, this message translates to:
   /// **'Corporal'**
   String get rankTitleCorporal;
 
-  /// The English and Japanese base title for ranks 16 through 20.
+  /// The English title for ranks 16 through 20.
   ///
   /// In en, this message translates to:
   /// **'Sergeant'**
   String get rankTitleSergeant;
 
-  /// The English and Japanese base title for ranks 21 through 25.
+  /// The English title for ranks 21 through 25.
   ///
   /// In en, this message translates to:
   /// **'Staff Sergeant'**
   String get rankTitleStaffSergeant;
 
-  /// The English and Japanese base title for ranks 26 through 30.
+  /// The English title for ranks 26 through 30.
   ///
   /// In en, this message translates to:
   /// **'Gunnery Sergeant'**
   String get rankTitleGunnerySergeant;
 
-  /// The English and Japanese base title for ranks 31 through 35.
+  /// The English title for ranks 31 through 35.
   ///
   /// In en, this message translates to:
   /// **'Master Sergeant'**
   String get rankTitleMasterSergeant;
 
-  /// The English and Japanese base title for ranks 36 through 40.
+  /// The English title for ranks 36 through 40.
   ///
   /// In en, this message translates to:
   /// **'First Sergeant'**
   String get rankTitleFirstSergeant;
 
-  /// The English and Japanese base title for ranks 41 through 45.
+  /// The English title for ranks 41 through 45.
   ///
   /// In en, this message translates to:
   /// **'Master Gunnery Sergeant'**
   String get rankTitleMasterGunnerySergeant;
 
-  /// The English and Japanese base title for ranks 46 through 50.
+  /// The English title for ranks 46 through 50.
   ///
   /// In en, this message translates to:
   /// **'Sergeant Major'**
   String get rankTitleSergeantMajor;
 
-  /// The English and Japanese base title for ranks 51 through 55.
+  /// The English title for ranks 51 through 55.
   ///
   /// In en, this message translates to:
   /// **'Warrant Officer One'**
   String get rankTitleWarrantOfficerOne;
 
-  /// The English and Japanese base title for ranks 56 through 60.
+  /// The English title for ranks 56 through 60.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Two'**
   String get rankTitleChiefWarrantOfficerTwo;
 
-  /// The English and Japanese base title for ranks 61 through 65.
+  /// The English title for ranks 61 through 65.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Three'**
   String get rankTitleChiefWarrantOfficerThree;
 
-  /// The English and Japanese base title for ranks 66 through 70.
+  /// The English title for ranks 66 through 70.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Four'**
   String get rankTitleChiefWarrantOfficerFour;
 
-  /// The English and Japanese base title for ranks 71 through 75.
+  /// The English title for ranks 71 through 75.
   ///
   /// In en, this message translates to:
   /// **'Chief Warrant Officer Five'**
   String get rankTitleChiefWarrantOfficerFive;
 
-  /// The English and Japanese base title for ranks 76 through 80.
+  /// The English title for ranks 76 through 80.
   ///
   /// In en, this message translates to:
   /// **'Second Lieutenant'**
   String get rankTitleSecondLieutenant;
 
-  /// The English and Japanese base title for ranks 81 through 85.
+  /// The English title for ranks 81 through 85.
   ///
   /// In en, this message translates to:
   /// **'First Lieutenant'**
   String get rankTitleFirstLieutenant;
 
-  /// The English and Japanese base title for ranks 86 through 90.
+  /// The English title for ranks 86 through 90.
   ///
   /// In en, this message translates to:
   /// **'Captain'**
   String get rankTitleCaptain;
 
-  /// The English and Japanese base title for ranks 91 through 95.
+  /// The English title for ranks 91 through 95.
   ///
   /// In en, this message translates to:
   /// **'Major'**
   String get rankTitleMajor;
 
-  /// The English and Japanese base title for ranks 96 through 99.
+  /// The English title for ranks 96 through 99.
   ///
   /// In en, this message translates to:
   /// **'Lieutenant Colonel'**
   String get rankTitleLieutenantColonel;
 
-  /// The English and Japanese base title for ranks 100 through 109.
+  /// The English title for ranks 100 through 109.
   ///
   /// In en, this message translates to:
   /// **'Colonel'**
   String get rankTitleColonel;
 
-  /// The English and Japanese base title for ranks 110 through 119.
+  /// The English title for ranks 110 through 119.
   ///
   /// In en, this message translates to:
   /// **'Brigadier General'**
   String get rankTitleBrigadierGeneral;
 
-  /// The English and Japanese base title for ranks 120 through 129.
+  /// The English title for ranks 120 through 129.
   ///
   /// In en, this message translates to:
   /// **'Major General'**
   String get rankTitleMajorGeneral;
 
-  /// The English and Japanese base title for ranks 130 through 139.
+  /// The English title for ranks 130 through 139.
   ///
   /// In en, this message translates to:
   /// **'Lieutenant General'**
   String get rankTitleLieutenantGeneral;
 
-  /// The English and Japanese base title for rank 140.
+  /// The English title for rank 140.
   ///
   /// In en, this message translates to:
   /// **'General'**

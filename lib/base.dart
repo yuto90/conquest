@@ -20,6 +20,8 @@ class Base extends StatelessWidget {
     this.presentation,
     this.selected = false,
     this.destinationCandidate = false,
+    this.highlighted = false,
+    this.highlightColor,
     super.key,
   });
 
@@ -28,6 +30,8 @@ class Base extends StatelessWidget {
   final FactionPresentation? presentation;
   final bool selected;
   final bool destinationCandidate;
+  final bool highlighted;
+  final Color? highlightColor;
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +75,17 @@ class Base extends StatelessWidget {
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
+                    key: highlighted
+                        ? ValueKey('island-highlight-${base.id}')
+                        : null,
                     painter: _IslandFeedbackPainter(
                       selected: selected,
                       destinationCandidate: destinationCandidate,
+                      highlighted: highlighted,
+                      highlightColor: highlightColor ?? TacticalPalette.player,
+                      reducedMotion:
+                          MediaQuery.maybeOf(context)?.disableAnimations ??
+                          false,
                     ),
                   ),
                 ),
@@ -326,16 +338,42 @@ class _IslandFeedbackPainter extends CustomPainter {
   const _IslandFeedbackPainter({
     required this.selected,
     required this.destinationCandidate,
+    required this.highlighted,
+    required this.highlightColor,
+    required this.reducedMotion,
   });
 
   final bool selected;
   final bool destinationCandidate;
+  final bool highlighted;
+  final Color highlightColor;
+  final bool reducedMotion;
 
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 100;
     canvas.save();
     canvas.scale(scale, scale);
+
+    if (highlighted) {
+      final frame = RRect.fromRectAndRadius(
+        const Rect.fromLTWH(2, 2, 96, 96),
+        const Radius.circular(21),
+      );
+      if (!reducedMotion) {
+        final glowPaint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 5
+          ..color = highlightColor.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
+        canvas.drawRRect(frame, glowPaint);
+      }
+      final highlightPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5
+        ..color = highlightColor;
+      canvas.drawRRect(frame, highlightPaint);
+    }
 
     if (selected) {
       final ringPaint = Paint()
@@ -394,6 +432,9 @@ class _IslandFeedbackPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _IslandFeedbackPainter oldDelegate) {
     return selected != oldDelegate.selected ||
-        destinationCandidate != oldDelegate.destinationCandidate;
+        destinationCandidate != oldDelegate.destinationCandidate ||
+        highlighted != oldDelegate.highlighted ||
+        highlightColor != oldDelegate.highlightColor ||
+        reducedMotion != oldDelegate.reducedMotion;
   }
 }

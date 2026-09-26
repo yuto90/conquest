@@ -23,6 +23,8 @@ import 'ui/match_summary.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
+import 'tutorial/tutorial_screen.dart';
+import 'tutorial/tutorial_session.dart';
 import 'web_visibility.dart';
 
 AppLocalizations _appLocalizations(BuildContext context) {
@@ -105,6 +107,10 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   late final AppBgmController _appBgmController;
   bool _showTitle = true;
   bool _bgmEnabled = true;
+  TutorialSession? _tutorialSession;
+  GameState? _configurationBeforeTutorial;
+  ProviderSubscription<GameState>? _tutorialControllerSubscription;
+  var _tutorialSpectatorSelected = false;
 
   @override
   void initState() {
@@ -124,6 +130,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
 
   @override
   void dispose() {
+    _tutorialSession?.dispose();
+    _tutorialControllerSubscription?.close();
     _webVisibilityBridge.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _appBgmController.removeListener(_handleBgmChanged);
@@ -149,7 +157,12 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
 
   void _handleHidden() {
     _appBgmController.setAppVisible(false);
-    _pauseGame();
+    final tutorial = _tutorialSession;
+    if (tutorial != null) {
+      tutorial.pauseForLifecycle();
+    } else {
+      _pauseGame();
+    }
   }
 
   void _handleWebVisibilityChanged(bool hidden) {
@@ -169,22 +182,13 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
-    ref.listen<GamePhase>(
-      gameControllerProvider.select(
-        (gameState) =>
-            gameState.viewportUnavailable ? GamePhase.paused : gameState.phase,
-      ),
-      (_, phase) => _appBgmController.handlePhase(phase),
-    );
-    final viewport = ref.watch(mapViewportProvider);
-    final state = ref.watch(gameControllerProvider);
-    final rankProgress =
-        ref.watch(rankProgressProvider).value ?? RankProgress.zero;
-    final controller = ref.read(gameControllerProvider.notifier);
-    final canRenderCurrentMap = viewport.canRenderIslands(state.islands);
-    // Keep watching the same controller on both screens so configuration
-    // selections survive a visit to the title without recreating the match.
     if (_showTitle) {
+      // Keep the configuration controller alive while the title is visible so
+      // returning to match setup preserves the user's selections and map.
+      ref.watch(gameControllerProvider);
+      // Load rank data on the title as before so the setup panel is ready when
+      // the user opens it immediately after the title action.
+      ref.watch(rankProgressProvider);
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -206,6 +210,34 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         ],
       );
     }
+    final tutorial = _tutorialSession;
+    if (tutorial != null) {
+      return PopScope<void>(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _closeTutorial();
+        },
+        child: TutorialScreen(
+          session: tutorial,
+          spectatorSelected: _tutorialSpectatorSelected,
+          onExit: _closeTutorial,
+        ),
+      );
+    }
+
+    ref.listen<GamePhase>(
+      gameControllerProvider.select(
+        (gameState) =>
+            gameState.viewportUnavailable ? GamePhase.paused : gameState.phase,
+      ),
+      (_, phase) => _appBgmController.handlePhase(phase),
+    );
+    final viewport = ref.watch(mapViewportProvider);
+    final state = ref.watch(gameControllerProvider);
+    final rankProgress =
+        ref.watch(rankProgressProvider).value ?? RankProgress.zero;
+    final controller = ref.read(gameControllerProvider.notifier);
+    final canRenderCurrentMap = viewport.canRenderIslands(state.islands);
     final isPlayerInteractionEnabled =
         state.phase == GamePhase.playing &&
         state.configuration.gameMode == GameMode.playerVsCpu;
@@ -291,6 +323,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   state: state,
                   rankProgress: rankProgress,
                   onTitle: _showTitleScreen,
+                  onTutorial: _openTutorial,
                   bgmEnabled: _bgmEnabled,
                   onBgmChanged: _setBgmEnabled,
                   onStart:
@@ -351,6 +384,50 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void _showTitleScreen() {
     _appBgmController.handleSurface(AppBgmSurface.title);
     if (mounted) setState(() => _showTitle = true);
+  }
+
+  void _openTutorial() {
+    if (_tutorialSession != null) return;
+    final viewport = ref.read(mapViewportProvider);
+    final state = ref.read(gameControllerProvider);
+    _tutorialControllerSubscription ??= ref.listenManual<GameState>(
+      gameControllerProvider,
+      (_, _) {},
+      fireImmediately: false,
+    );
+    setState(() {
+      _tutorialSession = TutorialSession.create(viewport: viewport);
+      _configurationBeforeTutorial = state;
+      _tutorialSpectatorSelected =
+          state.configuration.gameMode == GameMode.cpuVsCpu;
+    });
+  }
+
+  void _closeTutorial() {
+    final tutorial = _tutorialSession;
+    if (tutorial == null) return;
+    final savedState = _configurationBeforeTutorial;
+    if (savedState != null) {
+      final viewport = ref.read(mapViewportProvider);
+      ref
+          .read(gameControllerProvider.notifier)
+          .restoreConfigurationAfterTutorial(
+            state: savedState,
+            viewport: viewport,
+          );
+    }
+    tutorial.dispose();
+    if (mounted) {
+      setState(() {
+        _tutorialSession = null;
+        _configurationBeforeTutorial = null;
+        _tutorialSpectatorSelected = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tutorialControllerSubscription?.close();
+        _tutorialControllerSubscription = null;
+      });
+    }
   }
 
   Future<void> _confirmQuit(
@@ -1157,6 +1234,7 @@ class _ConfigurationPanel extends StatelessWidget {
     required this.rankProgress,
     required this.onStart,
     required this.onTitle,
+    required this.onTutorial,
     required this.bgmEnabled,
     required this.onBgmChanged,
   });
@@ -1165,6 +1243,7 @@ class _ConfigurationPanel extends StatelessWidget {
   final RankProgress rankProgress;
   final VoidCallback? onStart;
   final VoidCallback onTitle;
+  final VoidCallback onTutorial;
   final bool bgmEnabled;
   final ValueChanged<bool> onBgmChanged;
 
@@ -1384,6 +1463,12 @@ class _ConfigurationPanel extends StatelessWidget {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 12),
+                          _SecondaryActionButton(
+                            key: const ValueKey('how-to-play'),
+                            onPressed: onTutorial,
+                            label: l10n.howToPlay,
+                          ),
                           const SizedBox(height: 17),
                           Text(
                             _selectionSummary(l10n, state.configuration),

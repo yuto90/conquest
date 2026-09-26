@@ -183,10 +183,9 @@ final class _IslandPlacementDefinition {
 ///
 /// The class has no Riverpod, timer, or Flutter dependency.  Callers provide
 /// the current state and a delta (and, when creating a map, a [math.Random])
-/// and receive a new immutable state.  Concrete dispatch, combat, and CPU
-/// rules remain deliberately outside this foundation.  Map generation lives
-/// here because it is a deterministic, renderer-independent part of the
-/// initial state.
+/// and receive a new immutable state. Dispatch amount, combat, and map
+/// generation calculations also live here so every caller shares the same
+/// deterministic rules.
 final class GameRules {
   const GameRules();
 
@@ -214,6 +213,19 @@ final class GameRules {
   /// to [generateIslands] so collision and safe-area checks use exact pixels.
   static const defaultMapViewport = IslandMapViewport.minimumPortrait;
   static const referenceMapViewport = IslandMapViewport.reference;
+
+  /// Returns the number of forces sent by the standard half-strength action.
+  int dispatchStrength(IslandState source) {
+    if (!source.canDispatch) return 0;
+    return source.currentForces ~/ 2;
+  }
+
+  /// Applies the standard dispatch cost to a source island.
+  IslandState dispatchSource(IslandState source) {
+    final strength = dispatchStrength(source);
+    if (strength <= 0) return source;
+    return source.copyWith(currentForces: source.currentForces - strength);
+  }
 
   /// The default retry budget for a complete map generation attempt.
   static const defaultMapGenerationAttempts = 1024;

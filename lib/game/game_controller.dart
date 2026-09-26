@@ -145,6 +145,16 @@ class GameController extends _$GameController {
       return previousState;
     }
 
+    if (previousState != null &&
+        previousState.phase == GamePhase.configuration &&
+        previousState.viewportUnavailable) {
+      // A tutorial can restore the original map while the current viewport
+      // is too small to show it. Keep that map held through later resizes;
+      // the explicit Resume action clears this hold, while a normal island
+      // count change still calls _initialStateFor and generates a new map.
+      return previousState;
+    }
+
     return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 
@@ -474,6 +484,27 @@ class GameController extends _$GameController {
     return nextState;
   }
 
+  /// Restores the configuration map that was visible before the optional
+  /// tutorial opened. The tutorial owns its own session, so a viewport change
+  /// while it is visible must not consume a new map-generation result for the
+  /// normal match. An unsafe viewport keeps the restored map held until the
+  /// player enlarges the window.
+  void restoreConfigurationAfterTutorial({
+    required GameState state,
+    required IslandMapViewport viewport,
+  }) {
+    if (_disposed || state.phase != GamePhase.configuration) return;
+    _gameLoop.stop();
+    _lastTickMs = null;
+    _clearCpuDecisionDeadlines();
+    final viewportUnavailable = !viewport.canRenderIslands(state.islands);
+    final restored = state.copyWith(viewportUnavailable: viewportUnavailable);
+    _cachedConfiguration = restored.configuration;
+    _cachedViewport = _placementViewport(viewport);
+    _cachedInitialState = restored;
+    this.state = restored;
+  }
+
   IslandMapViewport _placementViewport(IslandMapViewport viewport) {
     // A tablet-sized logical window must be safe after swapping width and
     // height. Keep narrower phone-sized layouts on their existing placement
@@ -530,7 +561,7 @@ class GameController extends _$GameController {
     }
 
     final source = selectedSource!;
-    final strength = source.currentForces ~/ 2;
+    final strength = _rules.dispatchStrength(source);
     if (strength <= 0) {
       state = state.clearSelection();
       _showInteractionFeedback(InteractionFeedbackType.invalidatedSource);
@@ -539,9 +570,7 @@ class GameController extends _$GameController {
 
     final islands = [...state.islands];
     final sourceIndex = islands.indexWhere((island) => island.id == source.id);
-    islands[sourceIndex] = source.copyWith(
-      currentForces: source.currentForces - strength,
-    );
+    islands[sourceIndex] = _rules.dispatchSource(source);
 
     final movingForces = [...state.movingForces];
     final nextForce = _rules.createMovingForce(
