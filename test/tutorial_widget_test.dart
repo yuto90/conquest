@@ -6,6 +6,7 @@ import 'package:conquest/game/game_state.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/tutorial/tutorial_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,6 +29,7 @@ Future<void> _pumpTutorialApp(
   WidgetTester tester, {
   Locale locale = const Locale('ja'),
   Size size = const Size(390, 844),
+  Size? stageSize,
   TextScaler textScaler = const TextScaler.linear(1),
   bool disableAnimations = false,
 }) async {
@@ -39,13 +41,19 @@ Future<void> _pumpTutorialApp(
         gameLoopProvider.overrideWithValue(_ManualTutorialLoop()),
         randomProvider.overrideWithValue(Random(1)),
       ],
-      child: MediaQuery(
-        data: MediaQueryData(
-          size: size,
-          textScaler: textScaler,
-          disableAnimations: disableAnimations,
+      child: Center(
+        child: SizedBox(
+          width: stageSize?.width ?? size.width,
+          height: stageSize?.height ?? size.height,
+          child: MediaQuery(
+            data: MediaQueryData(
+              size: size,
+              textScaler: textScaler,
+              disableAnimations: disableAnimations,
+            ),
+            child: MyApp(locale: locale),
+          ),
         ),
-        child: MyApp(locale: locale),
       ),
     ),
   );
@@ -63,6 +71,7 @@ void main() {
     expect(find.byKey(const ValueKey('tutorial-screen')), findsOneWidget);
     expect(find.text('遊び方'), findsOneWidget);
     expect(find.text('手順 1 / 4'), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-highlight-0')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('tutorial-island-button-0')),
       findsOneWidget,
@@ -74,13 +83,26 @@ void main() {
     expect(find.byKey(const ValueKey('tutorial-back')), findsOneWidget);
   });
 
+  testWidgets('exits to match setup when Escape is pressed immediately', (
+    tester,
+  ) async {
+    await _pumpTutorialApp(tester);
+    await tester.tap(find.byKey(const ValueKey('how-to-play')));
+    await tester.pump();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tutorial-screen')), findsNothing);
+  });
+
   testWidgets(
     'advances by tapping islands and shows the real occupation result',
     (tester) async {
       await _pumpTutorialApp(tester);
       await tester.tap(find.byKey(const ValueKey('how-to-play')));
       await tester.pump();
-
       await tester.tap(find.byKey(const ValueKey('tutorial-island-button-0')));
       await tester.pump();
       expect(find.text('手順 2 / 4'), findsOneWidget);
@@ -92,7 +114,7 @@ void main() {
 
       final screen = tester.widget<TutorialScreen>(find.byType(TutorialScreen));
       final force = screen.session.gameState.movingForces.single;
-      screen.session.tick(force.durationMs);
+      screen.session.tick(force.durationMs + 2000);
       await tester.pump();
       expect(find.text('50 > 10'), findsOneWidget);
       expect(find.text('占領'), findsOneWidget);
@@ -108,6 +130,19 @@ void main() {
       expect(
         find.byKey(const ValueKey('tutorial-return-settings')),
         findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('island-highlight-1')), findsOneWidget);
+      expect(find.text('覚えておくルール'), findsOneWidget);
+      expect(find.text('同数では占領不可'), findsOneWidget);
+      expect(find.text('自軍島へ増援'), findsOneWidget);
+      expect(find.text('兵力1以下は出兵不可'), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(
+              find.byKey(const ValueKey('tutorial-rule-equal-forces')),
+            )
+            .label,
+        '同数では占領不可',
       );
     },
   );
@@ -149,13 +184,14 @@ void main() {
         tester,
         locale: const Locale('en'),
         size: const Size(280, 500),
+        stageSize: const Size(231, 500),
         textScaler: const TextScaler.linear(2),
         disableAnimations: true,
       );
       await tester.ensureVisible(find.byKey(const ValueKey('how-to-play')));
       await tester.tap(find.byKey(const ValueKey('how-to-play')));
       await tester.pump();
-
+      expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('tutorial-back')), findsOneWidget);
       expect(
         find.byKey(const ValueKey('tutorial-island-button-0')),
@@ -178,6 +214,28 @@ void main() {
           expect(islandRects[index].overlaps(islandRects[otherIndex]), isFalse);
         }
       }
+      await tester.tap(find.byKey(const ValueKey('tutorial-island-button-0')));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('tutorial-island-button-2')));
+      await tester.pump();
+      final screen = tester.widget<TutorialScreen>(find.byType(TutorialScreen));
+      final force = screen.session.gameState.movingForces.single;
+      screen.session.tick(force.durationMs + 2000);
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const ValueKey('tutorial-next')));
+      await tester.tap(find.byKey(const ValueKey('tutorial-next')));
+      await tester.pump();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('tutorial-rule-equal-forces')),
+      );
+      expect(find.text('Rules to remember'), findsOneWidget);
+      expect(find.text('Equal forces cannot capture'), findsOneWidget);
+      expect(find.text('Send reinforcements to your island'), findsOneWidget);
+      expect(find.text('One force or fewer cannot deploy'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('tutorial-return-settings')),
+      );
       expect(tester.takeException(), isNull);
     },
   );

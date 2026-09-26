@@ -70,12 +70,12 @@ class _TutorialScreenState extends State<TutorialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      autofocus: true,
-      child: CallbackShortcuts(
-        bindings: <ShortcutActivator, VoidCallback>{
-          SingleActivator(LogicalKeyboardKey.escape): widget.onExit,
-        },
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        SingleActivator(LogicalKeyboardKey.escape): widget.onExit,
+      },
+      child: Focus(
+        autofocus: true,
         child: AnimatedBuilder(
           animation: widget.session,
           builder: (context, _) {
@@ -109,6 +109,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                 if (session.lifecyclePaused)
                   _TutorialLifecycleOverlay(
                     onResume: session.resumeAfterLifecycle,
+                    canResume: session.canResumeAfterLifecycle,
                   ),
               ],
             );
@@ -193,15 +194,22 @@ class _TutorialInfoCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    TextButton(
-                      key: const ValueKey('tutorial-back'),
-                      onPressed: onExit,
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(48, 42),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        foregroundColor: TacticalPalette.foreground,
+                    Flexible(
+                      child: TextButton(
+                        key: const ValueKey('tutorial-back'),
+                        onPressed: onExit,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          foregroundColor: TacticalPalette.foreground,
+                        ),
+                        child: Text(
+                          l10n.tutorialBack,
+                          maxLines: 2,
+                          softWrap: true,
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      child: Text(l10n.tutorialBack),
                     ),
                   ],
                 ),
@@ -216,12 +224,17 @@ class _TutorialInfoCard extends StatelessWidget {
                         ).display(fontSize: 25, height: 1, letterSpacing: -0.5),
                       ),
                     ),
-                    Text(
-                      l10n.tutorialProgress(step: stepNumber),
-                      style: TacticalTypography.of(context).mono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: TacticalPalette.muted,
+                    Flexible(
+                      child: Text(
+                        l10n.tutorialProgress(step: stepNumber),
+                        maxLines: 2,
+                        softWrap: true,
+                        textAlign: TextAlign.end,
+                        style: TacticalTypography.of(context).mono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: TacticalPalette.muted,
+                        ),
                       ),
                     ),
                   ],
@@ -285,25 +298,32 @@ class _TutorialInfoCard extends StatelessWidget {
                   if (session.hasArrived) ...[
                     const SizedBox(height: 4),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          l10n.tutorialCaptureValues(
-                            attack: session.dispatchedStrength,
-                            defense: 10,
-                          ),
-                          style: TacticalTypography.of(context).mono(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: TacticalPalette.playerDeep,
+                        Expanded(
+                          child: Text(
+                            l10n.tutorialCaptureValues(
+                              attack: session.dispatchedStrength,
+                              defense: 10,
+                            ),
+                            softWrap: true,
+                            style: TacticalTypography.of(context).mono(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: TacticalPalette.playerDeep,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          l10n.tutorialCaptureComplete,
-                          style: TacticalTypography.of(context).body(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: TacticalPalette.playerDeep,
+                        Flexible(
+                          child: Text(
+                            l10n.tutorialCaptureComplete,
+                            softWrap: true,
+                            style: TacticalTypography.of(context).body(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: TacticalPalette.playerDeep,
+                            ),
                           ),
                         ),
                       ],
@@ -327,6 +347,8 @@ class _TutorialInfoCard extends StatelessWidget {
                       color: TacticalPalette.playerDeep,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  _TutorialRuleCallouts(l10n: l10n),
                   const SizedBox(height: 6),
                   _TutorialActionButton(
                     key: const ValueKey('tutorial-return-settings'),
@@ -351,12 +373,12 @@ class _TutorialActionButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 42),
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
@@ -369,6 +391,9 @@ class _TutorialActionButton extends StatelessWidget {
         ),
         child: Text(
           label,
+          maxLines: 2,
+          softWrap: true,
+          textAlign: TextAlign.center,
           style: TacticalTypography.of(
             context,
           ).body(fontSize: 12, fontWeight: FontWeight.w700),
@@ -379,9 +404,13 @@ class _TutorialActionButton extends StatelessWidget {
 }
 
 class _TutorialLifecycleOverlay extends StatelessWidget {
-  const _TutorialLifecycleOverlay({required this.onResume});
+  const _TutorialLifecycleOverlay({
+    required this.onResume,
+    required this.canResume,
+  });
 
   final VoidCallback onResume;
+  final bool canResume;
 
   @override
   Widget build(BuildContext context) {
@@ -408,14 +437,114 @@ class _TutorialLifecycleOverlay extends StatelessWidget {
                       context,
                     ).body(fontSize: 13, height: 1.4),
                   ),
+                  if (!canResume) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.tutorialLifecycleResizeRequired,
+                      textAlign: TextAlign.center,
+                      style: TacticalTypography.of(
+                        context,
+                      ).body(fontSize: 12, height: 1.4),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   _TutorialActionButton(
                     key: const ValueKey('tutorial-resume'),
                     label: l10n.tutorialResume,
-                    onPressed: onResume,
+                    onPressed: canResume ? onResume : null,
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TutorialRuleCallouts extends StatelessWidget {
+  const _TutorialRuleCallouts({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('tutorial-rule-callouts'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.tutorialRulesHeading,
+          style: TacticalTypography.of(context).mono(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: TacticalPalette.muted,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        _TutorialRuleCallout(
+          key: const ValueKey('tutorial-rule-equal-forces'),
+          icon: Icons.compare_arrows_rounded,
+          label: l10n.tutorialRuleEqualForces,
+        ),
+        const SizedBox(height: 4),
+        _TutorialRuleCallout(
+          key: const ValueKey('tutorial-rule-reinforce'),
+          icon: Icons.arrow_forward_rounded,
+          label: l10n.tutorialRuleReinforce,
+        ),
+        const SizedBox(height: 4),
+        _TutorialRuleCallout(
+          key: const ValueKey('tutorial-rule-minimum-forces'),
+          icon: Icons.block_rounded,
+          label: l10n.tutorialRuleMinimumForces,
+        ),
+      ],
+    );
+  }
+}
+
+class _TutorialRuleCallout extends StatelessWidget {
+  const _TutorialRuleCallout({
+    required this.icon,
+    required this.label,
+    super.key,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: label,
+      child: ExcludeSemantics(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: TacticalPalette.surface.withValues(alpha: 0.78),
+            border: Border.all(color: TacticalPalette.border),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: TacticalPalette.playerDeep),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TacticalTypography.of(context).body(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: TacticalPalette.foreground,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -442,11 +571,6 @@ class _TutorialMapState extends State<_TutorialMap> {
   Widget build(BuildContext context) {
     final l10n = _tutorialLocalizations(context);
     final session = widget.session;
-    final state = session.gameState;
-    final canTap =
-        session.step == TutorialStep.selectSource ||
-        session.step == TutorialStep.selectDestination ||
-        (session.step == TutorialStep.watchCapture && !session.hasArrived);
     return LayoutBuilder(
       builder: (context, constraints) {
         final viewport = IslandMapViewport(
@@ -468,6 +592,16 @@ class _TutorialMapState extends State<_TutorialMap> {
         }
         _lastMapSize = mapSize;
         session.updateViewport(viewport);
+        final state = session.gameState;
+        final canTap =
+            session.step == TutorialStep.selectSource ||
+            session.step == TutorialStep.selectDestination ||
+            (session.step == TutorialStep.watchCapture && !session.hasArrived);
+        final highlightedIslandId = switch (session.step) {
+          TutorialStep.selectSource => TutorialSession.playerHeadquartersId,
+          TutorialStep.explainVictory => 1,
+          TutorialStep.selectDestination || TutorialStep.watchCapture => null,
+        };
         return Semantics(
           container: true,
           label: l10n.tutorialBoardSemantics(step: session.step.index + 1),
@@ -490,6 +624,10 @@ class _TutorialMapState extends State<_TutorialMap> {
                         island.faction,
                       ),
                       selected: state.selectedIslandId == island.id,
+                      highlighted: highlightedIslandId == island.id,
+                      highlightColor: island.faction == Faction.cpu
+                          ? TacticalPalette.cpu
+                          : TacticalPalette.player,
                       destinationCandidate:
                           session.step == TutorialStep.selectDestination &&
                           island.id == TutorialSession.targetIslandId,

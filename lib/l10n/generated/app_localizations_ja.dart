@@ -146,6 +146,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get tutorialLifecyclePaused => '遊び方を一時停止しています。準備ができたら再開をタップしてください。';
 
   @override
+  String get tutorialLifecycleResizeRequired => '画面を広げると再開できます。';
+
+  @override
   String get tutorialResume => '再開';
 
   @override
@@ -159,6 +162,18 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get tutorialRetryCapture => '部隊が島へ到着するまで待ってください。';
+
+  @override
+  String get tutorialRulesHeading => '覚えておくルール';
+
+  @override
+  String get tutorialRuleEqualForces => '同数では占領不可';
+
+  @override
+  String get tutorialRuleReinforce => '自軍島へ増援';
+
+  @override
+  String get tutorialRuleMinimumForces => '兵力1以下は出兵不可';
 
   @override
   String get rankTitleRecruit => '新兵';

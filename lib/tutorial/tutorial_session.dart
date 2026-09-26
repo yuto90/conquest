@@ -47,12 +47,13 @@ final class TutorialSession extends ChangeNotifier {
   factory TutorialSession.create({
     IslandMapViewport viewport = GameRules.defaultMapViewport,
   }) {
+    final islands = _layoutIslands(_fixedIslands(), viewport);
     return TutorialSession._(
       gameState: GameState(
         configuration: _tutorialConfiguration,
         phase: GamePhase.playing,
         elapsedMs: 0,
-        islands: _fixedIslands(),
+        islands: islands,
       ),
       viewport: viewport,
     );
@@ -66,13 +67,30 @@ final class TutorialSession extends ChangeNotifier {
   int get dispatchedStrength => _dispatchedStrength;
   int get sourceForcesAfterDispatch => _sourceForcesAfterDispatch;
   bool get lifecyclePaused => _lifecyclePaused;
+  bool get canResumeAfterLifecycle =>
+      !_lifecyclePaused || _isSafeLayout(_gameState.islands, _viewport);
   bool get canAdvanceAfterCapture =>
       _step == TutorialStep.watchCapture && _hasArrived;
 
-  /// Updates the viewport used for future movement timing and force rendering.
-  /// Island positions remain normalized and are never regenerated on resize.
+  /// Updates the viewport used for movement rendering.
+  ///
+  /// A resize can happen while the demonstration aircraft is in flight. The
+  /// board is repacked immediately, and the aircraft keeps its current
+  /// progress along the new route. The lifecycle pause then prevents any
+  /// further time from passing until the player explicitly resumes.
   void updateViewport(IslandMapViewport viewport) {
-    if (viewport.isValid) _viewport = viewport;
+    if (!viewport.isValid) return;
+    _viewport = viewport;
+    final islands = _layoutIslands(_gameState.islands, viewport);
+    if (_samePositions(_gameState.islands, islands)) return;
+    final movingForces = [
+      for (final force in _gameState.movingForces)
+        _repositionMovingForce(force, islands),
+    ];
+    _gameState = _gameState.copyWith(
+      islands: islands,
+      movingForces: movingForces,
+    );
   }
 
   /// Handles a tutorial island tap. Wrong taps only set a re-prompt state.
@@ -163,7 +181,7 @@ final class TutorialSession extends ChangeNotifier {
   }
 
   void resumeAfterLifecycle() {
-    if (!_lifecyclePaused) return;
+    if (!_lifecyclePaused || !canResumeAfterLifecycle) return;
     _lifecyclePaused = false;
     notifyListeners();
   }
@@ -209,6 +227,132 @@ final class TutorialSession extends ChangeNotifier {
       if (island.id == id) return island;
     }
     return null;
+  }
+
+  static bool _samePositions(
+    List<IslandState> first,
+    List<IslandState> second,
+  ) {
+    if (first.length != second.length) return false;
+    for (var index = 0; index < first.length; index++) {
+      if (first[index].id != second[index].id ||
+          first[index].position != second[index].position) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static List<IslandState> _layoutIslands(
+    List<IslandState> islands,
+    IslandMapViewport viewport,
+  ) {
+    // The original normalized anchors give the board more breathing room on
+    // phones and tablets. Below 360 logical pixels, a pixel-packed layout is
+    // needed because the 100px headquarters and 64px medium islands cannot
+    // be made non-overlapping by normalized scaling alone.
+    if (viewport.width >= 360 && _isSafeLayout(islands, viewport)) {
+      return islands;
+    }
+
+    final rowGap = viewport.height >= 246 ? 16.0 : 4.0;
+    final contentHeight = 100.0 + 64.0 + 50.0 + rowGap * 2;
+    final double top = math.max(0.0, (viewport.height - contentHeight) / 2);
+    final placements = <int, ({double left, double top})>{};
+
+    void addRow(List<int> ids, double y) {
+      const gap = 8.0;
+      final rowWidth =
+          ids.fold<double>(0, (total, id) {
+            final island = islands.firstWhere(
+              (candidate) => candidate.id == id,
+            );
+            return total + GameRules.islandWidgetSize(island.size);
+          }) +
+          gap * math.max(0, ids.length - 1);
+      var left = math.max(0.0, (viewport.width - rowWidth) / 2);
+      for (final id in ids) {
+        final island = islands.firstWhere((candidate) => candidate.id == id);
+        final size = GameRules.islandWidgetSize(island.size);
+        placements[id] = (left: left, top: y);
+        left += size + gap;
+      }
+    }
+
+    addRow(const [playerHeadquartersId, 1], top);
+    addRow(const [4, 5, targetIslandId], top + 100 + rowGap);
+    addRow(const [3], top + 100 + rowGap + 64 + rowGap);
+
+    return [
+      for (final island in islands)
+        island.copyWith(
+          position: _normalizedPosition(
+            left: placements[island.id]!.left,
+            top: placements[island.id]!.top,
+            size: GameRules.islandWidgetSize(island.size),
+            viewport: viewport,
+          ),
+        ),
+    ];
+  }
+
+  static MovingForce _repositionMovingForce(
+    MovingForce force,
+    List<IslandState> islands,
+  ) {
+    IslandState? findIsland(int id) {
+      for (final island in islands) {
+        if (island.id == id) return island;
+      }
+      return null;
+    }
+
+    final source = findIsland(force.sourceIslandId);
+    final destination = findIsland(force.destinationIslandId);
+    if (source == null || destination == null) return force;
+    final progress = force.progress.clamp(0.0, 1.0);
+    return force.copyWith(
+      position: IslandPosition(
+        x: source.x + (destination.x - source.x) * progress,
+        y: source.y + (destination.y - source.y) * progress,
+      ),
+      deltaX: destination.x - source.x,
+      deltaY: destination.y - source.y,
+    );
+  }
+
+  static bool _isSafeLayout(
+    List<IslandState> islands,
+    IslandMapViewport viewport,
+  ) {
+    if (!viewport.isValid || islands.length != 6) return false;
+    final rectangles = [for (final island in islands) viewport.rectFor(island)];
+    for (var index = 0; index < rectangles.length; index++) {
+      final rectangle = rectangles[index];
+      if (!rectangle.isWithin(viewport)) return false;
+      for (
+        var otherIndex = index + 1;
+        otherIndex < rectangles.length;
+        otherIndex++
+      ) {
+        if (rectangle.overlaps(rectangles[otherIndex])) return false;
+      }
+    }
+    return true;
+  }
+
+  static IslandPosition _normalizedPosition({
+    required double left,
+    required double top,
+    required double size,
+    required IslandMapViewport viewport,
+  }) {
+    final horizontalSpan = viewport.width - size;
+    final verticalSpan = viewport.height - size;
+    return IslandPosition(
+      x: horizontalSpan <= 0 ? 0 : left * 2 / horizontalSpan - 1,
+      y: verticalSpan <= 0 ? 0 : top * 2 / verticalSpan - 1,
+    );
   }
 
   static List<IslandState> _fixedIslands() {

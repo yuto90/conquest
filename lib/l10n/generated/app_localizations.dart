@@ -338,6 +338,12 @@ abstract class AppLocalizations {
   /// **'The tutorial is paused. Tap Resume when you are ready.'**
   String get tutorialLifecyclePaused;
 
+  /// The tutorial message shown when the current viewport cannot fit the practice map.
+  ///
+  /// In en, this message translates to:
+  /// **'Make the window larger to resume the tutorial.'**
+  String get tutorialLifecycleResizeRequired;
+
   /// The tutorial lifecycle resume action.
   ///
   /// In en, this message translates to:
@@ -367,6 +373,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Watch the troop reach the island.'**
   String get tutorialRetryCapture;
+
+  /// Heading for the tutorial's final rule callouts.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules to remember'**
+  String get tutorialRulesHeading;
+
+  /// The tutorial rule that equal forces cannot capture an island.
+  ///
+  /// In en, this message translates to:
+  /// **'Equal forces cannot capture'**
+  String get tutorialRuleEqualForces;
+
+  /// The tutorial rule for sending forces to a friendly island.
+  ///
+  /// In en, this message translates to:
+  /// **'Send reinforcements to your island'**
+  String get tutorialRuleReinforce;
+
+  /// The tutorial rule that one force or fewer cannot deploy.
+  ///
+  /// In en, this message translates to:
+  /// **'One force or fewer cannot deploy'**
+  String get tutorialRuleMinimumForces;
 
   /// The English and Japanese base title for rank 0.
   ///

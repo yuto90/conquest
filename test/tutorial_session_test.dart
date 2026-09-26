@@ -33,6 +33,27 @@ void main() {
     }
   });
 
+  test('packs the fixed map into the narrow browser stage', () {
+    const viewport = IslandMapViewport(width: 231, height: 310);
+    final session = TutorialSession.create(viewport: viewport);
+
+    for (var index = 0; index < session.gameState.islands.length; index++) {
+      for (
+        var otherIndex = index + 1;
+        otherIndex < session.gameState.islands.length;
+        otherIndex++
+      ) {
+        final first = session.gameState.islands[index];
+        final second = session.gameState.islands[otherIndex];
+        expect(
+          GameRules.islandRectanglesOverlap(first, second, viewport),
+          isFalse,
+          reason: 'islands ${first.id} and ${second.id} overlap',
+        );
+      }
+    }
+  });
+
   test(
     'uses the real dispatch and arrival rules to capture the target island',
     () {
@@ -120,5 +141,69 @@ void main() {
     session.resumeAfterLifecycle();
     session.tick(duration);
     expect(session.hasArrived, isTrue);
+  });
+
+  test('reflows an in-flight route before a resize can be resumed', () {
+    final session = TutorialSession.create(
+      viewport: const IslandMapViewport(width: 390, height: 500),
+    );
+    session.tapIsland(TutorialSession.playerHeadquartersId);
+    session.tapIsland(TutorialSession.targetIslandId);
+    final duration = session.gameState.movingForces.single.durationMs;
+    session.tick(duration ~/ 2);
+    final progressBeforeResize = session.gameState.movingForces.single.progress;
+
+    const narrowViewport = IslandMapViewport(width: 231, height: 310);
+    session.updateViewport(narrowViewport);
+    session.pauseForLifecycle();
+
+    expect(session.canResumeAfterLifecycle, isTrue);
+    expect(
+      session.gameState.movingForces.single.progress,
+      closeTo(progressBeforeResize, 0.0001),
+    );
+    for (var index = 0; index < session.gameState.islands.length; index++) {
+      for (
+        var otherIndex = index + 1;
+        otherIndex < session.gameState.islands.length;
+        otherIndex++
+      ) {
+        expect(
+          GameRules.islandRectanglesOverlap(
+            session.gameState.islands[index],
+            session.gameState.islands[otherIndex],
+            narrowViewport,
+          ),
+          isFalse,
+        );
+      }
+    }
+
+    final pausedElapsed = session.gameState.elapsedMs;
+    session.tick(duration);
+    expect(session.gameState.elapsedMs, pausedElapsed);
+    expect(session.hasArrived, isFalse);
+
+    session.resumeAfterLifecycle();
+    session.tick(duration);
+    expect(session.hasArrived, isTrue);
+    expect(session.gameState.movingForces, isEmpty);
+  });
+
+  test('keeps resume disabled until an unsafe viewport is enlarged', () {
+    final session = TutorialSession.create(
+      viewport: const IslandMapViewport(width: 231, height: 310),
+    );
+    session.pauseForLifecycle();
+    session.updateViewport(const IslandMapViewport(width: 180, height: 200));
+
+    expect(session.canResumeAfterLifecycle, isFalse);
+    session.resumeAfterLifecycle();
+    expect(session.lifecyclePaused, isTrue);
+
+    session.updateViewport(const IslandMapViewport(width: 231, height: 310));
+    expect(session.canResumeAfterLifecycle, isTrue);
+    session.resumeAfterLifecycle();
+    expect(session.lifecyclePaused, isFalse);
   });
 }

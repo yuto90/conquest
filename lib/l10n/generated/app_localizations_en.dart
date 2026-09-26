@@ -155,6 +155,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The tutorial is paused. Tap Resume when you are ready.';
 
   @override
+  String get tutorialLifecycleResizeRequired =>
+      'Make the window larger to resume the tutorial.';
+
+  @override
   String get tutorialResume => 'Resume';
 
   @override
@@ -170,6 +174,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tutorialRetryCapture => 'Watch the troop reach the island.';
+
+  @override
+  String get tutorialRulesHeading => 'Rules to remember';
+
+  @override
+  String get tutorialRuleEqualForces => 'Equal forces cannot capture';
+
+  @override
+  String get tutorialRuleReinforce => 'Send reinforcements to your island';
+
+  @override
+  String get tutorialRuleMinimumForces => 'One force or fewer cannot deploy';
 
   @override
   String get rankTitleRecruit => 'Recruit';
