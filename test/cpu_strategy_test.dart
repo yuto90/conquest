@@ -147,6 +147,25 @@ Faction _oppositeFaction(Faction faction) => switch (faction) {
 };
 
 void main() {
+  test(
+    'forecast shares headquarters growth and capacity with actual ticks',
+    () {
+      final strategy = CpuStrategy(viewport: _viewport);
+      final state = _playing(
+        islands: [
+          _island(id: 10, faction: Faction.player, forces: 100),
+          _island(id: 20, faction: Faction.cpu, forces: 198),
+        ],
+      );
+      for (final atMs in [999, 1000, 1001, 3500]) {
+        final predicted = strategy.forecast(state, atMs: atMs);
+        expect(predicted, const GameRules().tick(state, deltaMs: atMs));
+        expect(predicted.islands.first.currentForces, 100 + 2 * (atMs ~/ 1000));
+        expect(predicted.islands.last.currentForces, atMs < 1000 ? 198 : 200);
+      }
+    },
+  );
+
   test('difficulty profiles match the approved four-tier gradient', () {
     const expected = <CpuDifficulty, CpuDifficultyProfile>{
       CpuDifficulty.veryEasy: CpuDifficultyProfile(
@@ -721,29 +740,40 @@ void main() {
     expect(decision.destinationIslandId, 4);
   });
 
-  test('prefers capturable enemy islands before neutral islands', () {
-    final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
-    final state = _playing(
-      islands: [
-        _island(id: 1, faction: Faction.cpu, forces: 20, x: -0.8, y: -0.8),
-        _island(id: 2, faction: Faction.player, forces: 4, x: 0.2, y: 0.2),
-        _island(
-          id: 3,
-          faction: Faction.neutral,
-          forces: 3,
-          durability: 3,
-          x: 0.1,
-          y: 0.1,
-          size: IslandSize.small,
-          capacity: 50,
-        ),
-      ],
-    );
+  test('accounts for headquarters growth when prioritizing enemy islands', () {
+    for (final sourceForces in [20, 40]) {
+      final strategy = CpuStrategy(random: Random(1), viewport: _viewport);
+      final state = _playing(
+        islands: [
+          _island(
+            id: 1,
+            faction: Faction.cpu,
+            forces: sourceForces,
+            x: -0.8,
+            y: -0.8,
+          ),
+          _island(id: 2, faction: Faction.player, forces: 4, x: 0.2, y: 0.2),
+          _island(
+            id: 3,
+            faction: Faction.neutral,
+            forces: 3,
+            durability: 3,
+            x: 0.1,
+            y: 0.1,
+            size: IslandSize.small,
+            capacity: 50,
+          ),
+        ],
+      );
 
-    final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
+      final decision = strategy.decide(state, difficulty: CpuDifficulty.hard);
 
-    expect(decision, isNotNull);
-    expect(decision!.destinationIslandId, 2);
+      expect(decision, isNotNull);
+      // The enemy headquarters has 14 defenders after the five-second trip.
+      // Sending 10 cannot capture it; sending 20 can.
+      expect(strategy.forecast(state, atMs: 5000).islands[1].currentForces, 14);
+      expect(decision!.destinationIslandId, sourceForces == 20 ? 3 : 2);
+    }
   });
 
   test('does not reprioritize an enemy already captured by a CPU troop', () {

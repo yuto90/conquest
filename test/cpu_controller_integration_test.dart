@@ -72,6 +72,7 @@ int cpuMovingForceCount(GameState state) {
       .length;
 }
 
+// Use four headquarters so growth and capacity stay symmetric for both CPUs.
 List<IslandState> _simultaneousDecisionBoard(List<IslandState> generated) => [
   generated[0].copyWith(
     faction: Faction.player,
@@ -88,6 +89,8 @@ List<IslandState> _simultaneousDecisionBoard(List<IslandState> generated) => [
     y: 0,
   ),
   generated[2].copyWith(
+    size: IslandSize.headquarters,
+    capacity: 200,
     faction: Faction.cpu,
     currentForces: 100,
     durability: 0,
@@ -95,6 +98,8 @@ List<IslandState> _simultaneousDecisionBoard(List<IslandState> generated) => [
     y: 0,
   ),
   generated[3].copyWith(
+    size: IslandSize.headquarters,
+    capacity: 200,
     faction: Faction.player,
     currentForces: 10,
     durability: 0,
@@ -404,7 +409,7 @@ void main() {
     );
     controller.state = board;
 
-    final dueSnapshot = board.copyWith(elapsedMs: 1500);
+    final dueSnapshot = const GameRules().tick(board, deltaMs: 1500);
     final expectedPlayer = playerStrategy.decide(
       dueSnapshot,
       difficulty: CpuDifficulty.hard,

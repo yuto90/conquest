@@ -616,7 +616,8 @@ void main() {
       final defense = defenseForces.single;
       expect(defense.sourceIslandId, cpuHeadquarters.id);
       expect(defense.destinationIslandId, cpuTarget.id);
-      expect(defense.strength, 10);
+      // Headquarters grew from 20 to 22 before dispatching half.
+      expect(defense.strength, 11);
       expect(
         defense.arrivalTimeMs,
         lessThanOrEqualTo(playerThreat.arrivalTimeMs),
