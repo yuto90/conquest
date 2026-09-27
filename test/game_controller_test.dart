@@ -711,8 +711,8 @@ void main() {
       expect(beforeArrival.movingForces, hasLength(1));
       expect(beforeArrival.movingForces.single.progress, closeTo(0.995, 1e-12));
       expect(beforeArrival.movingForces.single.arrivalTimeMs, 10000);
-      expect(beforeArrival.bases[0].scale, 59);
-      expect(beforeArrival.bases[1].scale, 109);
+      expect(beforeArrival.bases[0].scale, 68);
+      expect(beforeArrival.bases[1].scale, 118);
 
       loop.tick();
 
@@ -720,8 +720,8 @@ void main() {
       expect(arrived.elapsedMs, 10000);
       expect(arrived.movement, isNull);
       expect(arrived.selectedBaseId, isNull);
-      expect(arrived.bases[0].scale, 60);
-      expect(arrived.bases[1].scale, 60);
+      expect(arrived.bases[0].scale, 70);
+      expect(arrived.bases[1].scale, 70);
     },
   );
 
@@ -834,7 +834,7 @@ void main() {
       final state = container.read(gameControllerProvider);
       expect(state.elapsedMs, 1000);
       expect(
-        state.bases.every((base) => base.scale == (base.id < 2 ? 101 : 0)),
+        state.bases.every((base) => base.scale == (base.id < 2 ? 102 : 0)),
         isTrue,
       );
     },

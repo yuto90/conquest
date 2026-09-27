@@ -762,7 +762,8 @@ final class GameRules {
           island.copyWith(
             currentForces: math.min(
               island.capacity,
-              island.currentForces + resourceTicks,
+              island.currentForces +
+                  resourceTicks * island.size.forcesPerGrowthTick,
             ),
           ),
     ];

@@ -820,7 +820,7 @@ void main() {
       expect(playing.phase, GamePhase.playing);
       expect(firstTick, secondTick);
       expect(firstTick.elapsedMs, 1250);
-      expect(firstTick.islands.first.currentForces, 101);
+      expect(firstTick.islands.first.currentForces, 102);
     },
   );
 
@@ -860,6 +860,161 @@ void main() {
       expect(next.islands[2].durability, 30);
     },
   );
+
+  group('headquarters growth', () {
+    GameState board({GameConfiguration? configuration}) => GameState(
+      configuration: configuration,
+      phase: GamePhase.playing,
+      elapsedMs: 0,
+      islands: [
+        for (final faction in [Faction.player, Faction.cpu, Faction.neutral])
+          for (final size in IslandSize.values)
+            IslandState(
+              id: faction.index * 10 + size.index + 10,
+              faction: faction,
+              size: size,
+              currentForces: size == IslandSize.headquarters ? 100 : 10,
+              durability: faction == Faction.neutral ? 30 : 0,
+            ),
+      ],
+    );
+
+    test('uses island type for both factions in every mode and difficulty', () {
+      for (final mode in GameMode.values) {
+        for (final difficulty in CpuDifficulty.values) {
+          final initial = board(
+            configuration: GameConfiguration(
+              gameMode: mode,
+              cpuDifficulty: difficulty,
+              playerCpuDifficulty: difficulty,
+            ),
+          );
+          for (final seconds in [1, 3]) {
+            final next = rules.tick(initial, deltaMs: seconds * 1000);
+            for (var i = 0; i < initial.islands.length; i++) {
+              final island = initial.islands[i];
+              if (island.faction == Faction.neutral) {
+                expect(next.islands[i], island);
+              } else {
+                expect(
+                  next.islands[i].currentForces,
+                  island.currentForces +
+                      seconds *
+                          (island.size == IslandSize.headquarters ? 2 : 1),
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+
+    test('respects exact boundaries and agrees across split ticks', () {
+      final initial = board();
+      var next = rules.tick(initial, deltaMs: 999);
+      expect(next.islands[3].currentForces, 100);
+      next = rules.tick(next, deltaMs: 1);
+      expect(next.islands[3].currentForces, 102);
+      next = rules.tick(next, deltaMs: 1);
+      expect(next.islands[3].currentForces, 102);
+      next = rules.tick(next, deltaMs: 2499);
+      expect(next.islands[3].currentForces, 106);
+      expect(next, rules.tick(initial, deltaMs: 3500));
+    });
+
+    test('clamps headquarters at 200', () {
+      for (final forces in [198, 199, 200]) {
+        final initial = board();
+        final next = rules.tick(
+          initial.copyWith(
+            islands: [
+              for (final island in initial.islands)
+                island.size == IslandSize.headquarters &&
+                        island.faction != Faction.neutral
+                    ? island.copyWith(currentForces: forces)
+                    : island,
+            ],
+          ),
+          deltaMs: 1000,
+        );
+        expect(next.islands[3].currentForces, 200);
+        expect(next.islands[7].currentForces, 200);
+      }
+    });
+
+    test('grows before capture and recapture without resetting the clock', () {
+      final initial = board();
+      final state = initial.copyWith(
+        islands: [
+          ...initial.islands,
+          const IslandState(
+            id: 99,
+            faction: Faction.player,
+            size: IslandSize.headquarters,
+            currentForces: 10,
+          ),
+        ],
+        movingForces: const [
+          MovingForce(
+            id: 1,
+            faction: Faction.cpu,
+            sourceIslandId: 23,
+            destinationIslandId: 99,
+            strength: 15,
+            arrivalTimeMs: 1000,
+            durationMs: 1000,
+          ),
+          MovingForce(
+            id: 2,
+            faction: Faction.player,
+            sourceIslandId: 13,
+            destinationIslandId: 99,
+            strength: 10,
+            arrivalTimeMs: 2500,
+            durationMs: 2500,
+          ),
+        ],
+      );
+      final captured = rules.tick(state, deltaMs: 1000);
+      expect(captured.islands.last.faction, Faction.cpu);
+      expect(captured.islands.last.currentForces, 3); // 15 - (10 + 2)
+      final grown = rules.tick(captured, deltaMs: 1000);
+      expect(grown.islands.last.currentForces, 5);
+      final recaptured = rules.tick(grown, deltaMs: 500);
+      expect(recaptured.islands.last.faction, Faction.player);
+      expect(recaptured.islands.last.currentForces, 5);
+      final next = rules.tick(recaptured, deltaMs: 1000);
+      expect(next.islands.last.currentForces, 7);
+      expect(next.islands.last.size, IslandSize.headquarters);
+      expect(next, rules.tick(state, deltaMs: 3500));
+    });
+
+    test('freezes outside play and excludes paused and countdown time', () {
+      final initial = rules.tick(board(), deltaMs: 999);
+      for (final phase in GamePhase.values.where(
+        (p) => p != GamePhase.playing,
+      )) {
+        final stopped = initial.copyWith(
+          phase: phase,
+          result: phase == GamePhase.result
+              ? const GameResult.victory(elapsedMs: 999)
+              : null,
+          countdownRemainingMs: 3000,
+        );
+        final next = rules.tick(stopped, deltaMs: 60000);
+        expect(next.elapsedMs, 999);
+        expect(next.islands, initial.islands);
+      }
+      final paused = rules.pause(initial);
+      final resumed = rules.tick(
+        rules.resumeCountdown(rules.tick(paused, deltaMs: 60000)),
+        deltaMs: 60000,
+      );
+      expect(resumed.elapsedMs, 999);
+      expect(resumed.islands, initial.islands);
+      expect(rules.tick(resumed, deltaMs: 1).islands[3].currentForces, 102);
+    });
+  });
 
   test('stops growth at the size and headquarters capacity', () {
     const islands = [
@@ -984,7 +1139,7 @@ void main() {
     final next = rules.tick(state, deltaMs: 3500);
 
     expect(next.elapsedMs, 3500);
-    expect(next.islands.first.currentForces, 3);
+    expect(next.islands.first.currentForces, 6);
   });
 
   test('applies growth before an arrival at the same timestamp', () {
@@ -1106,7 +1261,7 @@ void main() {
 
     final arrived = rules.tick(halfway, deltaMs: force.durationMs);
     expect(arrived.movingForces, isEmpty);
-    expect(arrived.islands[1].currentForces, 40);
+    expect(arrived.islands[1].currentForces, 55); // 10 + 15 seconds * 2 + 15
   });
 
   test(
@@ -1351,7 +1506,8 @@ void main() {
 
       final atArrival = rules.tick(beforeArrival, deltaMs: 1);
       expect(atArrival.movingForces, isEmpty);
-      expect(atArrival.islands[1].currentForces, 35);
+      // 10 initial forces + 10 seconds * 2 + 15 reinforcements.
+      expect(atArrival.islands[1].currentForces, 45);
     },
   );
 
@@ -1414,7 +1570,7 @@ void main() {
       final next = rules.tick(state, deltaMs: first.durationMs);
       expect(next.movingForces, hasLength(1));
       expect(next.movingForces.single.id, second.id);
-      expect(next.islands[1].currentForces, 28);
+      expect(next.islands[1].currentForces, 31); // 10 + 3 seconds * 2 + 15
       expect(next.islands[3].currentForces, 0);
       expect(next.movingForces.single.progress, lessThan(1));
       expect(next.movingForces.single.position.x, closeTo(0, 1e-3));
@@ -2131,6 +2287,29 @@ void main() {
     loop.tick();
 
     expect(container.read(gameControllerProvider).elapsedMs, 125);
+    clock.value = 3999;
+    loop.tick();
+    final beforePause = container.read(gameControllerProvider);
+    expect(beforePause.elapsedMs, 999);
+    expect(beforePause.islands.first.currentForces, 100);
+    controller.pauseGame();
+    clock.value += 60000;
+    loop.tick();
+    expect(container.read(gameControllerProvider).islands, beforePause.islands);
+    controller.resumeGame();
+    clock.value += 3000;
+    loop.tick();
+    final resumed = container.read(gameControllerProvider);
+    expect(resumed.phase, GamePhase.playing);
+    expect(resumed.elapsedMs, 999);
+    expect(resumed.islands, beforePause.islands);
+    clock.value += 1;
+    loop.tick();
+    expect(container.read(gameControllerProvider).elapsedMs, 1000);
+    expect(
+      container.read(gameControllerProvider).islands.first.currentForces,
+      102,
+    );
   });
 
   test('nullable state values are cleared through typed APIs', () {

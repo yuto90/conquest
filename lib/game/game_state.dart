@@ -77,6 +77,9 @@ enum IslandSize {
   final int? neutralDurability;
   final int capacity;
 
+  /// Forces gained by an owned island at each whole-second boundary.
+  int get forcesPerGrowthTick => this == headquarters ? 2 : 1;
+
   /// A base is the legacy name for a headquarters island.
   static const base = headquarters;
 }
