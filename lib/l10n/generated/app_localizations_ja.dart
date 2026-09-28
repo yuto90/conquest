@@ -501,7 +501,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get spectatorDraw => '引き分け';
 
   @override
-  String get replay => '再戦';
+  String get replay => '新しいマップで対戦';
 
   @override
   String countdownSemantics({required String countdown}) {
@@ -608,4 +608,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get bgmRetry => 'BGMを再生';
+
+  @override
+  String get rematch => '同じマップで再戦';
+
+  @override
+  String get rematchHint => '同じマップ・難易度で再戦します';
+
+  @override
+  String get rematchSpectatorHint => '同じマップ・両CPUの難易度で再戦します';
+
+  @override
+  String get rematchMissing => '再戦用の初期盤面を利用できません';
+
+  @override
+  String get rematchEnlarge => '同じマップで再戦するには画面を広げてください';
 }

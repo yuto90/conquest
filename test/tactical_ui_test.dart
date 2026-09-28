@@ -211,7 +211,7 @@ void main() {
       expect(find.byKey(const ValueKey('result-sheet')), findsOne);
       expect(find.text('戦闘終了'), findsOne);
       expect(find.text(result.$2), findsOne);
-      expect(find.text('再戦'), findsOne);
+      expect(find.text('同じマップで再戦'), findsOne);
       expect(find.text('設定へ戻る'), findsOne);
     }
   });

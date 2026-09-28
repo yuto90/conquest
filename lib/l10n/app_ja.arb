@@ -268,8 +268,8 @@
   "@spectatorCpuWin": {"description": "観戦で2Pが勝利した結果。"},
   "spectatorDraw": "引き分け",
   "@spectatorDraw": {"description": "観戦の引き分け結果。"},
-  "replay": "再戦",
-  "@replay": {"description": "再戦ボタン。"},
+  "replay": "新しいマップで対戦",
+  "@replay": {"description": "新規マップで対戦するボタン。"},
   "countdownSemantics": "ゲーム開始 {countdown}",
   "@countdownSemantics": {"description": "カウントダウンのlive region。", "placeholders": {"countdown": {"type": "String"}}},
   "prepareToDeploy": "出撃準備",
@@ -323,5 +323,15 @@
   "bgmUnavailableMessage": "BGMを再生できません。音なしで対戦を続けます。",
   "@bgmUnavailableMessage": {"description": "BGMの準備または再生に失敗したときの非モーダル案内。"},
   "bgmRetry": "BGMを再生",
-  "@bgmRetry": {"description": "再生拒否または利用不可のBGMを明示的に再試行する操作。"}
+  "@bgmRetry": {"description": "再生拒否または利用不可のBGMを明示的に再試行する操作。"},
+  "rematch": "同じマップで再戦",
+  "@rematch": {"description": "Same-map rematch action or guidance."},
+  "rematchHint": "同じマップ・難易度で再戦します",
+  "@rematchHint": {"description": "Same-map rematch action or guidance."},
+  "rematchSpectatorHint": "同じマップ・両CPUの難易度で再戦します",
+  "@rematchSpectatorHint": {"description": "Same-map rematch action or guidance."},
+  "rematchMissing": "再戦用の初期盤面を利用できません",
+  "@rematchMissing": {"description": "Same-map rematch action or guidance."},
+  "rematchEnlarge": "同じマップで再戦するには画面を広げてください",
+  "@rematchEnlarge": {"description": "Same-map rematch action or guidance."}
 }
