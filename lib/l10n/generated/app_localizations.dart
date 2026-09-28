@@ -801,7 +801,7 @@ abstract class AppLocalizations {
   /// The return to settings button.
   ///
   /// In en, this message translates to:
-  /// **'Return to Settings'**
+  /// **'BACK TO SETTINGS'**
   String get returnSettings;
 
   /// The quit confirmation dialog title.
@@ -933,10 +933,10 @@ abstract class AppLocalizations {
   /// **'DRAW'**
   String get spectatorDraw;
 
-  /// The replay match button.
+  /// Start a match on a newly generated map.
   ///
   /// In en, this message translates to:
-  /// **'Play Again'**
+  /// **'NEW MAP'**
   String get replay;
 
   /// The countdown live region label.
@@ -1117,6 +1117,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play BGM'**
   String get bgmRetry;
+
+  /// Same-map rematch action or guidance.
+  ///
+  /// In en, this message translates to:
+  /// **'REMATCH'**
+  String get rematch;
+
+  /// Same-map rematch action or guidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Same map and difficulty'**
+  String get rematchHint;
+
+  /// Same-map rematch action or guidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Same map and both CPU difficulties'**
+  String get rematchSpectatorHint;
+
+  /// Same-map rematch action or guidance.
+  ///
+  /// In en, this message translates to:
+  /// **'The starting map is unavailable for rematch.'**
+  String get rematchMissing;
+
+  /// Same-map rematch action or guidance.
+  ///
+  /// In en, this message translates to:
+  /// **'Enlarge the window to rematch on the same map.'**
+  String get rematchEnlarge;
 }
 
 class _AppLocalizationsDelegate

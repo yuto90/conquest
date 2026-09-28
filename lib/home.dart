@@ -346,6 +346,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   result: state.result!,
                   summary: state.matchSummary,
                   rankProgress: rankProgress,
+                  onRematch: controller.rematchGame,
+                  rematchUnavailableReason: controller.rematchUnavailableReason,
                   onReplay: controller.replayGame,
                   onSettings: controller.returnToConfiguration,
                 ),
@@ -948,6 +950,8 @@ class _ResultPanel extends StatelessWidget {
     required this.result,
     required this.summary,
     required this.rankProgress,
+    required this.onRematch,
+    required this.rematchUnavailableReason,
     required this.onReplay,
     required this.onSettings,
   });
@@ -956,6 +960,8 @@ class _ResultPanel extends StatelessWidget {
   final GameResult result;
   final MatchSummary summary;
   final RankProgress rankProgress;
+  final VoidCallback onRematch;
+  final RematchUnavailableReason? rematchUnavailableReason;
   final VoidCallback onReplay;
   final VoidCallback onSettings;
 
@@ -963,6 +969,14 @@ class _ResultPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
     final title = _resultTitle(l10n, configuration, result);
+    final rematchHint = switch (rematchUnavailableReason) {
+      RematchUnavailableReason.missingSnapshot => l10n.rematchMissing,
+      RematchUnavailableReason.viewportTooSmall => l10n.rematchEnlarge,
+      null =>
+        configuration.gameMode == GameMode.cpuVsCpu
+            ? l10n.rematchSpectatorHint
+            : l10n.rematchHint,
+    };
     final ruleColor = switch (result.type) {
       GameResultType.victory
           when configuration.gameMode == GameMode.playerVsCpu =>
@@ -1046,7 +1060,20 @@ class _ResultPanel extends StatelessWidget {
                   _RankAwardSummary(result: result, progress: rankProgress),
                 ],
                 const SizedBox(height: 22),
-                _PrimaryActionButton(
+                Semantics(
+                  hint: rematchHint,
+                  child: _PrimaryActionButton(
+                    key: const ValueKey('rematch-game'),
+                    onPressed: rematchUnavailableReason == null
+                        ? onRematch
+                        : null,
+                    label: l10n.rematch,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Text(rematchHint, textAlign: TextAlign.center),
+                const SizedBox(height: 9),
+                _SecondaryActionButton(
                   key: const ValueKey('replay-game'),
                   onPressed: onReplay,
                   label: l10n.replay,
@@ -1959,9 +1986,11 @@ class _PrimaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 46,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: double.infinity,
+        minHeight: 46,
+      ),
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
@@ -1998,9 +2027,11 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 46,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        minWidth: double.infinity,
+        minHeight: 46,
+      ),
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(

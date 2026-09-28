@@ -58,6 +58,25 @@ final playerCpuStrategyProvider = Provider<CpuStrategy>((ref) {
   );
 });
 
+enum RematchUnavailableReason { missingSnapshot, viewportTooSmall }
+
+/// Session-only immutable starting board, independent of the placement cache.
+final class _MatchStartSnapshot {
+  _MatchStartSnapshot(GameState state)
+    : configuration = state.configuration,
+      islands = List.unmodifiable(state.islands);
+
+  final GameConfiguration configuration;
+  final List<IslandState> islands;
+
+  GameState restore() => GameState(
+    configuration: configuration,
+    islands: islands,
+    phase: GamePhase.configuration,
+    elapsedMs: 0,
+  );
+}
+
 @riverpod
 class GameController extends _$GameController {
   late GameLoop _gameLoop;
@@ -72,6 +91,7 @@ class GameController extends _$GameController {
   IslandMapViewport? _cachedViewport;
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
+  _MatchStartSnapshot? _matchStartSnapshot;
   var _matchSerial = 0;
   var _currentMatchId = 'match-0';
   var _rankRewardGranted = false;
@@ -270,6 +290,7 @@ class GameController extends _$GameController {
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
     _rankRewardGranted = false;
+    _matchStartSnapshot = null;
     state = _newInitialStateFor(
       configuration: state.configuration,
       viewport: ref.read(mapViewportProvider),
@@ -296,20 +317,49 @@ class GameController extends _$GameController {
       _gameLoop.stop();
       _clearCpuDecisionDeadlines();
       _lastTickMs = null;
+      _matchStartSnapshot = null;
       state = initial;
       return;
     }
-    final countdown = _rules.startCountdown(initial);
-    _beginNewMatch();
-    state = countdown;
-    _clearCpuDecisionDeadlines();
+    state = _countdownForNewMatch(initial);
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
   }
 
   GameState _startNewMatch() {
+    return _countdownForNewMatch(state);
+  }
+
+  GameState _countdownForNewMatch(GameState initial) {
+    _matchStartSnapshot = _MatchStartSnapshot(initial);
     _beginNewMatch();
-    return _rules.startCountdown(state);
+    _clearCpuDecisionDeadlines();
+    return _rules.startCountdown(initial);
+  }
+
+  RematchUnavailableReason? get rematchUnavailableReason {
+    if (_disposed) return RematchUnavailableReason.missingSnapshot;
+    final snapshot = _matchStartSnapshot;
+    if (snapshot == null ||
+        snapshot.islands.length != snapshot.configuration.totalIslandCount) {
+      return RematchUnavailableReason.missingSnapshot;
+    }
+    if (!ref.read(mapViewportProvider).canRenderIslands(snapshot.islands)) {
+      return RematchUnavailableReason.viewportTooSmall;
+    }
+    return null;
+  }
+
+  /// Restores the starting board without consuming map-generation randomness.
+  void rematchGame() {
+    if (_disposed ||
+        state.phase != GamePhase.result ||
+        rematchUnavailableReason != null) {
+      return;
+    }
+    state = _countdownForNewMatch(_matchStartSnapshot!.restore());
+    _lastTickMs = _clock.nowMs();
+    _gameLoop.start(_tick);
   }
 
   void _beginNewMatch() {
@@ -497,6 +547,7 @@ class GameController extends _$GameController {
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
+    _matchStartSnapshot = null;
     final viewportUnavailable = !viewport.canRenderIslands(state.islands);
     final restored = state.copyWith(viewportUnavailable: viewportUnavailable);
     _cachedConfiguration = restored.configuration;

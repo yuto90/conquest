@@ -938,6 +938,69 @@ void main() {
     expect(store.savedValues, [3000, 3500]);
   });
 
+  test(
+    'rematch awards once per match and ignores the previous delayed result',
+    () async {
+      final loadCompleter = Completer<int?>();
+      final firstSave = Completer<void>();
+      final secondSave = Completer<void>();
+      final store = _FakeRankStore(
+        loadCompleter: loadCompleter,
+        saveCompleters: [firstSave, secondSave],
+      );
+      final loop = _ManualRankGameLoop();
+      final container = ProviderContainer(
+        overrides: [
+          rankProgressStoreProvider.overrideWithValue(store),
+          gameLoopProvider.overrideWithValue(loop),
+          randomProvider.overrideWithValue(Random(1)),
+          cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
+        ],
+      );
+      addTearDown(container.dispose);
+      final gameStateSubscription = container.listen(
+        gameControllerProvider,
+        (_, __) {},
+      );
+      addTearDown(gameStateSubscription.close);
+
+      final controller = container.read(gameControllerProvider.notifier);
+      controller.selectCpuDifficulty(CpuDifficulty.hard);
+      controller.startGame();
+      loop.tickMany(60);
+      controller.finish(const GameResult.victory(elapsedMs: 100));
+      await _flushMicrotasks();
+      expect(store.loadCount, 1);
+
+      controller.rematchGame();
+      controller.rematchGame();
+      expect(controller.state.result, isNull);
+      loop.tickMany(60);
+      controller.finish(const GameResult.victory(elapsedMs: 200));
+      await _flushMicrotasks();
+
+      loadCompleter.complete(0);
+      await _flushMicrotasks();
+      expect(store.saveCount, 1);
+      expect(container.read(gameControllerProvider).result!.xpAwarded, 0);
+
+      firstSave.complete();
+      await _flushMicrotasks();
+      expect(store.saveCount, 2);
+      expect(container.read(gameControllerProvider).result!.xpAwarded, 0);
+
+      secondSave.complete();
+      await _flushMicrotasks(5);
+      final result = container.read(gameControllerProvider).result!;
+      expect(result.xpAwarded, 3000);
+      expect(result.rankBefore, 1);
+      expect(result.rankAfter, 1);
+      expect(result.totalXpBefore, 3000);
+      expect(result.totalXpAfter, 6000);
+      expect(store.savedValues, [3000, 6000]);
+    },
+  );
+
   test('controller excludes spectator and non-win results', () async {
     final store = _FakeRankStore();
     final loop = _ManualRankGameLoop();

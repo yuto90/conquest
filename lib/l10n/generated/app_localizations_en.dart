@@ -427,7 +427,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resume => 'Resume';
 
   @override
-  String get returnSettings => 'Return to Settings';
+  String get returnSettings => 'BACK TO SETTINGS';
 
   @override
   String get quitTitle => 'Quit match?';
@@ -515,7 +515,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spectatorDraw => 'DRAW';
 
   @override
-  String get replay => 'Play Again';
+  String get replay => 'NEW MAP';
 
   @override
   String countdownSemantics({required String countdown}) {
@@ -628,4 +628,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bgmRetry => 'Play BGM';
+
+  @override
+  String get rematch => 'REMATCH';
+
+  @override
+  String get rematchHint => 'Same map and difficulty';
+
+  @override
+  String get rematchSpectatorHint => 'Same map and both CPU difficulties';
+
+  @override
+  String get rematchMissing => 'The starting map is unavailable for rematch.';
+
+  @override
+  String get rematchEnlarge => 'Enlarge the window to rematch on the same map.';
 }
