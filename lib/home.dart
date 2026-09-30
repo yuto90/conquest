@@ -292,18 +292,15 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                           ),
                         ),
                       for (final force in state.movingForces)
-                        Align(
+                        PositionedMovingForce(
                           key: ValueKey('moving-force-position-${force.id}'),
-                          alignment: Alignment(force.x, force.y),
-                          child: MovingForceWidget(
-                            force: force,
-                            boardSize: Size(viewport.width, viewport.height),
-                            presentation: FactionPresentation.forMode(
-                              state.configuration.gameMode,
-                              force.faction,
-                            ),
-                            semanticsKey: ValueKey('moving-force-${force.id}'),
+                          force: force,
+                          viewport: viewport,
+                          presentation: FactionPresentation.forMode(
+                            state.configuration.gameMode,
+                            force.faction,
                           ),
+                          semanticsKey: ValueKey('moving-force-${force.id}'),
                         ),
                     ],
                   ),

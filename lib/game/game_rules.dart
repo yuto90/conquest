@@ -106,23 +106,49 @@ final class IslandMapViewport {
     );
   }
 
-  /// Returns the screen-space distance travelled by a moving-force widget
-  /// between two normalized alignment positions.  [Align] positions the
-  /// center using `(viewport - child) * alignment / 2`, so each axis uses the
-  /// available travel span for the 30px troop widget rather than the raw
-  /// normalized coordinate span.
+  /// The fixed placement box has a positive travel span on both axes.
+  bool get isMovementValid =>
+      isValid &&
+      width > GameRules.movingForceWidgetSize &&
+      height > GameRules.movingForceWidgetSize &&
+      movingForceScreenDiagonal.isFinite;
+
+  /// Screen-space center of the fixed placement box. Artwork is independent.
+  IslandPosition movingForceCenter(IslandPosition position) {
+    return IslandPosition(
+      x: width / 2 + (width - GameRules.movingForceWidgetSize) * position.x / 2,
+      y:
+          height / 2 +
+          (height - GameRules.movingForceWidgetSize) * position.y / 2,
+    );
+  }
+
+  /// The same transform is used for distance, rendering and aircraft heading.
+  IslandPosition movingForceDelta(
+    IslandPosition source,
+    IslandPosition destination,
+  ) {
+    return IslandPosition(
+      x:
+          (width - GameRules.movingForceWidgetSize) *
+          (destination.x - source.x) /
+          2,
+      y:
+          (height - GameRules.movingForceWidgetSize) *
+          (destination.y - source.y) /
+          2,
+    );
+  }
+
   double movingForceDistance(
     IslandPosition source,
     IslandPosition destination,
   ) {
-    final horizontalSpan = width - GameRules.movingForceWidgetSize;
-    final verticalSpan = height - GameRules.movingForceWidgetSize;
-    final deltaX = horizontalSpan * (destination.x - source.x) / 2;
-    final deltaY = verticalSpan * (destination.y - source.y) / 2;
-    return math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    final delta = movingForceDelta(source, destination);
+    return math.sqrt(delta.x * delta.x + delta.y * delta.y);
   }
 
-  /// The screen-space diagonal available to a moving-force widget.
+  /// The screen-space diagonal available to the fixed placement box.
   double get movingForceScreenDiagonal {
     final horizontalSpan = width - GameRules.movingForceWidgetSize;
     final verticalSpan = height - GameRules.movingForceWidgetSize;
@@ -769,6 +795,82 @@ final class GameRules {
     ];
   }
 
+  double _movementProgress(MovingForce force, int elapsedMs) {
+    final segmentDuration = math.max(
+      1,
+      force.arrivalTimeMs - force.segmentStartTimeMs,
+    );
+    final segmentProgress =
+        ((elapsedMs - force.segmentStartTimeMs) / segmentDuration).clamp(
+          0.0,
+          1.0,
+        );
+    return force.segmentStartProgress +
+        (1 - force.segmentStartProgress) * segmentProgress;
+  }
+
+  /// Replan all unfinished routes at one frozen game-time instant.
+  /// Callers only invoke this when the actual usable viewport changes; invalid
+  /// layouts retain their old plan and stop the game loop instead.
+  GameState replanMovingForces(
+    GameState state, {
+    required IslandMapViewport viewport,
+  }) {
+    if (!viewport.isMovementValid ||
+        state.phase == GamePhase.result ||
+        state.movingForces.isEmpty)
+      return state;
+    final islands = {for (final island in state.islands) island.id: island};
+    final nextForces = <MovingForce>[];
+    for (final force in state.movingForces) {
+      // An already-due arrival belongs to tick's normal event ordering. Never
+      // extend it by a millisecond or resurrect it during layout.
+      if (force.arrivalTimeMs <= state.elapsedMs || force.progress >= 1) {
+        nextForces.add(force);
+        continue;
+      }
+      final source = islands[force.sourceIslandId];
+      final target = islands[force.destinationIslandId];
+      if (source == null || target == null) {
+        nextForces.add(force);
+        continue;
+      }
+      final distance = viewport.movingForceDistance(
+        source.position,
+        target.position,
+      );
+      if (!distance.isFinite) {
+        nextForces.add(force);
+        continue;
+      }
+      final progress = _movementProgress(force, state.elapsedMs);
+      final remainingMs = math.max(
+        1,
+        (movementDurationMs *
+                (1 - progress) *
+                (distance / viewport.movingForceScreenDiagonal))
+            .round(),
+      );
+      final arrivalTimeMs = state.elapsedMs + remainingMs;
+      nextForces.add(
+        force.copyWith(
+          position: IslandPosition(
+            x: source.x + (target.x - source.x) * progress,
+            y: source.y + (target.y - source.y) * progress,
+          ),
+          progress: progress,
+          deltaX: target.x - source.x,
+          deltaY: target.y - source.y,
+          segmentStartTimeMs: state.elapsedMs,
+          segmentStartProgress: progress,
+          arrivalTimeMs: arrivalTimeMs,
+          durationMs: arrivalTimeMs - force.departureTimeMs,
+        ),
+      );
+    }
+    return state.copyWith(movingForces: nextForces);
+  }
+
   List<MovingForce> _updateMovingForcePositions(
     List<MovingForce> movingForces,
     List<IslandState> islands,
@@ -776,11 +878,7 @@ final class GameRules {
   ) {
     final nextForces = <MovingForce>[];
     for (final force in movingForces) {
-      final duration = math.max(1, force.durationMs);
-      final elapsedSinceDeparture = elapsedMs - force.departureTimeMs;
-      final nextProgress = elapsedSinceDeparture <= 0
-          ? 0.0
-          : math.min(1.0, elapsedSinceDeparture / duration);
+      final nextProgress = _movementProgress(force, elapsedMs);
       final source = islands.firstWhere(
         (island) => island.id == force.sourceIslandId,
         orElse: () => const IslandState(
@@ -887,10 +985,14 @@ final class GameRules {
       source.position,
       destination.position,
     );
+    if (!viewport.isMovementValid || !distance.isFinite) {
+      throw ArgumentError('Movement requires a finite viewport and route');
+    }
     final screenDiagonal = viewport.movingForceScreenDiagonal;
-    final durationMs = screenDiagonal <= 0
-        ? 1
-        : math.max(1, (movementDurationMs * distance / screenDiagonal).round());
+    final durationMs = math.max(
+      1,
+      (movementDurationMs * (distance / screenDiagonal)).round(),
+    );
     return MovingForce(
       id: id,
       faction: faction,

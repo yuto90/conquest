@@ -356,11 +356,14 @@ class MovingForce {
     this.arrivalTimeMs = movementDefaultArrivalTimeMs,
     this.durationMs = movementDefaultDurationMs,
     this.progress = 0,
+    int? segmentStartTimeMs,
+    this.segmentStartProgress = 0,
     this.deltaX = 0,
     this.deltaY = 0,
   }) : _x = x ?? 0,
        _y = y ?? 0,
-       _position = position;
+       _position = position,
+       segmentStartTimeMs = segmentStartTimeMs ?? departureTimeMs;
 
   /// Compatibility alias for the canonical screen-diagonal duration.
   static const movementDefaultDurationMs =
@@ -377,7 +380,13 @@ class MovingForce {
   final IslandPosition? _position;
   final int departureTimeMs;
   final int arrivalTimeMs;
+
+  /// Total scheduled time from original departure to the current arrival.
   final int durationMs;
+
+  /// Immutable interpolation segment, restarted only when the viewport changes.
+  final int segmentStartTimeMs;
+  final double segmentStartProgress;
   final double progress;
   final double deltaX;
   final double deltaY;
@@ -415,6 +424,8 @@ class MovingForce {
     int? startTimeMs,
     int? arrivalTimeMs,
     int? durationMs,
+    int? segmentStartTimeMs,
+    double? segmentStartProgress,
     double? progress,
     double? deltaX,
     double? deltaY,
@@ -436,6 +447,8 @@ class MovingForce {
       departureTimeMs: departureTimeMs ?? startTimeMs ?? this.departureTimeMs,
       arrivalTimeMs: arrivalTimeMs ?? this.arrivalTimeMs,
       durationMs: durationMs ?? this.durationMs,
+      segmentStartTimeMs: segmentStartTimeMs ?? this.segmentStartTimeMs,
+      segmentStartProgress: segmentStartProgress ?? this.segmentStartProgress,
       progress: progress ?? this.progress,
       deltaX: deltaX ?? this.deltaX,
       deltaY: deltaY ?? this.deltaY,
@@ -454,6 +467,8 @@ class MovingForce {
         other.departureTimeMs == departureTimeMs &&
         other.arrivalTimeMs == arrivalTimeMs &&
         other.durationMs == durationMs &&
+        other.segmentStartTimeMs == segmentStartTimeMs &&
+        other.segmentStartProgress == segmentStartProgress &&
         other.progress == progress &&
         other.deltaX == deltaX &&
         other.deltaY == deltaY;
@@ -470,6 +485,8 @@ class MovingForce {
     departureTimeMs,
     arrivalTimeMs,
     durationMs,
+    segmentStartTimeMs,
+    segmentStartProgress,
     progress,
     deltaX,
     deltaY,

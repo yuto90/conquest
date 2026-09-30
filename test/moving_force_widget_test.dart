@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/moving_force.dart';
 import 'package:flutter/material.dart';
@@ -62,6 +63,65 @@ void _expectHeading(
 }
 
 void main() {
+  testWidgets(
+    'shared placement keeps the existing 30dp Align reference point',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(500, 950));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const positions = <IslandPosition>[
+        IslandPosition(x: -1, y: -1),
+        IslandPosition(x: -0.3, y: 0.7),
+        IslandPosition(x: 0, y: 0),
+        IslandPosition(x: 1, y: 1),
+      ];
+      for (final board in [_tallBoard, _squareBoard]) {
+        for (final position in positions) {
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Center(
+                child: SizedBox(
+                  width: board.width,
+                  height: board.height,
+                  child: Stack(
+                    children: [
+                      Align(
+                        alignment: Alignment(position.x, position.y),
+                        child: const SizedBox.square(
+                          key: ValueKey('legacy-reference'),
+                          dimension: 30,
+                        ),
+                      ),
+                      PositionedMovingForce(
+                        force: _force().copyWith(position: position),
+                        viewport: IslandMapViewport(
+                          width: board.width,
+                          height: board.height,
+                        ),
+                        semanticsKey: const ValueKey('shared-reference'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+          final legacy = tester.getCenter(
+            find.byKey(const ValueKey('legacy-reference')),
+          );
+          final shared = tester.getCenter(
+            find.byKey(const ValueKey('shared-reference')),
+          );
+          expect((shared - legacy).distance, lessThan(1e-9));
+          expect(
+            tester.getSize(find.byKey(const ValueKey('shared-reference'))),
+            const Size(30, 30),
+          );
+        }
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('matches the rendered heading on a tall board', (tester) async {
     const cases = <({String name, double deltaX, double deltaY})>[
       (name: 'horizontal', deltaX: 1, deltaY: 0),
@@ -151,6 +211,20 @@ void main() {
       expect(matrix[1], closeTo(0, 1e-10));
       expect(matrix[4], closeTo(0, 1e-10));
       expect(matrix[5], closeTo(1, 1e-10));
+    }
+  });
+
+  testWidgets('falls back to zero for non-finite route deltas', (tester) async {
+    for (final force in [
+      _force(deltaX: double.nan),
+      _force(deltaY: double.infinity),
+    ]) {
+      await _pumpForce(tester, force: force, boardSize: _tallBoard);
+      final matrix = _aircraftTransform(tester).transform.storage;
+      expect(matrix[0], 1);
+      expect(matrix[1], 0);
+      expect(matrix[4], 0);
+      expect(matrix[5], 1);
     }
   });
 }

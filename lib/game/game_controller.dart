@@ -89,6 +89,9 @@ class GameController extends _$GameController {
   int? _lastTickMs;
   final Map<Faction, int> _nextCpuDecisionAtMsByFaction = {};
   IslandMapViewport? _cachedViewport;
+  // Movement uses the actual board, not the conservative placement envelope.
+  // Do not replace this with an invalid viewport while a match is held.
+  IslandMapViewport? _movementViewport;
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
   _MatchStartSnapshot? _matchStartSnapshot;
@@ -126,7 +129,6 @@ class GameController extends _$GameController {
     final configuration = previousState?.configuration ?? providerConfiguration;
     if (previousState != null &&
         previousState.phase != GamePhase.configuration) {
-      _cachedViewport = viewport;
       final isActivePhase = switch (previousState.phase) {
         GamePhase.startCountdown ||
         GamePhase.playing ||
@@ -135,7 +137,11 @@ class GameController extends _$GameController {
         GamePhase.paused ||
         GamePhase.result => false,
       };
-      if (isActivePhase && !viewport.canRenderIslands(previousState.islands)) {
+      final canContinueMatch =
+          isActivePhase || previousState.phase == GamePhase.paused;
+      if (canContinueMatch &&
+          (!viewport.isMovementValid ||
+              !viewport.canRenderIslands(previousState.islands))) {
         // Keep every match value exactly as-is while the window is too small
         // for the existing rectangles. The UI presents an explicit enlarge
         // and resume action once the same map can be rendered again.
@@ -143,13 +149,16 @@ class GameController extends _$GameController {
         _lastTickMs = null;
         return previousState.copyWith(viewportUnavailable: true);
       }
-      if (isActivePhase && previousState.viewportUnavailable) {
+      if (canContinueMatch && previousState.viewportUnavailable) {
         // A safe resize does not implicitly resume a match that was held for
         // an unsafe resize. The user must explicitly choose Resume.
         _gameLoop.stop();
         _lastTickMs = null;
         return previousState;
       }
+      final nextState = canContinueMatch
+          ? _replanForViewport(previousState, viewport)
+          : previousState;
       final shouldResumeLoop =
           previousState.phase == GamePhase.startCountdown ||
           previousState.phase == GamePhase.resumeCountdown ||
@@ -162,7 +171,7 @@ class GameController extends _$GameController {
         _lastTickMs = _clock.nowMs();
         _gameLoop.start(_tick);
       }
-      return previousState;
+      return nextState;
     }
 
     if (previousState != null &&
@@ -175,6 +184,7 @@ class GameController extends _$GameController {
       return previousState;
     }
 
+    if (viewport.isMovementValid) _movementViewport = viewport;
     return _initialStateFor(configuration: configuration, viewport: viewport);
   }
 
@@ -186,6 +196,7 @@ class GameController extends _$GameController {
   /// after the countdown is the shared start boundary for every subsystem.
   void startGame() {
     if (_disposed ||
+        state.viewportUnavailable ||
         state.phase == GamePhase.playing ||
         (state.phase == GamePhase.configuration &&
             state.islands.length != state.configuration.totalIslandCount)) {
@@ -244,9 +255,15 @@ class GameController extends _$GameController {
   void resumeAfterViewportChange() {
     if (_disposed || !state.viewportUnavailable) return;
     final viewport = ref.read(mapViewportProvider);
-    if (!viewport.canRenderIslands(state.islands)) return;
+    if (!viewport.isMovementValid ||
+        !viewport.canRenderIslands(state.islands)) {
+      return;
+    }
 
-    state = state.copyWith(viewportUnavailable: false);
+    state = _replanForViewport(
+      state,
+      viewport,
+    ).copyWith(viewportUnavailable: false);
     if (state.phase == GamePhase.paused) {
       resumeGame();
       return;
@@ -258,6 +275,15 @@ class GameController extends _$GameController {
     }
     _lastTickMs = _clock.nowMs();
     _gameLoop.start(_tick);
+  }
+
+  GameState _replanForViewport(GameState current, IslandMapViewport viewport) {
+    if (!viewport.isMovementValid || _movementViewport == viewport) {
+      return current;
+    }
+    final replanned = _rules.replanMovingForces(current, viewport: viewport);
+    _movementViewport = viewport;
+    return replanned;
   }
 
   void finish(GameResult result) {
@@ -331,6 +357,8 @@ class GameController extends _$GameController {
   }
 
   GameState _countdownForNewMatch(GameState initial) {
+    final viewport = ref.read(mapViewportProvider);
+    if (viewport.isMovementValid) _movementViewport = viewport;
     _matchStartSnapshot = _MatchStartSnapshot(initial);
     _beginNewMatch();
     _clearCpuDecisionDeadlines();
@@ -571,6 +599,7 @@ class GameController extends _$GameController {
   /// earlier troop cannot be retargeted or cancelled.
   void tapBase(int baseId) {
     if (_disposed ||
+        state.viewportUnavailable ||
         state.phase != GamePhase.playing ||
         state.configuration.gameMode != GameMode.playerVsCpu) {
       return;
@@ -646,7 +675,9 @@ class GameController extends _$GameController {
   }
 
   void _tick() {
-    if (_disposed || state.phase == GamePhase.paused) {
+    if (_disposed ||
+        state.viewportUnavailable ||
+        state.phase == GamePhase.paused) {
       return;
     }
 

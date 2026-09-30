@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:conquest/game/game_rules.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/tutorial/tutorial_session.dart';
@@ -206,4 +208,132 @@ void main() {
     session.resumeAfterLifecycle();
     expect(session.lifecyclePaused, isFalse);
   });
+
+  test('replans timing even when a resize keeps all normalized anchors', () {
+    const portrait = IslandMapViewport(width: 800, height: 1200);
+    const landscape = IslandMapViewport(width: 1200, height: 800);
+    final session = TutorialSession.create(viewport: portrait);
+    session.tapIsland(TutorialSession.playerHeadquartersId);
+    session.tapIsland(TutorialSession.targetIslandId);
+    session.tick(500);
+    final before = session.gameState;
+    final force = before.movingForces.single;
+
+    session.pauseForLifecycle();
+    session.updateViewport(landscape);
+
+    final after = session.gameState;
+    final replanned = after.movingForces.single;
+    expect(after.islands, before.islands);
+    expect(after.elapsedMs, before.elapsedMs);
+    expect(replanned.progress, force.progress);
+    expect(replanned.position, force.position);
+    expect(replanned.departureTimeMs, force.departureTimeMs);
+    expect(replanned.segmentStartTimeMs, before.elapsedMs);
+    expect(replanned.segmentStartProgress, force.progress);
+    final destination = after.islands.firstWhere(
+      (island) => island.id == force.destinationIslandId,
+    );
+    final remainder = max(
+      1,
+      (GameRules.movementDurationMs *
+              landscape.movingForceDistance(
+                force.position,
+                destination.position,
+              ) /
+              landscape.movingForceScreenDiagonal)
+          .round(),
+    );
+    expect(replanned.arrivalTimeMs, before.elapsedMs + remainder);
+    expect(replanned.arrivalTimeMs, isNot(force.arrivalTimeMs));
+    expect(session.lifecyclePaused, isTrue);
+    session.tick(100000);
+    expect(session.gameState, same(after));
+
+    session.resumeAfterLifecycle();
+    session.tick(remainder - 1);
+    expect(session.hasArrived, isFalse);
+    session.tick(1);
+    expect(session.hasArrived, isTrue);
+    expect(session.gameState.elapsedMs, replanned.arrivalTimeMs);
+  });
+
+  test('same-size updates leave the in-flight segment untouched', () {
+    const viewport = IslandMapViewport(width: 390, height: 500);
+    final session = TutorialSession.create(viewport: viewport);
+    session.tapIsland(TutorialSession.playerHeadquartersId);
+    session.tapIsland(TutorialSession.targetIslandId);
+    session.tick(500);
+    final before = session.gameState;
+
+    session.updateViewport(viewport);
+    expect(session.gameState, same(before));
+    session.pauseForLifecycle();
+    session.resumeAfterLifecycle();
+    expect(session.gameState, same(before));
+  });
+
+  test(
+    'invalid sizes preserve the last plan and cannot resume the tutorial',
+    () {
+      final session = TutorialSession.create(
+        viewport: const IslandMapViewport(width: 390, height: 500),
+      );
+      session.tapIsland(TutorialSession.playerHeadquartersId);
+      session.tapIsland(TutorialSession.targetIslandId);
+      session.tick(500);
+      session.pauseForLifecycle();
+      final before = session.gameState;
+
+      for (final viewport in const [
+        IslandMapViewport(width: 0, height: 800),
+        IslandMapViewport(width: 30, height: 800),
+        IslandMapViewport(width: double.nan, height: 800),
+        IslandMapViewport(width: 800, height: double.infinity),
+        IslandMapViewport(width: 180, height: 200),
+      ]) {
+        session.updateViewport(viewport);
+        expect(session.canResumeAfterLifecycle, isFalse);
+        session.resumeAfterLifecycle();
+        session.tick(100000);
+        expect(session.lifecyclePaused, isTrue);
+        expect(session.gameState, same(before));
+      }
+
+      session.updateViewport(const IslandMapViewport(width: 231, height: 310));
+      final recovered = session.gameState;
+      final replanned = recovered.movingForces.single;
+      expect(session.canResumeAfterLifecycle, isTrue);
+      expect(session.lifecyclePaused, isTrue);
+      expect(replanned.id, before.movingForces.single.id);
+      expect(replanned.progress, before.movingForces.single.progress);
+      expect(
+        replanned.departureTimeMs,
+        before.movingForces.single.departureTimeMs,
+      );
+      expect(replanned.segmentStartTimeMs, before.elapsedMs);
+      final source = recovered.islands.firstWhere(
+        (island) => island.id == replanned.sourceIslandId,
+      );
+      final target = recovered.islands.firstWhere(
+        (island) => island.id == replanned.destinationIslandId,
+      );
+      expect(
+        replanned.x,
+        closeTo(source.x + (target.x - source.x) * replanned.progress, 1e-10),
+      );
+      expect(
+        replanned.y,
+        closeTo(source.y + (target.y - source.y) * replanned.progress, 1e-10),
+      );
+      expect(replanned.deltaX, target.x - source.x);
+      expect(replanned.deltaY, target.y - source.y);
+      session.tick(100000);
+      expect(session.gameState, same(recovered));
+      session.resumeAfterLifecycle();
+      session.tick(replanned.arrivalTimeMs - recovered.elapsedMs);
+      expect(session.hasArrived, isTrue);
+      expect(session.gameState.elapsedMs, replanned.arrivalTimeMs);
+    },
+  );
 }

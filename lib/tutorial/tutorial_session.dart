@@ -22,7 +22,8 @@ final class TutorialSession extends ChangeNotifier {
     required GameState gameState,
     required IslandMapViewport viewport,
   }) : _gameState = gameState,
-       _viewport = viewport;
+       _viewport = viewport,
+       _movementViewport = viewport.isMovementValid ? viewport : null;
 
   static const playerHeadquartersId = 0;
   static const targetIslandId = 2;
@@ -35,6 +36,7 @@ final class TutorialSession extends ChangeNotifier {
   final GameRules _rules = const GameRules();
   GameState _gameState;
   IslandMapViewport _viewport;
+  IslandMapViewport? _movementViewport;
   TutorialStep _step = TutorialStep.selectSource;
   TutorialStep? _retryPrompt;
   var _hasArrived = false;
@@ -68,34 +70,36 @@ final class TutorialSession extends ChangeNotifier {
   int get sourceForcesAfterDispatch => _sourceForcesAfterDispatch;
   bool get lifecyclePaused => _lifecyclePaused;
   bool get canResumeAfterLifecycle =>
-      !_lifecyclePaused || _isSafeLayout(_gameState.islands, _viewport);
+      _viewport.isMovementValid && _isSafeLayout(_gameState.islands, _viewport);
   bool get canAdvanceAfterCapture =>
       _step == TutorialStep.watchCapture && _hasArrived;
 
   /// Updates the viewport used for movement rendering.
   ///
   /// A resize can happen while the demonstration aircraft is in flight. The
-  /// board is repacked immediately, and the aircraft keeps its current
-  /// progress along the new route. The lifecycle pause then prevents any
-  /// further time from passing until the player explicitly resumes.
+  /// board is repacked when it fits, and the aircraft keeps its current
+  /// progress along the new route with a new remaining-distance deadline.
+  /// The lifecycle pause then prevents any further time from passing until
+  /// the player explicitly resumes. Invalid layouts keep the previous plan.
   void updateViewport(IslandMapViewport viewport) {
-    if (!viewport.isValid) return;
     _viewport = viewport;
+    if (!viewport.isMovementValid) return;
     final islands = _layoutIslands(_gameState.islands, viewport);
-    if (_samePositions(_gameState.islands, islands)) return;
-    final movingForces = [
-      for (final force in _gameState.movingForces)
-        _repositionMovingForce(force, islands),
-    ];
-    _gameState = _gameState.copyWith(
-      islands: islands,
-      movingForces: movingForces,
+    // Keep the last valid route and deadline while the board cannot fit.
+    // Returning to a safe viewport still leaves any lifecycle hold in place.
+    if (!_isSafeLayout(islands, viewport)) return;
+    final samePositions = _samePositions(_gameState.islands, islands);
+    if (_movementViewport == viewport && samePositions) return;
+    _gameState = _rules.replanMovingForces(
+      samePositions ? _gameState : _gameState.copyWith(islands: islands),
+      viewport: viewport,
     );
+    _movementViewport = viewport;
   }
 
   /// Handles a tutorial island tap. Wrong taps only set a re-prompt state.
   void tapIsland(int islandId) {
-    if (_lifecyclePaused) return;
+    if (_lifecyclePaused || !canResumeAfterLifecycle) return;
 
     switch (_step) {
       case TutorialStep.selectSource:
@@ -139,6 +143,7 @@ final class TutorialSession extends ChangeNotifier {
   /// frozen so a player can read the rule without the board changing.
   void tick(int deltaMs) {
     if (_lifecyclePaused ||
+        !canResumeAfterLifecycle ||
         deltaMs < 0 ||
         _step != TutorialStep.watchCapture ||
         _hasArrived) {
@@ -294,31 +299,6 @@ final class TutorialSession extends ChangeNotifier {
           ),
         ),
     ];
-  }
-
-  static MovingForce _repositionMovingForce(
-    MovingForce force,
-    List<IslandState> islands,
-  ) {
-    IslandState? findIsland(int id) {
-      for (final island in islands) {
-        if (island.id == id) return island;
-      }
-      return null;
-    }
-
-    final source = findIsland(force.sourceIslandId);
-    final destination = findIsland(force.destinationIslandId);
-    if (source == null || destination == null) return force;
-    final progress = force.progress.clamp(0.0, 1.0);
-    return force.copyWith(
-      position: IslandPosition(
-        x: source.x + (destination.x - source.x) * progress,
-        y: source.y + (destination.y - source.y) * progress,
-      ),
-      deltaX: destination.x - source.x,
-      deltaY: destination.y - source.y,
-    );
   }
 
   static bool _isSafeLayout(

@@ -1336,7 +1336,26 @@ void main() {
       expect(after.configuration.totalIslandCount, 6);
       expect(after.islands, hasLength(6));
       expect(after.elapsedMs, before.elapsedMs);
-      expect(after.movingForces, before.movingForces);
+      expect(after.movingForces, hasLength(before.movingForces.length));
+      for (var index = 0; index < before.movingForces.length; index++) {
+        final original = before.movingForces[index];
+        final replanned = after.movingForces[index];
+        expect(replanned.id, original.id);
+        expect(replanned.position, original.position);
+        expect(replanned.progress, original.progress);
+        expect(replanned.departureTimeMs, original.departureTimeMs);
+        expect(replanned.strength, original.strength);
+        expect(replanned.faction, original.faction);
+        expect(replanned.sourceIslandId, original.sourceIslandId);
+        expect(replanned.destinationIslandId, original.destinationIslandId);
+        expect(replanned.segmentStartTimeMs, after.elapsedMs);
+        expect(replanned.segmentStartProgress, original.progress);
+        expect(replanned.arrivalTimeMs, greaterThan(after.elapsedMs));
+        expect(
+          replanned.durationMs,
+          replanned.arrivalTimeMs - original.departureTimeMs,
+        );
+      }
       expect(after.selectedIslandId, isNull);
       expect(loop.isRunning, isTrue);
 
@@ -1523,7 +1542,26 @@ void main() {
     expect(after.elapsedMs, before.elapsedMs);
     expect(after.islands, before.islands);
     expect(after.selectedIslandId, isNull);
-    expect(after.movingForces, before.movingForces);
+    expect(after.movingForces, hasLength(before.movingForces.length));
+    for (var index = 0; index < before.movingForces.length; index++) {
+      final original = before.movingForces[index];
+      final replanned = after.movingForces[index];
+      expect(replanned.id, original.id);
+      expect(replanned.position, original.position);
+      expect(replanned.progress, original.progress);
+      expect(replanned.departureTimeMs, original.departureTimeMs);
+      expect(replanned.strength, original.strength);
+      expect(replanned.faction, original.faction);
+      expect(replanned.sourceIslandId, original.sourceIslandId);
+      expect(replanned.destinationIslandId, original.destinationIslandId);
+      expect(replanned.segmentStartTimeMs, after.elapsedMs);
+      expect(replanned.segmentStartProgress, original.progress);
+      expect(replanned.arrivalTimeMs, greaterThan(after.elapsedMs));
+      expect(
+        replanned.durationMs,
+        replanned.arrivalTimeMs - original.departureTimeMs,
+      );
+    }
     expect(loop.isRunning, isTrue);
 
     loop.tick();
