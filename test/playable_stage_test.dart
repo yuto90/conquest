@@ -27,4 +27,29 @@ void main() {
     expect(stage.width, 200);
     expect(stage.height, closeTo(200 * 844 / 390, 0.001));
   });
+  test('compact portrait Web keeps the safe-area width for dense maps', () {
+    for (final window in [
+      const Size(320, 520),
+      const Size(360, 640),
+      const Size(599, 700),
+    ]) {
+      expect(fitWebStage(window), window);
+    }
+  });
+
+  test(
+    'Web breakpoint, wide windows and unusually tall windows retain aspect',
+    () {
+      for (final window in [
+        const Size(600, 700),
+        const Size(1920, 1080),
+        const Size(844, 390),
+        const Size(320, 320),
+        const Size(390, 2000),
+        const Size(390, 844),
+      ]) {
+        expect(fitWebStage(window), fitPortraitStage(window));
+      }
+    },
+  );
 }

@@ -49,14 +49,17 @@ void main() {
   });
 
   test('configuration exposes the supported counts and default selection', () {
-    expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
+    expect(
+      GameConfiguration.allowedIslandCounts,
+      List.generate(15, (i) => 6 + i),
+    );
     expect(GameConfiguration.initial.totalIslandCount, 10);
     expect(GameConfiguration.initial.gameMode, GameMode.playerVsCpu);
     expect(GameConfiguration.initial.playerCpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration.initial.cpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration(islandCount: 6).totalIslandCount, 6);
     expect(
-      () => GameConfiguration(totalIslandCount: 7),
+      () => GameConfiguration(totalIslandCount: 21),
       throwsA(isA<ArgumentError>()),
     );
   });
@@ -363,7 +366,10 @@ void main() {
       IslandMapViewport(width: 390, height: 844),
       IslandMapViewport(width: 430, height: 932),
     ];
-    for (final total in GameConfiguration.allowedIslandCounts) {
+    // Retain the original compact-envelope contract for existing presets.
+    // The full 6–20 range is covered on supported phone/tablet sizes in
+    // island_count_range_test.dart; 320x320 cannot hold twenty full-size islands.
+    for (final total in [6, 8, 10, 12]) {
       for (var seed = 0; seed < 20; seed++) {
         for (final viewport in viewports) {
           final generated = rules.tryGenerateIslands(
@@ -2365,7 +2371,7 @@ void main() {
     addTearDown(container.dispose);
 
     final controller = container.read(gameControllerProvider.notifier);
-    controller.selectIslandCount(7);
+    controller.selectIslandCount(21);
     expect(
       container.read(gameControllerProvider).configuration.totalIslandCount,
       10,

@@ -8,6 +8,8 @@ import 'package:conquest/game/game_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _qaViewport = IslandMapViewport(width: 320, height: 568);
+
 /// A deterministic replacement for the production periodic loop.
 ///
 /// Every callback advances one 50 ms engine step when the system clock is
@@ -78,6 +80,7 @@ ProviderContainer _createContainer({
 }) {
   return ProviderContainer(
     overrides: [
+      mapViewportProvider.overrideWithValue(_qaViewport),
       gameConfigurationProvider.overrideWithValue(
         GameConfiguration(totalIslandCount: islandCount),
       ),
@@ -87,7 +90,7 @@ ProviderContainer _createContainer({
         cpuStrategyProvider.overrideWithValue(cpuStrategy)
       else
         cpuStrategyProvider.overrideWithValue(
-          CpuStrategy.noop(viewport: GameRules.defaultMapViewport),
+          CpuStrategy.noop(viewport: _qaViewport),
         ),
     ],
   );
@@ -102,6 +105,7 @@ ProviderContainer _createSpectatorContainer({
 }) {
   return ProviderContainer(
     overrides: [
+      mapViewportProvider.overrideWithValue(_qaViewport),
       gameConfigurationProvider.overrideWithValue(
         GameConfiguration(
           totalIslandCount: islandCount,
@@ -117,7 +121,7 @@ ProviderContainer _createSpectatorContainer({
           controlledFaction: Faction.player,
           timingRandom: Random(playerCpuSeed),
           qualityRandom: Random(playerCpuSeed + 1000),
-          viewport: GameRules.defaultMapViewport,
+          viewport: _qaViewport,
         ),
       ),
       cpuStrategyProvider.overrideWithValue(
@@ -125,7 +129,7 @@ ProviderContainer _createSpectatorContainer({
           controlledFaction: Faction.cpu,
           timingRandom: Random(cpuSeed),
           qualityRandom: Random(cpuSeed + 1000),
-          viewport: GameRules.defaultMapViewport,
+          viewport: _qaViewport,
         ),
       ),
     ],
@@ -187,10 +191,7 @@ _MatchTrace _runCpuVictory({required int islandCount, required int seed}) {
     loop: loop,
     islandCount: islandCount,
     seed: seed,
-    cpuStrategy: CpuStrategy(
-      random: Random(seed),
-      viewport: GameRules.defaultMapViewport,
-    ),
+    cpuStrategy: CpuStrategy(random: Random(seed), viewport: _qaViewport),
   );
 
   try {
@@ -440,7 +441,7 @@ void main() {
             cpuStrategy: CpuStrategy(
               timingRandom: _QaZeroRandom(),
               qualityRandom: _QaMaximumRandom(),
-              viewport: GameRules.defaultMapViewport,
+              viewport: _qaViewport,
             ),
           );
 
@@ -545,10 +546,7 @@ void main() {
       loop: loop,
       islandCount: 6,
       seed: 5100,
-      cpuStrategy: CpuStrategy(
-        random: _QaZeroRandom(),
-        viewport: GameRules.defaultMapViewport,
-      ),
+      cpuStrategy: CpuStrategy(random: _QaZeroRandom(), viewport: _qaViewport),
     );
     try {
       final controller = container.read(gameControllerProvider.notifier);

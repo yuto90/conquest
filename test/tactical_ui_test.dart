@@ -63,10 +63,13 @@ void main() {
     expect(find.text('海域の規模とCPUの判断速度を選択してください。'), findsOne);
     expect(find.text('島数'), findsOne);
     expect(find.text('CPU難易度'), findsOne);
-    expect(find.text('06'), findsOne);
-    expect(find.text('08'), findsOne);
-    expect(find.text('10'), findsAtLeastNWidgets(1));
-    expect(find.text('12'), findsOne);
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('island-count-slider-control')),
+    );
+    expect(slider.min, 6);
+    expect(slider.max, 20);
+    expect(slider.divisions, 14);
+    expect(slider.value, 10);
     expect(find.text('ゲーム開始'), findsOne);
     expect(find.text('選択中：10島 / Normal'), findsOne);
 
@@ -120,7 +123,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('island-count-8')));
+    await setIslandCount(tester, 8);
     await tester.ensureVisible(
       find.byKey(const ValueKey('player-cpu-difficulty-hard')),
     );

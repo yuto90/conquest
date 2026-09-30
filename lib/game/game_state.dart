@@ -86,7 +86,25 @@ enum IslandSize {
 
 /// The selectable island-count configuration for a match.
 final class GameConfiguration {
-  static const allowedIslandCounts = <int>[6, 8, 10, 12];
+  static const minIslandCount = 6;
+  static const maxIslandCount = 20;
+  static const allowedIslandCounts = <int>[
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+  ];
   static const defaultIslandCount = 10;
 
   factory GameConfiguration({
@@ -101,7 +119,7 @@ final class GameConfiguration {
       throw ArgumentError.value(
         count,
         'totalIslandCount',
-        'must be one of 6, 8, 10, or 12',
+        'must be between $minIslandCount and $maxIslandCount',
       );
     }
     return GameConfiguration._(
@@ -125,7 +143,7 @@ final class GameConfiguration {
   final CpuDifficulty cpuDifficulty;
 
   static bool isValidIslandCount(int count) {
-    return count == 6 || count == 8 || count == 10 || count == 12;
+    return count >= minIslandCount && count <= maxIslandCount;
   }
 
   /// Alternate spelling used by map-facing code.

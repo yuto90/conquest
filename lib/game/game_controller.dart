@@ -442,7 +442,8 @@ class GameController extends _$GameController {
     if (_disposed || state.phase != GamePhase.configuration) {
       return;
     }
-    if (!GameConfiguration.isValidIslandCount(totalIslandCount)) {
+    if (!GameConfiguration.isValidIslandCount(totalIslandCount) ||
+        totalIslandCount == state.configuration.totalIslandCount) {
       return;
     }
     final configuration = state.configuration.copyWith(
