@@ -112,7 +112,7 @@ void main() {
     expect(hiddenCount, 2);
   });
 
-  testWidgets('offers every island-count preset with ten selected initially', (
+  testWidgets('offers a 8 to 16 island slider with ten selected initially', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -123,31 +123,43 @@ void main() {
     );
     await openMatchSetup(tester);
 
-    for (final count in GameConfiguration.allowedIslandCounts) {
-      expect(find.byKey(ValueKey('island-count-$count')), findsOneWidget);
-    }
-    final container = ProviderScope.containerOf(
-      tester.element(find.byKey(const ValueKey('island-count-10'))),
+    final sliderFinder = find.byKey(
+      const ValueKey('island-count-slider-control'),
     );
+    expect(find.byKey(const ValueKey('island-count-slider')), findsOneWidget);
+    final slider = tester.widget<Slider>(sliderFinder);
+    expect(slider.min, 8);
+    expect(slider.max, 16);
+    expect(slider.divisions, 8);
+    expect(slider.value, 10);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('island-count-value')))
+          .data,
+      '10島',
+    );
+    final container = ProviderScope.containerOf(tester.element(sliderFinder));
     expect(
       container.read(gameControllerProvider).configuration.totalIslandCount,
       10,
     );
-    expect(
-      tester
-          .widget<ChoiceChip>(find.byKey(const ValueKey('island-count-10')))
-          .selected,
-      isTrue,
-    );
 
-    await tester.tap(find.byKey(const ValueKey('island-count-6')));
-    await tester.pump();
+    for (final count in [8, 9, 16]) {
+      await setIslandCount(tester, count);
 
-    expect(
-      container.read(gameControllerProvider).configuration.totalIslandCount,
-      6,
-    );
-    expect(container.read(gameControllerProvider).islands, hasLength(6));
+      expect(
+        container.read(gameControllerProvider).configuration.totalIslandCount,
+        count,
+      );
+      expect(container.read(gameControllerProvider).islands, hasLength(count));
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('island-count-value')))
+            .data,
+        '${count}島',
+      );
+      expect(find.text('選択中：$count島 / Normal'), findsOneWidget);
+    }
   });
 
   testWidgets('offers CPU difficulty choices with Normal selected initially', (
@@ -219,6 +231,108 @@ void main() {
     );
     semantics.dispose();
   });
+
+  for (final scenario in [
+    (
+      name: 'small phone',
+      web: false,
+      window: const Size(320, 568),
+      insets: const FakeViewPadding(top: 24, bottom: 24),
+      stage: const Size(320, 520),
+    ),
+    (
+      name: 'small phone Web',
+      web: true,
+      window: const Size(320, 568),
+      insets: const FakeViewPadding(top: 24, bottom: 24),
+      stage: const Size(320, 520),
+    ),
+    (
+      name: 'tablet',
+      web: false,
+      window: const Size(768, 1024),
+      insets: const FakeViewPadding(top: 24, bottom: 20),
+      stage: const Size(768, 980),
+    ),
+  ]) {
+    testWidgets(
+      'starts a 16-island match inside ${scenario.name} safe-area insets',
+      (tester) async {
+        tester.view
+          ..devicePixelRatio = 1
+          ..physicalSize = scenario.window
+          ..padding = scenario.insets
+          ..viewPadding = scenario.insets;
+        addTearDown(tester.view.reset);
+        final loop = ManualWidgetGameLoop();
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              randomProvider.overrideWithValue(Random(1)),
+              gameLoopProvider.overrideWithValue(loop),
+            ],
+            child: scenario.web
+                ? const MaterialApp(home: Home(letterboxToPortrait: true))
+                : const MyApp(locale: Locale('en')),
+          ),
+        );
+        await openMatchSetup(tester);
+
+        final stage = tester.getRect(
+          find.byKey(const ValueKey('playable-stage')),
+        );
+        expect(stage.size, scenario.stage);
+        expect(stage.top, scenario.insets.top);
+        await setIslandCount(tester, 16);
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('island-count-slider')))
+              .height,
+          greaterThanOrEqualTo(48),
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byKey(const ValueKey('settings-view'))),
+        );
+        expect(
+          container.read(gameControllerProvider).configuration.totalIslandCount,
+          16,
+        );
+        expect(container.read(gameControllerProvider).islands, hasLength(16));
+        expect(find.text('Selected: 16 islands / Normal'), findsOneWidget);
+
+        final start = find.byKey(const ValueKey('start-game'));
+        await tester.ensureVisible(start);
+        expect(tester.widget<ElevatedButton>(start).onPressed, isNotNull);
+        await tester.tap(start);
+        await tester.pump();
+        expect(
+          container.read(gameControllerProvider).phase,
+          GamePhase.startCountdown,
+        );
+        for (var tick = 0; tick < 60; tick++) {
+          loop.tick();
+        }
+        await tester.pump();
+        expect(container.read(gameControllerProvider).phase, GamePhase.playing);
+
+        final rectangles = [
+          for (final island in container.read(gameControllerProvider).islands)
+            tester.getRect(find.byKey(ValueKey('island-button-${island.id}'))),
+        ];
+        for (var first = 0; first < rectangles.length; first++) {
+          final rectangle = rectangles[first];
+          expect(rectangle.left, greaterThanOrEqualTo(stage.left));
+          expect(rectangle.top, greaterThanOrEqualTo(stage.top));
+          expect(rectangle.right, lessThanOrEqualTo(stage.right));
+          expect(rectangle.bottom, lessThanOrEqualTo(stage.bottom));
+          for (var second = first + 1; second < rectangles.length; second++) {
+            expect(rectangle.overlaps(rectangles[second]), isFalse);
+          }
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('switches between standard and spectator settings', (
     tester,
@@ -959,7 +1073,7 @@ void main() {
     },
   );
 
-  testWidgets('keeps every island-count preset physically operable', (
+  testWidgets('keeps every selectable island count physically operable', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -975,10 +1089,8 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byKey(const ValueKey('island-0'))),
     );
-    final controller = container.read(gameControllerProvider.notifier);
     for (final count in GameConfiguration.allowedIslandCounts) {
-      controller.selectIslandCount(count);
-      await tester.pump();
+      await setIslandCount(tester, count);
       final state = container.read(gameControllerProvider);
       expect(state.islands, hasLength(count));
 
@@ -1192,7 +1304,7 @@ void main() {
     await openMatchSetup(tester);
 
     expect(find.byKey(const ValueKey('settings-view')), findsOneWidget);
-    expect(find.byKey(const ValueKey('island-count-10')), findsOneWidget);
+    expect(find.byKey(const ValueKey('island-count-slider')), findsOneWidget);
     final startButton = tester.widget<ElevatedButton>(
       find.byKey(const ValueKey('start-game')),
     );
@@ -1264,15 +1376,15 @@ void main() {
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
       final controller = beforeContainer.read(gameControllerProvider.notifier);
-      controller.selectIslandCount(6);
+      controller.selectIslandCount(8);
       controller.selectCpuDifficulty(CpuDifficulty.hard);
       await tester.pump();
 
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.configuration);
-      expect(before.configuration.totalIslandCount, 6);
+      expect(before.configuration.totalIslandCount, 8);
       expect(before.configuration.cpuDifficulty, CpuDifficulty.hard);
-      expect(before.islands, hasLength(6));
+      expect(before.islands, hasLength(8));
 
       await tester.binding.setSurfaceSize(const Size(321, 500));
       await tester.pump();
@@ -1281,9 +1393,9 @@ void main() {
       final afterContainer = ProviderScope.containerOf(afterButton);
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.configuration);
-      expect(after.configuration.totalIslandCount, 6);
+      expect(after.configuration.totalIslandCount, 8);
       expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
-      expect(after.islands, hasLength(6));
+      expect(after.islands, hasLength(8));
     },
   );
 
@@ -1307,7 +1419,7 @@ void main() {
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
       final controller = beforeContainer.read(gameControllerProvider.notifier);
-      controller.selectIslandCount(6);
+      controller.selectIslandCount(8);
       await tester.pump();
       controller.startGame();
       for (var index = 0; index < 60; index++) {
@@ -1320,8 +1432,8 @@ void main() {
 
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.playing);
-      expect(before.configuration.totalIslandCount, 6);
-      expect(before.islands, hasLength(6));
+      expect(before.configuration.totalIslandCount, 8);
+      expect(before.islands, hasLength(8));
       expect(before.elapsedMs, greaterThan(0));
       expect(before.movingForces, isNotEmpty);
       expect(before.selectedIslandId, isNull);
@@ -1333,8 +1445,8 @@ void main() {
       final afterContainer = ProviderScope.containerOf(afterButton);
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.playing);
-      expect(after.configuration.totalIslandCount, 6);
-      expect(after.islands, hasLength(6));
+      expect(after.configuration.totalIslandCount, 8);
+      expect(after.islands, hasLength(8));
       expect(after.elapsedMs, before.elapsedMs);
       expect(after.movingForces, hasLength(before.movingForces.length));
       for (var index = 0; index < before.movingForces.length; index++) {

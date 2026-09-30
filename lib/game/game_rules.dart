@@ -259,6 +259,10 @@ final class GameRules {
   /// The retry budget for placing one island during a map attempt.
   static const defaultIslandPlacementAttempts = 128;
 
+  /// Bounded local repairs per map attempt for counts above the old maximum.
+  static const maxDenseMapRepairs = 32;
+  static const maxDenseMapRollback = 4;
+
   static double islandWidgetSize(IslandSize size) {
     return switch (size) {
       IslandSize.headquarters => headquartersWidgetSize,
@@ -421,6 +425,17 @@ final class GameRules {
       return null;
     }
 
+    // Reject physically impossible envelopes without consuming random values.
+    final reserved = viewport.topRightControlExclusion;
+    final usableArea =
+        viewport.width * viewport.height -
+        (reserved.right - reserved.left) * (reserved.bottom - reserved.top);
+    final requiredArea = definitions.fold<double>(0, (area, definition) {
+      final size = islandWidgetSize(definition.size);
+      return area + size * size;
+    });
+    if (requiredArea > usableArea) return null;
+
     final source = random ?? math.Random();
     final placementOrder = definitions.toList()
       ..sort((first, second) {
@@ -432,19 +447,35 @@ final class GameRules {
     for (var mapAttempt = 0; mapAttempt < attempts; mapAttempt++) {
       final islands = <IslandState>[];
       var generated = true;
-      for (final definition in placementOrder) {
+      // Keep the original seeded maps for the former 6/8/10/12 presets.
+      // Dense new maps may redraw a bounded suffix rather than discarding
+      // every already-valid island. Each new position is independently random.
+      var repairs = 0;
+      var index = 0;
+      while (index < placementOrder.length) {
         final island = _tryPlaceIsland(
-          definition: definition,
+          definition: placementOrder[index],
           existing: islands,
           random: source,
           viewport: viewport,
           maxAttempts: islandAttempts,
         );
         if (island == null) {
+          if (configuration.totalIslandCount > 12 &&
+              islands.isNotEmpty &&
+              repairs++ < maxDenseMapRepairs) {
+            final rollback =
+                1 +
+                source.nextInt(math.min(maxDenseMapRollback, islands.length));
+            islands.removeRange(islands.length - rollback, islands.length);
+            index = islands.length;
+            continue;
+          }
           generated = false;
           break;
         }
         islands.add(island);
+        index++;
       }
       if (generated) {
         islands.sort((first, second) => first.id.compareTo(second.id));
@@ -1132,49 +1163,27 @@ final class GameRules {
     );
   }
 
-  static List<IslandSize> _neutralSizes(int totalIslandCount) {
-    return switch (totalIslandCount) {
-      6 => const [
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.medium,
-        IslandSize.medium,
-      ],
-      8 => const [
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.medium,
-        IslandSize.medium,
-        IslandSize.large,
-        IslandSize.large,
-      ],
-      10 => const [
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.medium,
-        IslandSize.medium,
-        IslandSize.large,
-        IslandSize.large,
-      ],
-      12 => const [
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.small,
-        IslandSize.medium,
-        IslandSize.medium,
-        IslandSize.medium,
-        IslandSize.medium,
-        IslandSize.large,
-        IslandSize.large,
-      ],
-      _ => throw ArgumentError.value(
-        totalIslandCount,
-        'totalIslandCount',
-        'must be one of 6, 8, 10, or 12',
-      ),
-    };
+  static List<IslandSize> _neutralSizes(int count) {
+    // Extend the approved two-at-a-time sequence, preserving old size/ID
+    // order after sorting. Odd totals stop halfway through a pair.
+    final sizes = [
+      IslandSize.small,
+      IslandSize.small,
+      IslandSize.medium,
+      IslandSize.medium,
+    ];
+    const cycle = [
+      IslandSize.large,
+      IslandSize.large,
+      IslandSize.small,
+      IslandSize.small,
+      IslandSize.medium,
+      IslandSize.medium,
+    ];
+    for (var i = 0; i < count - 6; i++) {
+      sizes.add(cycle[i % 6]);
+    }
+    sizes.sort((a, b) => a.index.compareTo(b.index));
+    return sizes;
   }
 }

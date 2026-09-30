@@ -12,3 +12,16 @@ Size fitPortraitStage(Size window, {Size aspect = const Size(390, 844)}) {
   }
   return Size(window.width, window.width / targetAspect);
 }
+
+/// Keeps compact portrait Web windows usable without shrinking their width.
+/// Wide/landscape windows retain the centered 390:844 presentation, as do
+/// unusually tall windows where fitting only removes unused vertical space.
+Size fitWebStage(Size window) {
+  final portrait = fitPortraitStage(window);
+  if (window.width < 600 &&
+      window.height > window.width &&
+      portrait.width < window.width) {
+    return window;
+  }
+  return portrait;
+}

@@ -294,7 +294,7 @@ void main() {
       await _pumpTutorialApp(tester);
       await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('island-count-8')));
+      await setIslandCount(tester, 8);
       await tester.pump();
       final container = ProviderScope.containerOf(
         tester.element(find.byKey(const ValueKey('settings-view'))),
@@ -459,7 +459,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('resume-after-resize')));
       await tester.pump();
-      await tester.tap(find.byKey(const ValueKey('island-count-8')));
+      await setIslandCount(tester, 8);
       await tester.pump();
 
       final changed = container.read(gameControllerProvider);

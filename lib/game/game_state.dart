@@ -86,7 +86,9 @@ enum IslandSize {
 
 /// The selectable island-count configuration for a match.
 final class GameConfiguration {
-  static const allowedIslandCounts = <int>[6, 8, 10, 12];
+  static const minIslandCount = 8;
+  static const maxIslandCount = 16;
+  static const allowedIslandCounts = <int>[8, 9, 10, 11, 12, 13, 14, 15, 16];
   static const defaultIslandCount = 10;
 
   factory GameConfiguration({
@@ -101,7 +103,7 @@ final class GameConfiguration {
       throw ArgumentError.value(
         count,
         'totalIslandCount',
-        'must be one of 6, 8, 10, or 12',
+        'must be between $minIslandCount and $maxIslandCount',
       );
     }
     return GameConfiguration._(
@@ -125,7 +127,7 @@ final class GameConfiguration {
   final CpuDifficulty cpuDifficulty;
 
   static bool isValidIslandCount(int count) {
-    return count == 6 || count == 8 || count == 10 || count == 12;
+    return count >= minIslandCount && count <= maxIslandCount;
   }
 
   /// Alternate spelling used by map-facing code.
@@ -140,6 +142,14 @@ final class GameConfiguration {
   );
   static const defaultConfiguration = initial;
 
+  /// Fixed internal lesson preset, outside the selectable match range.
+  static const tutorial = GameConfiguration._(
+    6,
+    GameMode.playerVsCpu,
+    CpuDifficulty.normal,
+    CpuDifficulty.normal,
+  );
+
   GameConfiguration copyWith({
     int? totalIslandCount,
     int? islandCount,
@@ -147,6 +157,16 @@ final class GameConfiguration {
     CpuDifficulty? playerCpuDifficulty,
     CpuDifficulty? cpuDifficulty,
   }) {
+    if (this.totalIslandCount == tutorial.totalIslandCount &&
+        totalIslandCount == null &&
+        islandCount == null) {
+      return GameConfiguration._(
+        this.totalIslandCount,
+        gameMode ?? this.gameMode,
+        playerCpuDifficulty ?? this.playerCpuDifficulty,
+        cpuDifficulty ?? this.cpuDifficulty,
+      );
+    }
     return GameConfiguration(
       totalIslandCount:
           totalIslandCount ?? islandCount ?? this.totalIslandCount,

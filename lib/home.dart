@@ -19,6 +19,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'rank_progression.dart';
 import 'ui/island_assets.dart';
+import 'ui/island_count_slider.dart';
 import 'ui/match_summary.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
@@ -46,8 +47,8 @@ final menuBgmPlayerProvider = Provider<BgmPlayer>(
 class Home extends StatelessWidget {
   const Home({super.key, this.letterboxToPortrait = kIsWeb});
 
-  /// When true, the board is the largest 390:844 rectangle that fits the
-  /// window and is centered on the remaining sea-colored chrome.
+  /// When true, wide windows use a centered 390:844 board. Compact portrait
+  /// windows keep their full width so dense maps remain playable.
   ///
   /// Defaults to [kIsWeb] so native layouts keep the full SafeArea. Tests
   /// inject the flag because [kIsWeb] cannot be overridden on the VM.
@@ -64,9 +65,7 @@ class Home extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final window = Size(constraints.maxWidth, constraints.maxHeight);
-              final stage = letterboxToPortrait
-                  ? fitPortraitStage(window)
-                  : window;
+              final stage = letterboxToPortrait ? fitWebStage(window) : window;
               final viewport = IslandMapViewport(
                 width: stage.width,
                 height: stage.height,
@@ -332,6 +331,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                 ),
               if (state.phase == GamePhase.paused)
                 _PauseMenu(
+                  configuration: state.configuration,
                   onResume: controller.resumeGame,
                   onQuit: () => _confirmQuit(context, controller),
                   bgmEnabled: _bgmEnabled,
@@ -475,25 +475,34 @@ class _BoardChrome extends StatelessWidget {
       ignoring: false,
       child: Stack(
         children: [
-          Positioned(
-            top: 16,
-            left: 17,
-            right: 73,
-            child: IgnorePointer(
-              child: Text(
-                _boardTitle(l10n, state.configuration),
-                key: const ValueKey('board-title-block'),
-                maxLines: 3,
-                style: TacticalTypography.of(context).mono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
-                  height: 1,
-                  letterSpacing: 1.05,
+          if (state.configuration.totalIslandCount > 12)
+            Positioned(
+              top: 8,
+              right: 76,
+              width: 40,
+              height: 56,
+              child: _CompactBoardSummary(configuration: state.configuration),
+            )
+          else
+            Positioned(
+              top: 16,
+              left: 17,
+              right: 73,
+              child: IgnorePointer(
+                child: Text(
+                  _boardTitle(l10n, state.configuration),
+                  key: const ValueKey('board-title-block'),
+                  maxLines: 3,
+                  style: TacticalTypography.of(context).mono(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: TacticalPalette.seaDeep.withValues(alpha: 0.72),
+                    height: 1,
+                    letterSpacing: 1.05,
+                  ),
                 ),
               ),
             ),
-          ),
           Positioned(
             top: 16,
             right: 17,
@@ -547,6 +556,57 @@ class _BoardChrome extends StatelessWidget {
   }
 }
 
+/// Dense maps keep their summary entirely inside the existing pause exclusion.
+/// Full mode/difficulty/count information remains available to assistive
+/// technology, hover/long-press, and the pause sheet without moving islands.
+class _CompactBoardSummary extends StatelessWidget {
+  const _CompactBoardSummary({required this.configuration});
+  final GameConfiguration configuration;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = _boardTitle(_appLocalizations(context), configuration);
+    return Semantics(
+      key: const ValueKey('compact-board-summary'),
+      label: summary,
+      container: true,
+      child: Tooltip(
+        message: summary,
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.landscape_outlined,
+                  size: 14,
+                  color: TacticalPalette.seaDeep,
+                ),
+                const SizedBox(height: 3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${configuration.totalIslandCount}',
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TacticalTypography.of(context).mono(
+                      fontSize: 10,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      color: TacticalPalette.seaDeep,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PauseButton extends StatelessWidget {
   const _PauseButton({required this.onPressed});
 
@@ -592,12 +652,14 @@ class _PauseButton extends StatelessWidget {
 
 class _PauseMenu extends StatelessWidget {
   const _PauseMenu({
+    required this.configuration,
     required this.onResume,
     required this.onQuit,
     required this.bgmEnabled,
     required this.onBgmChanged,
   });
 
+  final GameConfiguration configuration;
   final VoidCallback onResume;
   final VoidCallback onQuit;
   final bool bgmEnabled;
@@ -638,6 +700,17 @@ class _PauseMenu extends StatelessWidget {
                     context,
                   ).display(fontSize: 30, height: 1, letterSpacing: 0.6),
                 ),
+                if (configuration.totalIslandCount > 12) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _boardTitle(l10n, configuration),
+                    key: const ValueKey('paused-board-summary'),
+                    textAlign: TextAlign.center,
+                    style: TacticalTypography.of(
+                      context,
+                    ).body(fontSize: 12, height: 1.35),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 _BgmToggle(enabled: bgmEnabled, onChanged: onBgmChanged),
                 const SizedBox(height: 14),
@@ -1321,35 +1394,15 @@ class _ConfigurationPanel extends StatelessWidget {
                           const SizedBox(height: 4),
                           _RankProgressCard(progress: rankProgress),
                           const SizedBox(height: 4),
-                          Text(
-                            l10n.islandCountLabel,
-                            style: TacticalTypography.of(context).mono(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.9,
-                            ),
-                          ),
-                          const SizedBox(height: 9),
-                          Row(
-                            children: [
-                              for (
-                                var index = 0;
-                                index <
-                                    GameConfiguration
-                                        .allowedIslandCounts
-                                        .length;
-                                index++
-                              ) ...[
-                                if (index > 0) const SizedBox(width: 7),
-                                Expanded(
-                                  child: _IslandCountChoice(
-                                    state: state,
-                                    count: GameConfiguration
-                                        .allowedIslandCounts[index],
-                                  ),
-                                ),
-                              ],
-                            ],
+                          IslandCountSlider(
+                            value: state.configuration.totalIslandCount,
+                            title: l10n.islandCountLabel,
+                            countLabel: (count) =>
+                                l10n.islandCountChoice(count: count),
+                            onChanged: (count) =>
+                                ProviderScope.containerOf(context)
+                                    .read(gameControllerProvider.notifier)
+                                    .selectIslandCount(count),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -1528,70 +1581,6 @@ class _ConfigurationPanel extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _IslandCountChoice extends StatelessWidget {
-  const _IslandCountChoice({required this.state, required this.count});
-
-  final GameState state;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = _appLocalizations(context);
-    final selected = state.configuration.totalIslandCount == count;
-    final semanticLabel = l10n.islandCountChoice(count: count);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: semanticLabel,
-      child: SizedBox(
-        height: 51,
-        width: double.infinity,
-        child: ChoiceChip(
-          key: ValueKey('island-count-$count'),
-          label: SizedBox(
-            width: double.infinity,
-            child: Text(
-              count.toString().padLeft(2, '0'),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          selected: selected,
-          showCheckmark: false,
-          onSelected: (_) => _selectCount(context, count),
-          tooltip: semanticLabel,
-          padding: EdgeInsets.zero,
-          labelPadding: const EdgeInsets.symmetric(vertical: 9),
-          materialTapTargetSize: MaterialTapTargetSize.padded,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(1)),
-          ),
-          side: BorderSide(
-            color: selected
-                ? TacticalPalette.foreground
-                : TacticalPalette.border,
-          ),
-          selectedColor: TacticalPalette.foreground,
-          backgroundColor: Color.alphaBlend(
-            TacticalPalette.surface.withValues(alpha: 0.62),
-            TacticalPalette.background,
-          ),
-          labelStyle: TacticalTypography.of(context).mono(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: selected ? TacticalPalette.paper : TacticalPalette.muted,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _selectCount(BuildContext context, int count) {
-    ProviderScope.containerOf(
-      context,
-    ).read(gameControllerProvider.notifier).selectIslandCount(count);
   }
 }
 

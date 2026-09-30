@@ -28,10 +28,7 @@ final class TutorialSession extends ChangeNotifier {
   static const playerHeadquartersId = 0;
   static const targetIslandId = 2;
 
-  static final _tutorialConfiguration = GameConfiguration(
-    totalIslandCount: 6,
-    gameMode: GameMode.playerVsCpu,
-  );
+  static const _tutorialConfiguration = GameConfiguration.tutorial;
 
   final GameRules _rules = const GameRules();
   GameState _gameState;

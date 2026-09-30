@@ -562,13 +562,13 @@ void main() {
       final initial = const GameRules().initialState(
         configuration: configuration,
         random: Random(200 + islandCount),
-        viewport: _viewport,
+        viewport: GameRules.referenceMapViewport,
       );
       final state = initial.copyWith(phase: GamePhase.playing);
       final strategy = CpuStrategy(
         timingRandom: _MinimumRandom(),
         qualityRandom: _MaximumRandom(),
-        viewport: _viewport,
+        viewport: GameRules.referenceMapViewport,
       );
       final decision = strategy.decide(state);
 

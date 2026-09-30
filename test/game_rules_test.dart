@@ -49,14 +49,17 @@ void main() {
   });
 
   test('configuration exposes the supported counts and default selection', () {
-    expect(GameConfiguration.allowedIslandCounts, [6, 8, 10, 12]);
+    expect(
+      GameConfiguration.allowedIslandCounts,
+      List.generate(9, (i) => 8 + i),
+    );
     expect(GameConfiguration.initial.totalIslandCount, 10);
     expect(GameConfiguration.initial.gameMode, GameMode.playerVsCpu);
     expect(GameConfiguration.initial.playerCpuDifficulty, CpuDifficulty.normal);
     expect(GameConfiguration.initial.cpuDifficulty, CpuDifficulty.normal);
-    expect(GameConfiguration(islandCount: 6).totalIslandCount, 6);
+    expect(GameConfiguration(islandCount: 8).totalIslandCount, 8);
     expect(
-      () => GameConfiguration(totalIslandCount: 7),
+      () => GameConfiguration(totalIslandCount: 21),
       throwsA(isA<ArgumentError>()),
     );
   });
@@ -242,7 +245,9 @@ void main() {
       for (final entry in expectedSizes.entries) {
         final islands = rules
             .initialState(
-              configuration: GameConfiguration(totalIslandCount: entry.key),
+              configuration: entry.key == 6
+                  ? GameConfiguration.tutorial
+                  : GameConfiguration(totalIslandCount: entry.key),
               random: Random(entry.key),
             )
             .islands
@@ -268,7 +273,9 @@ void main() {
 
     for (final entry in expectedSizes.entries) {
       final islands = rules.generateIslands(
-        configuration: GameConfiguration(totalIslandCount: entry.key),
+        configuration: entry.key == 6
+            ? GameConfiguration.tutorial
+            : GameConfiguration(totalIslandCount: entry.key),
         random: Random(entry.key),
       );
       expect(islands, hasLength(entry.key));
@@ -308,7 +315,7 @@ void main() {
         0.7, 0.2, // second small island
       ]);
       final islands = rules.generateIslands(
-        configuration: GameConfiguration(totalIslandCount: 6),
+        configuration: GameConfiguration.tutorial,
         random: random,
         viewport: const IslandMapViewport(width: 1000, height: 1000),
       );
@@ -342,7 +349,7 @@ void main() {
         0.7, 0.2, // second small island
       ]);
       final islands = rules.generateIslands(
-        configuration: GameConfiguration(totalIslandCount: 6),
+        configuration: GameConfiguration.tutorial,
         random: random,
         viewport: const IslandMapViewport(width: 1000, height: 1000),
         maxAttempts: 1,
@@ -363,11 +370,16 @@ void main() {
       IslandMapViewport(width: 390, height: 844),
       IslandMapViewport(width: 430, height: 932),
     ];
-    for (final total in GameConfiguration.allowedIslandCounts) {
+    // Retain the original compact-envelope contract for existing presets.
+    // The full 8–16 range is covered on supported phone/tablet sizes in
+    // island_count_range_test.dart; 320x320 cannot hold sixteen full-size islands.
+    for (final total in [6, 8, 10, 12]) {
       for (var seed = 0; seed < 20; seed++) {
         for (final viewport in viewports) {
           final generated = rules.tryGenerateIslands(
-            configuration: GameConfiguration(totalIslandCount: total),
+            configuration: total == 6
+                ? GameConfiguration.tutorial
+                : GameConfiguration(totalIslandCount: total),
             random: Random(seed),
             viewport: viewport,
           );
@@ -437,7 +449,9 @@ void main() {
 
       for (final total in GameConfiguration.allowedIslandCounts) {
         final islands = rules.generateIslands(
-          configuration: GameConfiguration(totalIslandCount: total),
+          configuration: total == 6
+              ? GameConfiguration.tutorial
+              : GameConfiguration(totalIslandCount: total),
           random: Random(total),
           viewport: placement,
         );
@@ -496,7 +510,9 @@ void main() {
     for (final total in GameConfiguration.allowedIslandCounts) {
       for (var seed = 0; seed < 100; seed++) {
         final islands = rules.generateIslands(
-          configuration: GameConfiguration(totalIslandCount: total),
+          configuration: total == 6
+              ? GameConfiguration.tutorial
+              : GameConfiguration(totalIslandCount: total),
           random: Random(seed),
           viewport: viewport,
         );
@@ -573,7 +589,7 @@ void main() {
       isTrue,
     );
     final islands = rules.generateIslands(
-      configuration: GameConfiguration(totalIslandCount: 6),
+      configuration: GameConfiguration.tutorial,
       random: Random(20),
     );
     final rectangles = [for (final island in islands) viewport.rectFor(island)];
@@ -765,7 +781,7 @@ void main() {
 
       expect(
         rules.tryGenerateIslands(
-          configuration: GameConfiguration(totalIslandCount: 6),
+          configuration: GameConfiguration.tutorial,
           random: Random(1),
           viewport: viewport,
         ),
@@ -773,7 +789,7 @@ void main() {
       );
       expect(
         () => rules.generateIslands(
-          configuration: GameConfiguration(totalIslandCount: 6),
+          configuration: GameConfiguration.tutorial,
           random: Random(1),
           viewport: viewport,
         ),
@@ -2365,17 +2381,19 @@ void main() {
     addTearDown(container.dispose);
 
     final controller = container.read(gameControllerProvider.notifier);
-    controller.selectIslandCount(7);
+    for (final count in [6, 7, 17, 20]) {
+      controller.selectIslandCount(count);
+    }
     expect(
       container.read(gameControllerProvider).configuration.totalIslandCount,
       10,
     );
 
-    controller.selectIslandCount(6);
+    controller.selectIslandCount(8);
     expect(
       container.read(gameControllerProvider).configuration.totalIslandCount,
-      6,
+      8,
     );
-    expect(container.read(gameControllerProvider).islands, hasLength(6));
+    expect(container.read(gameControllerProvider).islands, hasLength(8));
   });
 }

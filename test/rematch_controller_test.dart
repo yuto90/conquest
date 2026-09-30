@@ -35,7 +35,7 @@ class CountingRandom implements Random {
 
 void main() {
   for (final mode in GameMode.values) {
-    for (final count in [6, 8, 10, 12]) {
+    for (final count in [8, 10, 12, 16]) {
       for (final difficulty in CpuDifficulty.values) {
         test('restores $mode $count $difficulty through repeated results', () {
           final random = CountingRandom();
@@ -49,6 +49,9 @@ void main() {
           );
           final container = ProviderContainer(
             overrides: [
+              mapViewportProvider.overrideWithValue(
+                const IslandMapViewport(width: 320, height: 568),
+              ),
               randomProvider.overrideWithValue(random),
               gameLoopProvider.overrideWithValue(loop),
               gameConfigurationProvider.overrideWithValue(configuration),

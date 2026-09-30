@@ -132,7 +132,7 @@ void main() {
           const ProviderScope(child: MyApp(locale: Locale('ja'))),
         );
         await openMatchSetup(tester);
-        await tester.tap(find.byKey(const ValueKey('island-count-8')));
+        await setIslandCount(tester, 8);
         await tester.tap(find.byKey(const ValueKey('game-mode-cpu-vs-cpu')));
         await tester.pump();
         await tester.tap(
