@@ -8,7 +8,7 @@ import 'tactical_theme.dart';
 /// A one-island-per-step control using the rounded match-setup slider style.
 ///
 /// The configuration remains owned by the caller. Only the endpoints are
-/// labeled below the track so all fifteen choices remain usable on phones.
+/// labeled below the track so all nine choices remain usable on phones.
 class IslandCountSlider extends StatefulWidget {
   const IslandCountSlider({
     super.key,

@@ -373,13 +373,13 @@ void main() {
 
   test('replays the same spectator result with fixed CPU seeds', () {
     final first = _runSpectatorMatch(
-      islandCount: 6,
+      islandCount: 8,
       mapSeed: 3206,
       playerCpuSeed: 41,
       cpuSeed: 42,
     );
     final second = _runSpectatorMatch(
-      islandCount: 6,
+      islandCount: 8,
       mapSeed: 3206,
       playerCpuSeed: 41,
       cpuSeed: 42,
@@ -544,7 +544,7 @@ void main() {
     final loop = _QaManualLoop();
     final container = _createContainer(
       loop: loop,
-      islandCount: 6,
+      islandCount: 8,
       seed: 5100,
       cpuStrategy: CpuStrategy(random: _QaZeroRandom(), viewport: _qaViewport),
     );
@@ -746,7 +746,7 @@ void main() {
 
   test('keeps friendly, neutral, and enemy boundary arrivals independent', () {
     final loop = _QaManualLoop();
-    final container = _createContainer(loop: loop, islandCount: 6, seed: 81);
+    final container = _createContainer(loop: loop, islandCount: 8, seed: 81);
     try {
       final controller = container.read(gameControllerProvider.notifier);
       final started = _startMatch(container, loop);
@@ -929,7 +929,7 @@ void main() {
     'processes asymmetric troops across targets and arrival times exactly',
     () {
       final loop = _QaManualLoop();
-      final container = _createContainer(loop: loop, islandCount: 6, seed: 222);
+      final container = _createContainer(loop: loop, islandCount: 8, seed: 222);
       try {
         final controller = container.read(gameControllerProvider.notifier);
         final started = _startMatch(container, loop);

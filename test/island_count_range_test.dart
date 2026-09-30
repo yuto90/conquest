@@ -15,15 +15,15 @@ void main() {
     () {
       expect(
         GameConfiguration.allowedIslandCounts,
-        List.generate(15, (i) => 6 + i),
+        List.generate(9, (i) => 8 + i),
       );
-      for (var count = 6; count <= 20; count++) {
+      for (var count = 8; count <= 16; count++) {
         expect(
           GameConfiguration(totalIslandCount: count).totalIslandCount,
           count,
         );
       }
-      for (final count in [-1, 0, 5, 21, 100]) {
+      for (final count in [-1, 0, 6, 7, 17, 20, 100]) {
         expect(GameConfiguration.isValidIslandCount(count), isFalse);
         expect(
           () => GameConfiguration(totalIslandCount: count),
@@ -33,12 +33,29 @@ void main() {
     },
   );
 
+  test('tutorial retains its fixed six-island internal preset', () {
+    const tutorial = GameConfiguration.tutorial;
+    expect(tutorial.totalIslandCount, 6);
+    expect(tutorial.copyWith(), tutorial);
+    expect(
+      tutorial.copyWith(cpuDifficulty: CpuDifficulty.easy).totalIslandCount,
+      6,
+    );
+    expect(tutorial.copyWith(totalIslandCount: 8).totalIslandCount, 8);
+    expect(() => tutorial.copyWith(totalIslandCount: 6), throwsArgumentError);
+    expect(
+      const GameRules().generateIslands(
+        configuration: tutorial,
+        random: Random(119),
+      ),
+      hasLength(6),
+    );
+  });
+
   test(
     'approved neutral sizes preserve presets and stop midway for odd counts',
     () {
       const expected = {
-        6: [2, 2, 0],
-        7: [2, 2, 1],
         8: [2, 2, 2],
         9: [3, 2, 2],
         10: [4, 2, 2],
@@ -48,10 +65,6 @@ void main() {
         14: [4, 4, 4],
         15: [5, 4, 4],
         16: [6, 4, 4],
-        17: [6, 5, 4],
-        18: [6, 6, 4],
-        19: [6, 6, 5],
-        20: [6, 6, 6],
       };
       for (final entry in expected.entries) {
         final islands = const GameRules().generateIslands(
@@ -75,7 +88,7 @@ void main() {
     'dense maps remain reproducible and impossible maps fail without random use',
     () {
       const rules = GameRules();
-      final configuration = GameConfiguration(totalIslandCount: 20);
+      final configuration = GameConfiguration(totalIslandCount: 16);
       const viewport = IslandMapViewport(width: 320, height: 480);
       final first = rules.generateIslands(
         configuration: configuration,
@@ -92,7 +105,7 @@ void main() {
       expect(
         rules.tryGenerateIslands(
           configuration: configuration,
-          viewport: const IslandMapViewport(width: 320, height: 320),
+          viewport: const IslandMapViewport(width: 200, height: 200),
           random: source,
         ),
         isNull,
@@ -197,7 +210,7 @@ void main() {
           } else {
             expect(controller.state.movingForces, isEmpty);
           }
-          controller.selectIslandCount(6);
+          controller.selectIslandCount(count == 8 ? 9 : 8);
           expect(controller.state.configuration, initial.configuration);
           controller.state = controller.state.copyWith(
             phase: GamePhase.result,

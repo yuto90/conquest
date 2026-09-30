@@ -92,19 +92,19 @@ void main() {
     final theme = SliderTheme.of(tester.element(find.byKey(_sliderKey)));
 
     expect(slider.value, 10);
-    expect(slider.min, 6);
-    expect(slider.max, 20);
-    expect(slider.divisions, 14);
+    expect(slider.min, 8);
+    expect(slider.max, 16);
+    expect(slider.divisions, 8);
     expect(theme.trackHeight, 32);
     expect(theme.activeTrackColor, TacticalPalette.seaDeep);
     expect(theme.thumbColor, TacticalPalette.paper);
     expect((theme.thumbShape! as RoundSliderThumbShape).enabledThumbRadius, 20);
     expect(theme.showValueIndicator, ShowValueIndicator.never);
     expect(find.text('10 islands'), findsOneWidget);
-    expect(find.text('6'), findsOneWidget);
-    expect(find.text('20'), findsOneWidget);
-    expect(find.text('7'), findsNothing);
-    expect(find.text('19'), findsNothing);
+    expect(find.text('8'), findsOneWidget);
+    expect(find.text('16'), findsOneWidget);
+    expect(find.text('9'), findsNothing);
+    expect(find.text('15'), findsNothing);
   });
 
   for (final width in [260.0, 330.0]) {
@@ -113,17 +113,17 @@ void main() {
     ) async {
       final changes = <int>[];
       await _pumpSlider(tester, width: width, onChanged: changes.add);
-      for (var count = 6; count <= 20; count++) {
+      for (var count = 8; count <= 16; count++) {
         await tester.tapAt(_positionFor(tester, count));
         await tester.pumpAndSettle();
         expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, count);
         expect(find.text('$count islands'), findsOneWidget);
       }
-      expect(changes, List.generate(15, (index) => index + 6));
+      expect(changes, List.generate(9, (index) => index + 8));
     });
   }
 
-  testWidgets('dot marks fit all fifteen positions on narrow screens', (
+  testWidgets('dot marks fit all nine positions on narrow screens', (
     tester,
   ) async {
     for (final width in [200.0, 260.0, 330.0]) {
@@ -132,7 +132,7 @@ void main() {
       final tickWidth = theme.tickMarkShape!
           .getPreferredSize(isEnabled: true, sliderTheme: theme)
           .width;
-      expect((width - 80) / 14, greaterThanOrEqualTo(3 * tickWidth));
+      expect((width - 80) / 8, greaterThanOrEqualTo(3 * tickWidth));
       expect(tester.takeException(), isNull);
     }
   });
@@ -141,28 +141,28 @@ void main() {
     tester,
   ) async {
     final changes = <int>[];
-    await _pumpSlider(tester, initialValue: 6, onChanged: changes.add);
-    await tester.tapAt(_positionFor(tester, 6));
+    await _pumpSlider(tester, initialValue: 8, onChanged: changes.add);
+    await tester.tapAt(_positionFor(tester, 8));
     await tester.pumpAndSettle();
     expect(
       tester.widget<Slider>(find.byKey(_sliderKey)).focusNode!.hasFocus,
       isTrue,
     );
-    for (var count = 7; count <= 20; count++) {
+    for (var count = 9; count <= 16; count++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
       expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, count);
     }
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
-    expect(changes, List.generate(14, (index) => index + 7));
+    expect(changes, List.generate(8, (index) => index + 9));
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 19);
+    expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 15);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.pumpAndSettle();
-    expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 20);
-    for (var count = 19; count >= 6; count--) {
+    expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 16);
+    for (var count = 15; count >= 8; count--) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.pumpAndSettle();
       expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, count);
@@ -179,13 +179,13 @@ void main() {
     ) async {
       final semantics = tester.ensureSemantics();
       try {
-        await _pumpSlider(tester, initialValue: 6, locale: Locale(locale));
+        await _pumpSlider(tester, initialValue: 8, locale: Locale(locale));
         String label(int count) =>
             locale == 'ja' ? '$count島' : '$count islands';
         var node = tester.getSemantics(find.byKey(_semanticsKey));
         expect(node.label, locale == 'ja' ? '島数' : 'Island Count');
-        expect(node.value, label(6));
-        expect(node.increasedValue, label(7));
+        expect(node.value, label(8));
+        expect(node.increasedValue, label(9));
         expect(
           node.getSemanticsData().hasAction(SemanticsAction.decrease),
           isFalse,
@@ -200,7 +200,7 @@ void main() {
               .isFocused,
           Tristate.isTrue,
         );
-        for (var count = 7; count <= 20; count++) {
+        for (var count = 9; count <= 16; count++) {
           _performAction(tester, SemanticsAction.increase);
           await tester.pumpAndSettle();
           node = tester.getSemantics(find.byKey(_semanticsKey));
@@ -213,7 +213,7 @@ void main() {
         );
         _performAction(tester, SemanticsAction.decrease);
         await tester.pumpAndSettle();
-        expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 19);
+        expect(tester.widget<Slider>(find.byKey(_sliderKey)).value, 15);
       } finally {
         semantics.dispose();
       }
@@ -228,28 +228,28 @@ void main() {
         final changes = <int>[];
         await _pumpSlider(
           tester,
-          initialValue: 6,
+          initialValue: 8,
           disableAnimations: reducedMotion,
           onChanged: changes.add,
         );
         final element = tester.element(find.byKey(_sliderKey));
-        final gesture = await tester.startGesture(_positionFor(tester, 6));
+        final gesture = await tester.startGesture(_positionFor(tester, 8));
         await tester.pump();
-        for (var count = 7; count <= 20; count++) {
+        for (var count = 9; count <= 16; count++) {
           await gesture.moveTo(_positionFor(tester, count));
           await gesture.moveBy(const Offset(0.1, 0));
           await tester.pump();
           expect(tester.element(find.byKey(_sliderKey)), same(element));
         }
-        for (var count = 19; count >= 6; count--) {
+        for (var count = 15; count >= 8; count--) {
           await gesture.moveTo(_positionFor(tester, count));
           await tester.pump();
         }
         await gesture.up();
         await tester.pumpAndSettle();
         expect(changes, [
-          ...List.generate(14, (index) => index + 7),
-          ...List.generate(14, (index) => 19 - index),
+          ...List.generate(8, (index) => index + 9),
+          ...List.generate(8, (index) => 15 - index),
         ]);
         expect(tester.takeException(), isNull);
       },
@@ -262,19 +262,19 @@ void main() {
     final changes = <int>[];
     await _pumpSlider(
       tester,
-      initialValue: 6,
+      initialValue: 8,
       rebuildOnChanged: false,
       onChanged: changes.add,
     );
-    final gesture = await tester.startGesture(_positionFor(tester, 6));
-    for (var count = 7; count <= 10; count++) {
+    final gesture = await tester.startGesture(_positionFor(tester, 8));
+    for (var count = 9; count <= 12; count++) {
       await gesture.moveTo(_positionFor(tester, count));
       await gesture.moveBy(const Offset(0.1, 0));
       await gesture.moveBy(const Offset(-0.1, 0));
     }
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(changes, [7, 8, 9, 10]);
+    expect(changes, [9, 10, 11, 12]);
   });
 
   testWidgets('external focus nodes can be replaced without being disposed', (
@@ -304,13 +304,13 @@ void main() {
       (tester) async {
         await _pumpSlider(
           tester,
-          initialValue: 20,
+          initialValue: 16,
           locale: Locale(locale),
           width: 200,
           textScale: 3,
         );
         expect(
-          find.text(locale == 'ja' ? '20島' : '20 islands'),
+          find.text(locale == 'ja' ? '16島' : '16 islands'),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);

@@ -205,7 +205,7 @@ void main() {
     final failedContainer = ProviderContainer(
       overrides: [
         gameConfigurationProvider.overrideWithValue(
-          GameConfiguration(totalIslandCount: 6, gameMode: GameMode.cpuVsCpu),
+          GameConfiguration(totalIslandCount: 8, gameMode: GameMode.cpuVsCpu),
         ),
         gameLoopProvider.overrideWithValue(failedLoop),
         mapViewportProvider.overrideWithValue(
@@ -232,7 +232,7 @@ void main() {
     () {
       final controller = container.read(gameControllerProvider.notifier);
       controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
-      controller.selectIslandCount(6);
+      controller.selectIslandCount(8);
       controller.selectIslandCount(12);
 
       final configured = container.read(gameControllerProvider);
@@ -948,7 +948,7 @@ void main() {
   test('replays a result with the same island count and a new map', () {
     final controller = container.read(gameControllerProvider.notifier);
     controller.selectCpuDifficulty(CpuDifficulty.hard);
-    controller.selectIslandCount(6);
+    controller.selectIslandCount(8);
     final beforeReplay = container.read(gameControllerProvider);
     controller.startGame();
     completeStartCountdown(loop);
@@ -959,9 +959,9 @@ void main() {
 
     final replay = container.read(gameControllerProvider);
     expect(replay.phase, GamePhase.startCountdown);
-    expect(replay.configuration.totalIslandCount, 6);
+    expect(replay.configuration.totalIslandCount, 8);
     expect(replay.configuration.cpuDifficulty, CpuDifficulty.hard);
-    expect(replay.islands, hasLength(6));
+    expect(replay.islands, hasLength(8));
     expect(replay.elapsedMs, 0);
     expect(replay.movingForces, isEmpty);
     expect(replay.islands, isNot(beforeReplay.islands));
@@ -970,7 +970,7 @@ void main() {
     controller.finish(const GameResult.victory(elapsedMs: 25));
     controller.returnToConfiguration();
     final settings = container.read(gameControllerProvider);
-    expect(settings.configuration.totalIslandCount, 6);
+    expect(settings.configuration.totalIslandCount, 8);
     expect(settings.configuration.cpuDifficulty, CpuDifficulty.hard);
   });
 
@@ -1014,7 +1014,7 @@ void main() {
 
       final controller = failedContainer.read(gameControllerProvider.notifier);
       controller.state = GameState(
-        configuration: GameConfiguration(totalIslandCount: 6),
+        configuration: GameConfiguration(totalIslandCount: 8),
         phase: GamePhase.result,
         elapsedMs: 120,
         result: const GameResult.victory(elapsedMs: 120),
@@ -1024,7 +1024,7 @@ void main() {
 
       final state = failedContainer.read(gameControllerProvider);
       expect(state.phase, GamePhase.configuration);
-      expect(state.configuration.totalIslandCount, 6);
+      expect(state.configuration.totalIslandCount, 8);
       expect(state.islands, isEmpty);
       expect(state.movingForces, isEmpty);
       expect(state.result, isNull);

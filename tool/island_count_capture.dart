@@ -17,9 +17,9 @@ import '../test/support/match_setup.dart';
 import '../test/game_controller_test.dart'
     show ManualGameLoop, completeStartCountdown;
 
-const captureCount = int.fromEnvironment('ISLAND_COUNT', defaultValue: 20);
+const captureCount = int.fromEnvironment('ISLAND_COUNT', defaultValue: 16);
 void main() {
-  testWidgets('capture real setup and twenty-island battle', (tester) async {
+  testWidgets('capture real setup and selected-count battle', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const bool.fromEnvironment('SMALL_PHONE')
         ? const Size(320, 568)

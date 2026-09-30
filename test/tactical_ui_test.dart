@@ -66,9 +66,9 @@ void main() {
     final slider = tester.widget<Slider>(
       find.byKey(const ValueKey('island-count-slider-control')),
     );
-    expect(slider.min, 6);
-    expect(slider.max, 20);
-    expect(slider.divisions, 14);
+    expect(slider.min, 8);
+    expect(slider.max, 16);
+    expect(slider.divisions, 8);
     expect(slider.value, 10);
     expect(find.text('ゲーム開始'), findsOne);
     expect(find.text('選択中：10島 / Normal'), findsOne);

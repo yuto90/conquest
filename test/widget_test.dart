@@ -112,7 +112,7 @@ void main() {
     expect(hiddenCount, 2);
   });
 
-  testWidgets('offers a 6 to 20 island slider with ten selected initially', (
+  testWidgets('offers a 8 to 16 island slider with ten selected initially', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -128,9 +128,9 @@ void main() {
     );
     expect(find.byKey(const ValueKey('island-count-slider')), findsOneWidget);
     final slider = tester.widget<Slider>(sliderFinder);
-    expect(slider.min, 6);
-    expect(slider.max, 20);
-    expect(slider.divisions, 14);
+    expect(slider.min, 8);
+    expect(slider.max, 16);
+    expect(slider.divisions, 8);
     expect(slider.value, 10);
     expect(
       tester
@@ -144,7 +144,7 @@ void main() {
       10,
     );
 
-    for (final count in [6, 7, 20]) {
+    for (final count in [8, 9, 16]) {
       await setIslandCount(tester, count);
 
       expect(
@@ -256,7 +256,7 @@ void main() {
     ),
   ]) {
     testWidgets(
-      'starts a 20-island match inside ${scenario.name} safe-area insets',
+      'starts a 16-island match inside ${scenario.name} safe-area insets',
       (tester) async {
         tester.view
           ..devicePixelRatio = 1
@@ -283,7 +283,7 @@ void main() {
         );
         expect(stage.size, scenario.stage);
         expect(stage.top, scenario.insets.top);
-        await setIslandCount(tester, 20);
+        await setIslandCount(tester, 16);
         expect(
           tester
               .getSize(find.byKey(const ValueKey('island-count-slider')))
@@ -295,10 +295,10 @@ void main() {
         );
         expect(
           container.read(gameControllerProvider).configuration.totalIslandCount,
-          20,
+          16,
         );
-        expect(container.read(gameControllerProvider).islands, hasLength(20));
-        expect(find.text('Selected: 20 islands / Normal'), findsOneWidget);
+        expect(container.read(gameControllerProvider).islands, hasLength(16));
+        expect(find.text('Selected: 16 islands / Normal'), findsOneWidget);
 
         final start = find.byKey(const ValueKey('start-game'));
         await tester.ensureVisible(start);
@@ -1376,15 +1376,15 @@ void main() {
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
       final controller = beforeContainer.read(gameControllerProvider.notifier);
-      controller.selectIslandCount(6);
+      controller.selectIslandCount(8);
       controller.selectCpuDifficulty(CpuDifficulty.hard);
       await tester.pump();
 
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.configuration);
-      expect(before.configuration.totalIslandCount, 6);
+      expect(before.configuration.totalIslandCount, 8);
       expect(before.configuration.cpuDifficulty, CpuDifficulty.hard);
-      expect(before.islands, hasLength(6));
+      expect(before.islands, hasLength(8));
 
       await tester.binding.setSurfaceSize(const Size(321, 500));
       await tester.pump();
@@ -1393,9 +1393,9 @@ void main() {
       final afterContainer = ProviderScope.containerOf(afterButton);
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.configuration);
-      expect(after.configuration.totalIslandCount, 6);
+      expect(after.configuration.totalIslandCount, 8);
       expect(after.configuration.cpuDifficulty, CpuDifficulty.hard);
-      expect(after.islands, hasLength(6));
+      expect(after.islands, hasLength(8));
     },
   );
 
@@ -1419,7 +1419,7 @@ void main() {
       final beforeButton = tester.element(find.byType(ElevatedButton).first);
       final beforeContainer = ProviderScope.containerOf(beforeButton);
       final controller = beforeContainer.read(gameControllerProvider.notifier);
-      controller.selectIslandCount(6);
+      controller.selectIslandCount(8);
       await tester.pump();
       controller.startGame();
       for (var index = 0; index < 60; index++) {
@@ -1432,8 +1432,8 @@ void main() {
 
       final before = beforeContainer.read(gameControllerProvider);
       expect(before.phase, GamePhase.playing);
-      expect(before.configuration.totalIslandCount, 6);
-      expect(before.islands, hasLength(6));
+      expect(before.configuration.totalIslandCount, 8);
+      expect(before.islands, hasLength(8));
       expect(before.elapsedMs, greaterThan(0));
       expect(before.movingForces, isNotEmpty);
       expect(before.selectedIslandId, isNull);
@@ -1445,8 +1445,8 @@ void main() {
       final afterContainer = ProviderScope.containerOf(afterButton);
       final after = afterContainer.read(gameControllerProvider);
       expect(after.phase, GamePhase.playing);
-      expect(after.configuration.totalIslandCount, 6);
-      expect(after.islands, hasLength(6));
+      expect(after.configuration.totalIslandCount, 8);
+      expect(after.islands, hasLength(8));
       expect(after.elapsedMs, before.elapsedMs);
       expect(after.movingForces, hasLength(before.movingForces.length));
       for (var index = 0; index < before.movingForces.length; index++) {

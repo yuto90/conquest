@@ -37,7 +37,7 @@ void main() {
                   gameLoopProvider.overrideWithValue(loop),
                   gameConfigurationProvider.overrideWithValue(
                     GameConfiguration(
-                      totalIslandCount: 20,
+                      totalIslandCount: 16,
                       gameMode: mode,
                       playerCpuDifficulty: CpuDifficulty.veryEasy,
                       cpuDifficulty: CpuDifficulty.veryEasy,
@@ -99,8 +99,8 @@ void main() {
               );
             }
             final summary = mode == GameMode.cpuVsCpu
-                ? '1P Very Easy / 2P Very Easy / ${language == 'en' ? '20 islands' : '20島'}'
-                : 'Very Easy / ${language == 'en' ? '20 islands' : '20島'}';
+                ? '1P Very Easy / 2P Very Easy / ${language == 'en' ? '16 islands' : '16島'}'
+                : 'Very Easy / ${language == 'en' ? '16 islands' : '16島'}';
             expect(tester.getSemantics(badge).label, summary);
             expect(
               find.byKey(const ValueKey('board-title-block')),
