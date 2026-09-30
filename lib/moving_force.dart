@@ -9,6 +9,50 @@ import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_theme.dart';
 
+/// Places the movement reference point independently of the aircraft artwork.
+///
+/// Both the game board and tutorial use this in their full-viewport [Stack].
+/// The fixed layout box is the same 30dp footprint used by movement timing;
+/// the illustration and labels may overflow it without changing the route.
+class PositionedMovingForce extends StatelessWidget {
+  const PositionedMovingForce({
+    required this.force,
+    required this.viewport,
+    this.presentation,
+    this.semanticsKey,
+    super.key,
+  });
+
+  final MovingForce force;
+  final IslandMapViewport viewport;
+  final FactionPresentation? presentation;
+  final Key? semanticsKey;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!viewport.isMovementValid || !force.x.isFinite || !force.y.isFinite) {
+      return const SizedBox.shrink();
+    }
+    final center = viewport.movingForceCenter(force.position);
+    if (!center.x.isFinite || !center.y.isFinite) {
+      return const SizedBox.shrink();
+    }
+    const size = GameRules.movingForceWidgetSize;
+    return Positioned(
+      left: center.x - size / 2,
+      top: center.y - size / 2,
+      width: size,
+      height: size,
+      child: MovingForceWidget(
+        force: force,
+        boardSize: Size(viewport.width, viewport.height),
+        presentation: presentation,
+        semanticsKey: semanticsKey,
+      ),
+    );
+  }
+}
+
 /// Renders an in-flight group as a flat, top-view tactical aircraft.
 class MovingForceWidget extends StatelessWidget {
   const MovingForceWidget({
@@ -138,31 +182,27 @@ class MovingForceWidget extends StatelessWidget {
       return 0;
     }
 
-    final width = boardSize.width;
-    final height = boardSize.height;
-    if (!size.isFinite ||
-        !width.isFinite ||
-        !height.isFinite ||
+    final viewport = IslandMapViewport(
+      width: boardSize.width,
+      height: boardSize.height,
+    );
+    if (!viewport.isMovementValid ||
         !force.deltaX.isFinite ||
         !force.deltaY.isFinite) {
       return 0;
     }
 
-    final horizontalSpan = width - size;
-    final verticalSpan = height - size;
-    if (horizontalSpan <= 0 || verticalSpan <= 0) {
+    final delta = viewport.movingForceDelta(
+      const IslandPosition(x: 0, y: 0),
+      IslandPosition(x: force.deltaX, y: force.deltaY),
+    );
+    if (!delta.x.isFinite ||
+        !delta.y.isFinite ||
+        (delta.x == 0 && delta.y == 0)) {
       return 0;
     }
 
-    final screenDeltaX = force.deltaX * horizontalSpan;
-    final screenDeltaY = force.deltaY * verticalSpan;
-    if (!screenDeltaX.isFinite ||
-        !screenDeltaY.isFinite ||
-        (screenDeltaX == 0 && screenDeltaY == 0)) {
-      return 0;
-    }
-
-    return math.atan2(screenDeltaY, screenDeltaX);
+    return math.atan2(delta.y, delta.x);
   }
 
   String _factionName(AppLocalizations l10n) {

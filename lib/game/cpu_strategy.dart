@@ -225,7 +225,9 @@ final class CpuStrategy {
   /// from [selectCandidate] lets each difficulty apply its quality profile
   /// without changing legal-move rules or candidate priority.
   List<CpuDecision> generateCandidates(GameState state) {
-    if (!enabled || state.phase != GamePhase.playing) {
+    if (!enabled ||
+        !viewport.isMovementValid ||
+        state.phase != GamePhase.playing) {
       return const [];
     }
 
@@ -265,7 +267,9 @@ final class CpuStrategy {
   /// Defense threats are considered first.  When no defense can arrive in
   /// time, attack candidates follow the priority from the game rules.
   CpuDecision? decide(GameState state, {CpuDifficulty? difficulty}) {
-    if (!enabled || state.phase != GamePhase.playing) {
+    if (!enabled ||
+        !viewport.isMovementValid ||
+        state.phase != GamePhase.playing) {
       return null;
     }
     final resolvedDifficulty =
@@ -290,7 +294,9 @@ final class CpuStrategy {
     CpuDecision decision, {
     int? movingForceId,
   }) {
-    if (state.phase != GamePhase.playing || decision.strength <= 0) {
+    if (!viewport.isMovementValid ||
+        state.phase != GamePhase.playing ||
+        decision.strength <= 0) {
       return state;
     }
     final sourceIndex = state.islands.indexWhere(

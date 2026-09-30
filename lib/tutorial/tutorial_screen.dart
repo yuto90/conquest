@@ -105,6 +105,7 @@ class _TutorialScreenState extends State<TutorialScreen> {
                             session: session,
                             onIslandTap: session.tapIsland,
                             screenSize: screenSize,
+                            onResumeAvailabilityChanged: () => setState(() {}),
                           ),
                         ),
                       ],
@@ -620,11 +621,13 @@ class _TutorialMap extends StatefulWidget {
     required this.session,
     required this.onIslandTap,
     required this.screenSize,
+    required this.onResumeAvailabilityChanged,
   });
 
   final TutorialSession session;
   final ValueChanged<int> onIslandTap;
   final Size screenSize;
+  final VoidCallback onResumeAvailabilityChanged;
 
   @override
   State<_TutorialMap> createState() => _TutorialMapState();
@@ -633,6 +636,7 @@ class _TutorialMap extends StatefulWidget {
 class _TutorialMapState extends State<_TutorialMap> {
   Size? _lastScreenSize;
   var _pauseScheduled = false;
+  var _availabilityUpdateScheduled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -657,7 +661,19 @@ class _TutorialMapState extends State<_TutorialMap> {
           });
         }
         _lastScreenSize = widget.screenSize;
+        final couldResume = session.canResumeAfterLifecycle;
         session.updateViewport(viewport);
+        if (couldResume != session.canResumeAfterLifecycle &&
+            !_availabilityUpdateScheduled) {
+          // The resume overlay is built above this LayoutBuilder. Refresh it
+          // after layout so a previously unsafe board can enable Resume, even
+          // while the session is already paused and sends no new notification.
+          _availabilityUpdateScheduled = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _availabilityUpdateScheduled = false;
+            if (mounted) widget.onResumeAvailabilityChanged();
+          });
+        }
         final state = session.gameState;
         final canTap =
             session.step == TutorialStep.selectSource ||
@@ -704,19 +720,16 @@ class _TutorialMapState extends State<_TutorialMap> {
                   ),
                 ),
               for (final force in state.movingForces)
-                Align(
+                PositionedMovingForce(
                   key: ValueKey('tutorial-moving-force-${force.id}'),
-                  alignment: Alignment(force.x, force.y),
-                  child: MovingForceWidget(
-                    force: force,
-                    boardSize: Size(viewport.width, viewport.height),
-                    presentation: FactionPresentation.forMode(
-                      GameMode.playerVsCpu,
-                      force.faction,
-                    ),
-                    semanticsKey: ValueKey(
-                      'tutorial-moving-force-semantics-${force.id}',
-                    ),
+                  force: force,
+                  viewport: viewport,
+                  presentation: FactionPresentation.forMode(
+                    GameMode.playerVsCpu,
+                    force.faction,
+                  ),
+                  semanticsKey: ValueKey(
+                    'tutorial-moving-force-semantics-${force.id}',
                   ),
                 ),
             ],

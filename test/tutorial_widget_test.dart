@@ -318,6 +318,54 @@ void main() {
     },
   );
 
+  testWidgets('safe resize enables tutorial resume without advancing time', (
+    tester,
+  ) async {
+    final stageSize = ValueNotifier(const Size(390, 844));
+    addTearDown(stageSize.dispose);
+    await _pumpTutorialApp(tester, stageSizeNotifier: stageSize);
+    await tester.tap(find.byKey(const ValueKey('how-to-play')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('tutorial-island-button-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('tutorial-island-button-2')));
+    await tester.pump();
+    final session = tester
+        .widget<TutorialScreen>(find.byType(TutorialScreen))
+        .session;
+    session.tick(500);
+    final frozenTime = session.gameState.elapsedMs;
+
+    stageSize.value = const Size(180, 200);
+    await tester.pump();
+    await tester.pump();
+    expect(session.lifecyclePaused, isTrue);
+    expect(session.canResumeAfterLifecycle, isFalse);
+    final resumeButton = find.descendant(
+      of: find.byKey(const ValueKey('tutorial-resume')),
+      matching: find.byType(OutlinedButton),
+    );
+    expect(tester.widget<OutlinedButton>(resumeButton).onPressed, isNull);
+
+    stageSize.value = const Size(390, 844);
+    await tester.pump();
+    await tester.pump();
+    expect(session.lifecyclePaused, isTrue);
+    expect(session.canResumeAfterLifecycle, isTrue);
+    expect(session.gameState.elapsedMs, frozenTime);
+    expect(tester.widget<OutlinedButton>(resumeButton).onPressed, isNotNull);
+    await tester.pump(const Duration(seconds: 1));
+    expect(session.gameState.elapsedMs, frozenTime);
+
+    await tester.tap(find.byKey(const ValueKey('tutorial-resume')));
+    await tester.pump();
+    expect(session.lifecyclePaused, isFalse);
+    expect(session.gameState.elapsedMs, frozenTime);
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(session.gameState.elapsedMs, frozenTime + 50);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('preserves the normal map through a moving tutorial resize', (
     tester,
   ) async {
