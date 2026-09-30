@@ -9,6 +9,22 @@ import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'ui/tactical_theme.dart';
 
+/// Presentation-only silhouettes; never a unit type or movement modifier.
+///
+/// Keep the strength-to-illustration table here so both factions and game modes
+/// use the same boundaries. The fixed 36 x 22 artwork canvas is shared by all.
+enum AircraftIllustration {
+  singleEngine,
+  twinEngine,
+  transport;
+
+  static AircraftIllustration forStrength(int strength) => switch (strength) {
+    < 25 => singleEngine,
+    < 50 => twinEngine,
+    _ => transport,
+  };
+}
+
 /// Places the movement reference point independently of the aircraft artwork.
 ///
 /// Both the game board and tutorial use this in their full-viewport [Stack].
@@ -76,6 +92,7 @@ class MovingForceWidget extends StatelessWidget {
         Localizations.of<AppLocalizations>(context, AppLocalizations) ??
         AppLocalizationsEn();
     final angle = _headingAngle;
+    final illustration = AircraftIllustration.forStrength(force.currentValue);
     return Semantics(
       key: semanticsKey,
       container: true,
@@ -127,7 +144,11 @@ class MovingForceWidget extends StatelessWidget {
                       width: 36,
                       height: 22,
                       child: CustomPaint(
-                        painter: _AircraftPainter(faction: force.faction),
+                        key: ValueKey(illustration),
+                        painter: _AircraftPainter(
+                          faction: force.faction,
+                          illustration: illustration,
+                        ),
                       ),
                     ),
                   ),
@@ -231,9 +252,10 @@ class MovingForceWidget extends StatelessWidget {
 }
 
 class _AircraftPainter extends CustomPainter {
-  const _AircraftPainter({required this.faction});
+  const _AircraftPainter({required this.faction, required this.illustration});
 
   final Faction faction;
+  final AircraftIllustration illustration;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -247,68 +269,161 @@ class _AircraftPainter extends CustomPainter {
         : faction == Faction.player
         ? TacticalPalette.playerDeep
         : TacticalPalette.foreground;
-    final body = Path()
-      ..moveTo(2, 11)
-      ..lineTo(12, 8)
-      ..lineTo(17, 2)
-      ..lineTo(21, 2)
-      ..lineTo(19, 9)
-      ..lineTo(34, 11)
-      ..lineTo(19, 13)
-      ..lineTo(21, 20)
-      ..lineTo(17, 20)
-      ..lineTo(12, 14)
-      ..close();
-    canvas.drawPath(
-      body,
-      Paint()
-        ..style = PaintingStyle.fill
-        ..color = bodyColor,
-    );
-    canvas.drawPath(
-      body,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
-        ..strokeJoin = StrokeJoin.round
-        ..color = deepColor,
-    );
+    final fill = Paint()..color = bodyColor;
+    final outline = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeJoin = StrokeJoin.round
+      ..color = deepColor;
+    void drawBody(Path path) {
+      canvas.drawPath(path, fill);
+      canvas.drawPath(path, outline);
+    }
 
+    // Each silhouette has its own wing/tail geometry, rather than scaling one
+    // image. All point right before the shared heading transform is applied.
+    final body = switch (illustration) {
+      AircraftIllustration.singleEngine =>
+        Path()
+          ..moveTo(3, 10.5)
+          ..lineTo(5, 10)
+          ..lineTo(5, 6)
+          ..lineTo(8, 6)
+          ..lineTo(9, 10)
+          ..lineTo(17, 9.5)
+          ..lineTo(16, 1.5)
+          ..lineTo(20, 1.5)
+          ..lineTo(22, 9.5)
+          ..lineTo(29, 9.5)
+          ..quadraticBezierTo(32, 9.5, 32, 11)
+          ..quadraticBezierTo(32, 12.5, 29, 12.5)
+          ..lineTo(22, 12.5)
+          ..lineTo(20, 20.5)
+          ..lineTo(16, 20.5)
+          ..lineTo(17, 12.5)
+          ..lineTo(9, 12)
+          ..lineTo(8, 16)
+          ..lineTo(5, 16)
+          ..lineTo(5, 12)
+          ..lineTo(3, 11.5)
+          ..close(),
+      AircraftIllustration.twinEngine =>
+        Path()
+          ..moveTo(2, 10.5)
+          ..lineTo(4, 10)
+          ..lineTo(4, 5)
+          ..lineTo(7, 5)
+          ..lineTo(10, 9.5)
+          ..lineTo(17, 9)
+          ..lineTo(13, 1)
+          ..lineTo(18, 1)
+          ..lineTo(23, 9)
+          ..lineTo(30, 9)
+          ..quadraticBezierTo(34, 9, 34, 11)
+          ..quadraticBezierTo(34, 13, 30, 13)
+          ..lineTo(23, 13)
+          ..lineTo(18, 21)
+          ..lineTo(13, 21)
+          ..lineTo(17, 13)
+          ..lineTo(10, 12.5)
+          ..lineTo(7, 17)
+          ..lineTo(4, 17)
+          ..lineTo(4, 12)
+          ..lineTo(2, 11.5)
+          ..close(),
+      AircraftIllustration.transport =>
+        Path()
+          ..moveTo(2, 10.5)
+          ..lineTo(4, 9.5)
+          ..lineTo(3, 4)
+          ..lineTo(7, 4)
+          ..lineTo(10, 9)
+          ..lineTo(17, 8.5)
+          ..lineTo(14, 1)
+          ..lineTo(21, 1)
+          ..lineTo(25, 8.5)
+          ..lineTo(30, 8.5)
+          ..quadraticBezierTo(34, 8.5, 34, 11)
+          ..quadraticBezierTo(34, 13.5, 30, 13.5)
+          ..lineTo(25, 13.5)
+          ..lineTo(21, 21)
+          ..lineTo(14, 21)
+          ..lineTo(17, 13.5)
+          ..lineTo(10, 13)
+          ..lineTo(7, 18)
+          ..lineTo(3, 18)
+          ..lineTo(4, 12.5)
+          ..lineTo(2, 11.5)
+          ..close(),
+    };
+    drawBody(body);
+
+    if (illustration == AircraftIllustration.singleEngine) {
+      canvas.drawLine(const Offset(33, 6.5), const Offset(33, 15.5), outline);
+    } else {
+      // Pods sit along the wings, separate from the narrow fuselage. The
+      // medium aircraft's propellers and transport's four engines distinguish
+      // the silhouettes without turning the body into a rocket-like capsule.
+      final engineRows = illustration == AircraftIllustration.twinEngine
+          ? const [5.0, 17.0]
+          : const [3.5, 6.5, 15.5, 18.5];
+      for (final y in engineRows) {
+        final nacelle = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset(20, y), width: 6, height: 1.8),
+          const Radius.circular(0.8),
+        );
+        canvas.drawRRect(nacelle, Paint()..color = deepColor);
+        if (illustration == AircraftIllustration.twinEngine) {
+          canvas.drawLine(Offset(23, y - 2), Offset(23, y + 2), outline);
+        }
+      }
+    }
+
+    // A light cockpit makes the nose legible in either faction color.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(28, 9.8, 2, 2.4),
+        const Radius.circular(0.8),
+      ),
+      Paint()..color = TacticalPalette.paper,
+    );
     if (faction == Faction.cpu) {
       final emblem = Path()
-        ..moveTo(19.5, 8)
-        ..lineTo(24, 17)
-        ..lineTo(15, 17)
+        ..moveTo(20, 8.7)
+        ..lineTo(22.3, 13.3)
+        ..lineTo(17.7, 13.3)
         ..close();
-      canvas.drawPath(emblem, Paint()..color = TacticalPalette.cpuDeep);
-    } else {
-      canvas.drawCircle(
-        const Offset(19.5, 14.5),
-        4.5,
-        Paint()..color = deepColor,
-      );
-      canvas.drawCircle(
-        const Offset(19.5, 14.5),
-        4.5,
+      canvas.drawPath(emblem, Paint()..color = deepColor);
+      canvas.drawPath(
+        emblem,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
+          ..strokeWidth = 0.7
+          ..color = TacticalPalette.paper,
+      );
+    } else {
+      canvas.drawCircle(const Offset(20, 11), 2.3, Paint()..color = deepColor);
+      canvas.drawCircle(
+        const Offset(20, 11),
+        2.3,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.7
           ..color = TacticalPalette.paper,
       );
       final mark = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1
+        ..strokeWidth = 0.8
         ..color = TacticalPalette.paper;
-      canvas.drawLine(const Offset(17.5, 13), const Offset(19.5, 15), mark);
-      canvas.drawLine(const Offset(19.5, 15), const Offset(21.5, 13), mark);
-      canvas.drawLine(const Offset(17.5, 15), const Offset(19.5, 17), mark);
-      canvas.drawLine(const Offset(19.5, 17), const Offset(21.5, 15), mark);
+      canvas.drawLine(const Offset(18.8, 10.3), const Offset(20, 11.7), mark);
+      canvas.drawLine(const Offset(20, 11.7), const Offset(21.2, 10.3), mark);
     }
   }
 
   @override
   bool shouldRepaint(covariant _AircraftPainter oldDelegate) {
-    return faction != oldDelegate.faction;
+    return faction != oldDelegate.faction ||
+        illustration != oldDelegate.illustration;
   }
 }
 
