@@ -1708,8 +1708,12 @@ class _DifficultyChoice extends StatelessWidget {
       owner: owner,
       difficulty: label,
     );
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 51),
+    return SizedBox(
+      height: math.max(
+        51,
+        MediaQuery.textScalerOf(context).scale(13) * 1.5 + 18,
+      ),
+      width: double.infinity,
       child: ChoiceChip(
         key: ValueKey('$keyPrefix-${difficulty.name}'),
         label: SizedBox(
@@ -1778,8 +1782,12 @@ class _GameModeChoice extends StatelessWidget {
     final l10n = _appLocalizations(context);
     final selected = state.configuration.gameMode == mode;
     final label = _modeLabel(l10n, mode);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 41),
+    return SizedBox(
+      height: math.max(
+        41,
+        MediaQuery.textScalerOf(context).scale(12) * 1.5 + 18,
+      ),
+      width: double.infinity,
       child: ChoiceChip(
         key: ValueKey('game-mode-${_modeKey(mode)}'),
         label: SizedBox(
