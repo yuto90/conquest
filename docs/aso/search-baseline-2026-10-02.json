@@ -1,0 +1,401 @@
+{
+  "source": "iTunes Search API; ordering is not the device App Store search rank",
+  "appId": 6800177702,
+  "results": [
+    {
+      "country": "jp",
+      "term": "conquest",
+      "count": 175,
+      "own": [
+        [
+          108,
+          "Conquest Isles",
+          "1.0.1",
+          0
+        ]
+      ],
+      "top10": [
+        [
+          1,
+          "Conquest Companion App",
+          6446408799,
+          0
+        ],
+        [
+          2,
+          "Conquest",
+          393310585,
+          7
+        ],
+        [
+          3,
+          "Age of Conquest IV",
+          1071514528,
+          101
+        ],
+        [
+          4,
+          "Puzzles & Conquest",
+          1485209615,
+          7292
+        ],
+        [
+          5,
+          "Territorial.io",
+          1581110913,
+          83
+        ],
+        [
+          6,
+          "世界の覇者4",
+          1258468290,
+          12279
+        ],
+        [
+          7,
+          "Game of Thrones: Conquest ™",
+          1035712810,
+          3977
+        ],
+        [
+          8,
+          "Ages of Conflict World War Sim",
+          6456485142,
+          321
+        ],
+        [
+          9,
+          "Tower Conquest",
+          1061733193,
+          194
+        ],
+        [
+          10,
+          "ミリオンロード：ワールドコンクエスト",
+          1290392434,
+          108
+        ]
+      ]
+    },
+    {
+      "country": "jp",
+      "term": "conquest isles",
+      "count": 3,
+      "own": [
+        [
+          1,
+          "Conquest Isles",
+          "1.0.1",
+          0
+        ]
+      ],
+      "top10": [
+        [
+          1,
+          "Conquest Isles",
+          6800177702,
+          0
+        ],
+        [
+          2,
+          "War in Britain, The Viking Age",
+          6446896899,
+          3
+        ],
+        [
+          3,
+          "Isle War:Turn-Based Strategy",
+          6799905529,
+          0
+        ]
+      ]
+    },
+    {
+      "country": "jp",
+      "term": "island conquest",
+      "count": 15,
+      "own": [
+        [
+          3,
+          "Conquest Isles",
+          "1.0.1",
+          0
+        ]
+      ],
+      "top10": [
+        [
+          1,
+          "Island Conquest: Hero Battle",
+          6763937697,
+          0
+        ],
+        [
+          2,
+          "Guns of Glory: 失われた大陸",
+          1274354704,
+          395
+        ],
+        [
+          3,
+          "Conquest Isles",
+          6800177702,
+          0
+        ],
+        [
+          4,
+          "Viking Island: Defense game",
+          6740436892,
+          0
+        ],
+        [
+          5,
+          "Connect Towers - Islands War",
+          6477915082,
+          9
+        ],
+        [
+          6,
+          "Pirate Life - Boss of the Sea",
+          6474971154,
+          18
+        ],
+        [
+          7,
+          "Lord of Seas",
+          1593846629,
+          19
+        ],
+        [
+          8,
+          "HEXILE : The Island Game",
+          6751759623,
+          0
+        ],
+        [
+          9,
+          "Water Blades",
+          967057965,
+          0
+        ],
+        [
+          10,
+          "Acrom",
+          1256901573,
+          0
+        ]
+      ]
+    },
+    {
+      "country": "us",
+      "term": "conquest",
+      "count": 181,
+      "own": [],
+      "top10": [
+        [
+          1,
+          "Conquest",
+          393310585,
+          123
+        ],
+        [
+          2,
+          "Ages of Conflict World War Sim",
+          6456485142,
+          8557
+        ],
+        [
+          3,
+          "Age of Conquest IV",
+          1071514528,
+          3541
+        ],
+        [
+          4,
+          "Game of Thrones: Conquest ™",
+          1035712810,
+          89581
+        ],
+        [
+          5,
+          "World Conqueror 4",
+          1258468290,
+          20571
+        ],
+        [
+          6,
+          "Conquest Companion App",
+          6446408799,
+          43
+        ],
+        [
+          7,
+          "State.io - Conquer the World",
+          1559032748,
+          250461
+        ],
+        [
+          8,
+          "RISK: Global Domination",
+          1051334048,
+          188037
+        ],
+        [
+          9,
+          "LEGION: RTS",
+          6448806401,
+          158
+        ],
+        [
+          10,
+          "Colonies at War",
+          1552800366,
+          3744
+        ]
+      ]
+    },
+    {
+      "country": "us",
+      "term": "conquest isles",
+      "count": 152,
+      "own": [
+        [
+          1,
+          "Conquest Isles",
+          "1.0.1",
+          0
+        ]
+      ],
+      "top10": [
+        [
+          1,
+          "Conquest Isles",
+          6800177702,
+          0
+        ],
+        [
+          2,
+          "Art of Conquest : Airships",
+          1131944535,
+          3752
+        ],
+        [
+          3,
+          "Guns of Glory: Lost Island",
+          1274354704,
+          19132
+        ],
+        [
+          4,
+          "Celtic Tribes - Strategy MMO",
+          564769273,
+          46
+        ],
+        [
+          5,
+          "Lux DLX 3 - Map Conquest Game",
+          299813413,
+          1253
+        ],
+        [
+          6,
+          "Million Lords: World Conquest",
+          1290392434,
+          7962
+        ],
+        [
+          7,
+          "Galcon 2: Galactic Conquest",
+          898558158,
+          235
+        ],
+        [
+          8,
+          "Vikings: War of Clans PvP",
+          966810173,
+          12184
+        ],
+        [
+          9,
+          "War Planet Online: MMO Battle",
+          1127260935,
+          9068
+        ],
+        [
+          10,
+          "Invasion: Aerial Warfare",
+          949785353,
+          2901
+        ]
+      ]
+    },
+    {
+      "country": "us",
+      "term": "island conquest",
+      "count": 162,
+      "own": [],
+      "top10": [
+        [
+          1,
+          "Island Conquest: Hero Battle",
+          6763937697,
+          0
+        ],
+        [
+          2,
+          "Guns of Glory: Lost Island",
+          1274354704,
+          19132
+        ],
+        [
+          3,
+          "Misty Continent",
+          1633960431,
+          11772
+        ],
+        [
+          4,
+          "Island King",
+          1458091391,
+          12965
+        ],
+        [
+          5,
+          "Merge Fantasy Island",
+          1625027068,
+          4889
+        ],
+        [
+          6,
+          "Last Pirate: Island Survival",
+          1449724605,
+          3927
+        ],
+        [
+          7,
+          "Tinker Island: Adventure Story",
+          1105577194,
+          8064
+        ],
+        [
+          8,
+          "Lux Touch 3 - World Domination",
+          292538570,
+          870
+        ],
+        [
+          9,
+          "The Island Castaway®",
+          767324855,
+          15133
+        ],
+        [
+          10,
+          "Tropic Trouble Match 3 Builder",
+          1328958649,
+          7313
+        ]
+      ]
+    }
+  ],
+  "capturedAt": "2026-10-02"
+}

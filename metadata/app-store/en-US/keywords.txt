@@ -1,0 +1,1 @@
+island,RTS,war,tactics,army,singleplayer,offline,conquer,skirmish,spectator,rank,map,defense

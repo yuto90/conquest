@@ -1,0 +1,482 @@
+[
+  {
+    "path": "ios/iphone/1320x2868/en/01-hero.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/en/02-device-top.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/en/03-device-bottom.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/en/04-hero.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/en/05-two-devices.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/en/01-hero.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/en/02-device-top.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/en/03-device-bottom.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/en/04-hero.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/en/05-two-devices.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/en/01-hero.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/en/02-device-top.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/en/03-device-bottom.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/en/04-hero.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/en/05-two-devices.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/en/01-hero.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/en/02-device-top.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/en/03-device-bottom.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/en/04-hero.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/en/05-two-devices.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/ja/01-hero.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/ja/02-device-top.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/ja/03-device-bottom.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/ja/04-hero.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1320x2868/ja/05-two-devices.png",
+    "size": [
+      1320,
+      2868
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/ja/01-hero.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/ja/02-device-top.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/ja/03-device-bottom.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/ja/04-hero.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1284x2778/ja/05-two-devices.png",
+    "size": [
+      1284,
+      2778
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/ja/01-hero.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/ja/02-device-top.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/ja/03-device-bottom.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/ja/04-hero.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1206x2622/ja/05-two-devices.png",
+    "size": [
+      1206,
+      2622
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/ja/01-hero.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/ja/02-device-top.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/ja/03-device-bottom.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/ja/04-hero.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/iphone/1125x2436/ja/05-two-devices.png",
+    "size": [
+      1125,
+      2436
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/en/01-hero.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/en/02-device-top.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/en/03-device-bottom.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/en/04-hero.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/en/05-two-devices.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/en/01-hero.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/en/02-device-top.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/en/03-device-bottom.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/en/04-hero.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/en/05-two-devices.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/ja/01-hero.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/ja/02-device-top.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/ja/03-device-bottom.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/ja/04-hero.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2064x2752/ja/05-two-devices.png",
+    "size": [
+      2064,
+      2752
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/ja/01-hero.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/ja/02-device-top.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/ja/03-device-bottom.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/ja/04-hero.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  },
+  {
+    "path": "ios/ipad/2048x2732/ja/05-two-devices.png",
+    "size": [
+      2048,
+      2732
+    ],
+    "mode": "RGB"
+  }
+]

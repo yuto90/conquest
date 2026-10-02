@@ -1,10 +1,13 @@
 # conquest
 
-Conquest は、島を占領しながら敵と戦うリアルタイム戦術ゲームです。
+Conquest Isles は、島を占領しながら敵と戦う1人用リアルタイム戦略ゲームです。
+
+[App Storeでダウンロード / Download on the App Store](https://apps.apple.com/app/id6800177702) — iPhone・iPad、日本語・英語に対応。
 
 ## Documentation
 
 - [ゲームルール](docs/game-rules.md)
+- [App Store掲載情報とASOの確認手順](docs/aso/README.md)
 
 ## Web
 
