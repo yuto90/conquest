@@ -1708,9 +1708,8 @@ class _DifficultyChoice extends StatelessWidget {
       owner: owner,
       difficulty: label,
     );
-    return SizedBox(
-      height: 51,
-      width: double.infinity,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 51),
       child: ChoiceChip(
         key: ValueKey('$keyPrefix-${difficulty.name}'),
         label: SizedBox(
@@ -1718,9 +1717,11 @@ class _DifficultyChoice extends StatelessWidget {
           child: Semantics(
             excludeSemantics: true,
             label: semanticLabel,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label, textAlign: TextAlign.center),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
@@ -1777,9 +1778,8 @@ class _GameModeChoice extends StatelessWidget {
     final l10n = _appLocalizations(context);
     final selected = state.configuration.gameMode == mode;
     final label = _modeLabel(l10n, mode);
-    return SizedBox(
-      height: 41,
-      width: double.infinity,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 41),
       child: ChoiceChip(
         key: ValueKey('game-mode-${_modeKey(mode)}'),
         label: SizedBox(
@@ -1787,9 +1787,11 @@ class _GameModeChoice extends StatelessWidget {
           child: Semantics(
             excludeSemantics: true,
             label: label,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(label, textAlign: TextAlign.center),
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),
