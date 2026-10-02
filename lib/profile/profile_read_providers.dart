@@ -52,7 +52,7 @@ final playerProfileProvider = StreamProvider.autoDispose
         playerProfileRepositoryProvider.future,
       );
       yield* repository.watchProfile(profileId);
-    });
+    }, retry: (_, _) => null);
 
 final profileStatisticsProvider = StreamProvider.autoDispose
     .family<MatchStatistics, ProfileQuery>((ref, query) async* {
@@ -60,7 +60,7 @@ final profileStatisticsProvider = StreamProvider.autoDispose
         playerProfileRepositoryProvider.future,
       );
       yield* repository.watchStatistics(query.profileId, filter: query.filter);
-    });
+    }, retry: (_, _) => null);
 
 final difficultyStatisticsProvider = StreamProvider.autoDispose
     .family<Map<CpuDifficulty, MatchStatistics>, String>((
@@ -71,7 +71,7 @@ final difficultyStatisticsProvider = StreamProvider.autoDispose
         playerProfileRepositoryProvider.future,
       );
       yield* repository.watchDifficultyStatistics(profileId);
-    });
+    }, retry: (_, _) => null);
 
 final recentMatchesProvider = StreamProvider.autoDispose
     .family<List<MatchHistoryEntry>, String>((ref, profileId) async* {
@@ -79,7 +79,7 @@ final recentMatchesProvider = StreamProvider.autoDispose
         playerProfileRepositoryProvider.future,
       );
       yield* repository.watchRecentMatches(profileId);
-    });
+    }, retry: (_, _) => null);
 
 final fastestVictoryProvider = StreamProvider.autoDispose
     .family<int?, FastestVictoryQuery>((ref, query) async* {
@@ -102,7 +102,7 @@ final fastestVictoryProvider = StreamProvider.autoDispose
               islandCount: query.islandCount,
             ),
           );
-    });
+    }, retry: (_, _) => null);
 
 final matchDetailProvider = FutureProvider.autoDispose
     .family<MatchHistoryEntry?, MatchDetailQuery>((ref, query) async {
@@ -110,7 +110,7 @@ final matchDetailProvider = FutureProvider.autoDispose
         playerProfileRepositoryProvider.future,
       );
       return repository.loadMatch(query.profileId, query.matchId);
-    });
+    }, retry: (_, _) => null);
 
 final class MatchHistoryState {
   MatchHistoryState({
