@@ -18,23 +18,29 @@ final playerProfileRepositoryProvider = FutureProvider<PlayerProfileRepository>(
     final runtime = ref.watch(matchPersistenceProvider);
     if (runtime == null)
       throw StateError('Profile persistence is not injected');
-    ref.watch(
+    var initializing = true;
+    ref.listen(
       profilePersistenceStateProvider.select(
-        (_) => (
-          runtime.profile?.profileId,
-          runtime.initializationError,
-          runtime.checkingOwnership,
-        ),
+        (_) => (runtime.profile?.profileId, runtime.initializationError),
       ),
+      (_, _) {
+        if (!initializing) ref.invalidateSelf();
+      },
     );
-    await runtime.initialize();
-    return runtime.backend!.repository;
+    try {
+      if (runtime.initializationError case final error?) throw error;
+      await runtime.initialize();
+      return runtime.backend!.repository;
+    } finally {
+      initializing = false;
+    }
   },
 );
 
 final activeProfileIdProvider = FutureProvider<String>((ref) async {
+  final runtime = ref.watch(matchPersistenceProvider);
   await ref.watch(playerProfileRepositoryProvider.future);
-  return ref.watch(matchPersistenceProvider)!.profile!.profileId;
+  return runtime!.profile!.profileId;
 });
 
 final playerProfileProvider = StreamProvider.autoDispose
