@@ -67,7 +67,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get myPageMetricDefinitions =>
-      '出兵回数には味方への増援を含みます。派遣兵力は出兵時の兵数です。占領回数には再占領を含み、現在の所有島数とは異なります。ゲーム内時間にはカウントダウンと一時停止を含みません。XPはこの試合に保存された付与額です.';
+      '出兵回数には味方への増援を含みます。派遣兵力は出兵時の兵数です。占領回数には再占領を含み、現在の所有島数とは異なります。ゲーム内時間にはカウントダウンと一時停止を含みません。XPはこの試合に保存された付与額です。';
 
   @override
   String get myPageTitle => 'マイページ / PROFILE';

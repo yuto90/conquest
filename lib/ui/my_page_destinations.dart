@@ -342,6 +342,7 @@ class _MatchDetails extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Semantics(
+                container: true,
                 label: '$label: $value',
                 excludeSemantics: true,
                 child: Column(
