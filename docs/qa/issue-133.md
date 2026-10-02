@@ -48,11 +48,19 @@ Flutter 3.44.8/Dart 3.12.2, Drift 2.35.0, SQLite 3.53.4.
 | `fvm dart format --output=none --set-exit-if-changed lib test integration_test` | Passed |
 | `fvm flutter test test/my_page_test.dart test/quit_storage_qa_test.dart --reporter expanded` | 17 passed; storage/controller cases also included in final full-suite gate below |
 | `fvm flutter analyze` | Passed, no issues |
-| `fvm flutter test --reporter expanded` | Final run pending |
-| `fvm flutter test --platform chrome test/profile_storage.browser.dart --reporter expanded` | Final run pending |
-| `shasum -a 256 -c web/drift-assets.sha256` | Final run pending |
-| `fvm flutter build web --release --base-href /` | Final run pending |
-| `fvm flutter build ios --simulator --debug --no-codesign` | Final run pending |
+| `fvm flutter test --reporter expanded` | 589 passed in 17s (575 baseline + 14 added cases) |
+| `fvm flutter test --platform chrome test/profile_storage.browser.dart --reporter expanded` | 3 passed in headless Chrome |
+| `shasum -a 256 -c web/drift-assets.sha256` | Both official assets match (macOS equivalent of CI's `sha256sum`) |
+| `fvm flutter build web --release --base-href /` | Passed, including Wasm dry run; 28.1s compilation |
+| `fvm flutter build ios --simulator --debug --no-codesign` | Passed; Xcode build 28.8s |
+
+These full-suite/browser/build results were executed on
+`6681f95620233831efaefc6971ffce20ee9a4647` in
+[PR 143](https://github.com/yuto90/conquest/pull/143). Subsequent QA-document
+updates do not change application/test code. Devin Review completed on that
+commit with zero findings. PR checks and integration HEAD results are available
+on the PR and in the child handoff; parent acceptance must use the final remote
+`feature/mypage` SHA, not an earlier child SHA.
 
 Native build uses the blueprint's Xcode 27.0 RC `DEVELOPER_DIR`, its `usr/bin`
 at the front of `PATH`, and `FLUTTER_XCODE_IPHONEOS_DEPLOYMENT_TARGET=15.0`.
@@ -118,7 +126,7 @@ Record exact integrated SHA, device/OS/browser, actions and artifacts for each:
 | Layout/input/accessibility | Pending: portrait/landscape where supported, large text, keyboard focus/save/cancel, screen reader labels, touch targets; actual hardware and VoiceOver remain unknown until available |
 | Final release Web | Pending: actual asset/header responses and storage choice, reload/page leave, profile retention, completed/abandoned records, two live tabs, closed/crashed owner recovery, unsupported/quota/read/write failure UI and retry |
 | 10,000 rows in actual UI | Pending: scrolling/filtering/pagination and retained UI memory; native SQL benchmark does not prove browser/phone rendering performance |
-| Final branch CI / main PR | Pending: integration HEAD `Verify My Page` and parent final PR gates; no deployment or main merge in this child |
+| Final branch CI / main PR | Child checks integration HEAD `Verify My Page` and reports the remote SHA in its handoff. Parent final PR gates remain pending; no deployment or main merge in this child |
 
 The parent's earlier iPhone SE evidence was on a pre-133 revision and revealed
 the obsolete quit text. It is not final-SHA acceptance. Final corrected-copy
