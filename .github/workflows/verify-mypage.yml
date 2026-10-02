@@ -1,0 +1,81 @@
+name: Verify My Page
+
+on:
+  push:
+    branches: [feature/mypage]
+  pull_request:
+    branches: [feature/mypage, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-mypage-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Codegen, analyze, test and release Web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out tested HEAD
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Read Flutter version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          flutter_version="$(jq -er '.flutterSdkVersion | strings | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' .fvm/fvm_config.json)"
+          [[ "$flutter_version" == "3.44.8" ]] || {
+            echo "::error::.fvm/fvm_config.json must select Flutter 3.44.8"
+            exit 1
+          }
+          echo "flutter_version=$flutter_version" >> "$GITHUB_OUTPUT"
+          echo "Verification commit: $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Flutter from FVM config
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ steps.version.outputs.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies with FVM
+        shell: bash
+        run: |
+          set -euo pipefail
+          dart pub global activate fvm 3.2.1
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          fvm flutter pub get
+
+      - name: Generate Riverpod, Drift and localization sources
+        run: |
+          fvm dart run build_runner build --delete-conflicting-outputs
+          fvm flutter gen-l10n
+
+      - name: Check Dart formatting
+        run: fvm dart format --output=none --set-exit-if-changed lib test integration_test
+
+      - name: Check generated sources are current
+        shell: bash
+        run: |
+          set -euo pipefail
+          changes="$(git status --porcelain --untracked-files=all -- lib test integration_test)"
+          if [[ -n "$changes" ]]; then
+            echo "::error::Commit current generated sources before verification"
+            printf '%s\n' "$changes"
+            git diff -- lib test integration_test
+            exit 1
+          fi
+
+      - name: Analyze
+        run: fvm flutter analyze
+
+      - name: Test
+        run: fvm flutter test --reporter expanded
+
+      - name: Build release Web
+        run: fvm flutter build web --release --base-href /
