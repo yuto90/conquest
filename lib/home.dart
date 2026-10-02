@@ -18,6 +18,7 @@ import 'game/match_summary.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'l10n/generated/app_localizations_en.dart';
 import 'rank_progression.dart';
+import 'reviews/store_review.dart';
 import 'ui/island_assets.dart';
 import 'ui/island_count_slider.dart';
 import 'ui/match_summary.dart';
@@ -110,10 +111,23 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   GameState? _configurationBeforeTutorial;
   ProviderSubscription<GameState>? _tutorialControllerSubscription;
   var _tutorialSpectatorSelected = false;
+  late final Future<StoreReviewPrompter?> _storeReviewPrompter;
+  bool _reviewAppVisible = true;
 
   @override
   void initState() {
     super.initState();
+    _storeReviewPrompter = ref
+        .read(storeReviewPrompterProvider.future)
+        .catchError((Object error) {
+          debugPrint(
+            'Store review initialization unavailable: ${error.runtimeType}',
+          );
+          return null;
+        });
+    _reviewAppVisible =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _appBgmController = AppBgmController(
       menuPlayer: ref.read(menuBgmPlayerProvider),
       battlePlayer: ref.read(bgmPlayerProvider),
@@ -146,6 +160,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         lifecycleState == AppLifecycleState.detached) {
       _handleHidden();
     } else if (lifecycleState == AppLifecycleState.resumed) {
+      _reviewAppVisible = true;
       // Returning to the foreground only makes future explicit game actions
       // eligible. The paused game still has to be resumed by the user.
       _appBgmController.setAppVisible(true);
@@ -155,6 +170,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   void _pauseGame() => ref.read(gameControllerProvider.notifier).pauseGame();
 
   void _handleHidden() {
+    _reviewAppVisible = false;
     _appBgmController.setAppVisible(false);
     final tutorial = _tutorialSession;
     if (tutorial != null) {
@@ -170,6 +186,25 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
 
   void _handleBgmChanged() {
     if (mounted) setState(() {});
+  }
+
+  Future<void> _recordReviewResult() async {
+    try {
+      final prompter = await _storeReviewPrompter;
+      await prompter?.recordCompletedMatch(
+        canRequest: () =>
+            mounted &&
+            _reviewAppVisible &&
+            !_showTitle &&
+            _tutorialSession == null &&
+            ref.read(gameControllerProvider).phase == GamePhase.result &&
+            !ref.read(gameControllerProvider).viewportUnavailable,
+      );
+    } catch (error) {
+      debugPrint(
+        'Store review initialization unavailable: ${error.runtimeType}',
+      );
+    }
   }
 
   void _setBgmEnabled(bool enabled) {
@@ -231,6 +266,13 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
       ),
       (_, phase) => _appBgmController.handlePhase(phase),
     );
+    ref.listen<GameState>(gameControllerProvider, (previous, current) {
+      if (previous?.phase != GamePhase.result &&
+          current.phase == GamePhase.result &&
+          current.configuration.gameMode == GameMode.playerVsCpu) {
+        unawaited(_recordReviewResult());
+      }
+    });
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
     final rankProgress =

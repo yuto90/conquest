@@ -1,0 +1,23 @@
+{
+  "appId": "6800177702",
+  "targetVersion": "1.0.2",
+  "nameDecision": "pending",
+  "localizations": {
+    "en-US": {
+      "name": "Conquest Isles",
+      "subtitle": "Capture territory. Battle AI",
+      "keywords": "island,RTS,war,tactics,army,singleplayer,offline,conquer,skirmish,spectator,rank,map,defense",
+      "promotional_text": "Tap to command. Capture islands, outsmart the CPU, and earn XP. Learn with a hands-on tutorial, then try a fresh battlefield. No ads, accounts, or in-app purchases.",
+      "description": "Command your islands. Capture enemy territory. Outsmart the CPU.\n\nConquest Isles is a single-player real-time strategy game with simple tap controls. Send troops between islands, reinforce your front line, and time your attacks to conquer the battlefield.\n\nSIMPLE CONTROLS, TACTICAL CHOICES\nTap one of your islands, then a destination to dispatch half its troops. Your forces grow over time: decide when to defend, reinforce, or attack. Eliminate the opposing faction's islands and moving forces to win.\n\nA NEW BATTLEFIELD EVERY MATCH\nChoose from 8 to 16 islands and play on randomized maps. Try a different approach with a rematch of the same starting map and settings, or generate a new map for a fresh challenge.\n\nLEARN, THEN RAISE THE CHALLENGE\nStart with a four-step, hands-on tutorial. Choose from four CPU difficulty levels, from Very Easy to Hard, as you develop your tactics.\n\nEARN XP AND RISE THROUGH THE RANKS\nWin CPU battles to earn experience and advance your rank. The results screen shows your match summary and XP progress.\n\nWATCH THE CPU BATTLE\nSet each side's difficulty independently in CPU-versus-CPU spectator mode. Watch attacks and reinforcements unfold without taking control.\n\nPLAY ON YOUR TERMS\n• Pause and resume during a match.\n• Play offline without creating an account.\n• No ads or in-app purchases.\n• English and Japanese interface options.\n• Designed for iPhone and iPad, with portrait and landscape play on iPad.\n\nOne tap sends your troops. Your next decision shapes the battle.",
+      "proposed_name": "Conquest Isles: Island Battles"
+    },
+    "ja": {
+      "name": "Conquest Isles",
+      "subtitle": "1人用リアルタイム戦略・陣取りバトル",
+      "keywords": "RTS,島取り,戦術,占領,領土,兵力,増援,CPU,ソロ,観戦,ランク,チュートリアル,コンクエスト,こんくえすと,オフライン,広告なし,防衛",
+      "promotional_text": "島をタップして出兵。攻めるか、守るか、一手の判断が勝負を変える。操作練習から始めて、CPU戦でXPとランクを積み上げよう。広告・アプリ内課金・アカウント登録なし。",
+      "description": "島を奪い、兵力を育て、相手の一手を読み切ろう。\n\nConquest Isles（コンクエスト アイルズ）は、タップで部隊を指揮する1人用のリアルタイム戦略ゲーム。中立島を占領して勢力を広げ、味方へ増援を送り、攻めるタイミングを見極めて海域の制覇を目指します。\n\n■ 操作はシンプル。判断は奥深い。\n自軍の島をタップし、次に目的地をタップすると、兵力の半分を派遣します。兵力は時間とともに増えるため、今攻めるか、守るか、増援を待つかが勝負を分けます。相手の島と移動中の部隊をすべてなくせば勝利です。\n\n■ 毎回変わる海域で、自分の戦術を試そう。\n島数は8〜16島から選択でき、マップはランダムに生成されます。同じ初期マップと設定で再戦して作戦を試し直すことも、新しいマップで次の勝負に挑むこともできます。\n\n■ 初めてでも、練習から始められる。\n4ステップの操作練習で、出兵・増援・占領の基本を体験。CPUの難易度はVery EasyからHardまでの4段階から選べます。\n\n■ 勝利でXPを獲得し、ランクを上げよう。\nCPU戦の勝利で経験値を獲得し、ランクが成長します。対戦結果で試合の概要とXPの進み具合を確認できます。\n\n■ CPU同士の戦いを観戦。\n両陣営の難易度を個別に設定し、部隊の動きや島の取り合いを眺める観戦モードも楽しめます。\n\n■ 自分のペースで遊べる。\n・対戦中の一時停止と再開に対応\n・オフラインでプレイ可能\n・アカウント登録、広告、アプリ内課金なし\n・日本語と英語の表示を切り替え可能\n・iPhoneとiPadに対応。iPadは縦向き・横向きでプレイ可能\n\n次の一手で、戦況を変えよう。",
+      "proposed_name": "Conquest Isles - 島取り戦略ゲーム"
+    }
+  }
+}

@@ -38,6 +38,8 @@ Update the matching `screenshot` fields in `app-store-screenshots.json` to point
 
 The toolbar dropdown lists every Apple/Google-required size for the current device. Click **Export bundle** to download a zip. In Connected mode, each PNG is clipped from the connected canvas, so an element that straddles two screens appears split exactly where you placed it. In Isolated mode, each screen clips its own elements and legacy offscreen content cannot leak into neighboring exports.
 
+Before uploading to App Store Connect, convert the browser's RGBA PNGs to RGB: Apple disallows alpha channels even when every pixel is opaque. From the repository root, run `python3 tool/aso_package_screenshots.py --input /path/to/iphone.zip --input /path/to/ipad.zip --output /path/to/rgb-output` (requires ffmpeg). Upload the resulting ZIP contents; keep the original exports for comparison. See `docs/aso/README.md` for the verified ASO deck and release status.
+
 ## Customizing
 
 | Where | What |
