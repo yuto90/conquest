@@ -699,6 +699,69 @@ void main() {
   );
 
   test(
+    'refresh during initial/repeated loads never completes a pending future with an empty page',
+    () async {
+      final probe = QueryProbe();
+      final fixture = ProfileFixture(
+        database: db.ProfileDatabase(
+          NativeDatabase.memory().interceptWith(probe),
+        ),
+      );
+      addTearDown(fixture.store.close);
+      await fixture.ready();
+      await seedLosses(fixture, 21);
+      final container = ProviderContainer(
+        overrides: [
+          matchPersistenceProvider.overrideWithValue(fixture.runtime),
+        ],
+      );
+      addTearDown(container.dispose);
+      final provider = matchHistoryProvider((
+        profileId: fixture.runtime.profile!.profileId,
+        filter: MatchHistoryFilter(),
+      ));
+      final gates = List.generate(3, (_) => Completer<void>());
+      addTearDown(() {
+        for (final gate in gates) {
+          if (!gate.isCompleted) gate.complete();
+        }
+      });
+      probe.historyGate = gates[0];
+      probe.captured = Completer<void>();
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+      final initial = container.read(provider.future);
+      var completed = false;
+      initial.then((_) => completed = true);
+      await probe.captured!.future;
+      await finish(
+        fixture,
+        200,
+        started: timestamp.add(const Duration(days: 1)),
+      );
+      final controller = container.read(provider.notifier);
+      for (var i = 1; i < gates.length; i++) {
+        probe.historyGate = gates[i];
+        probe.captured = Completer<void>();
+        controller.refresh();
+        container.read(provider.future);
+        await probe.captured!.future;
+        expect(completed, isFalse);
+        expect(container.read(provider).isLoading, isTrue);
+        expect(container.read(provider).value?.entries ?? [], isEmpty);
+        gates[i - 1].complete();
+        await container.pump();
+        expect(completed, isFalse);
+      }
+      gates.last.complete();
+      final page = await initial;
+      expect(page.entries.length, 20);
+      expect(page.entries.first.record.start.matchId, uuid(200));
+      expect(container.read(provider).requireValue.entries, page.entries);
+    },
+  );
+
+  test(
     'SQL read failures remain errors, not empty history/statistics/details',
     () async {
       final fixture = ProfileFixture();
