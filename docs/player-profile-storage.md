@@ -221,6 +221,9 @@ and explicit paused-match `abandon` capture the end time once. `retry` resubmits
 the original snapshot, even after its result/controller has been disposed.
 `saveFor(matchId)` returns saving/unsaved/saved state; a terminal match is saved
 only with a durable receipt. Delayed receipts enrich only the current result.
+The coordinator retains at most eight saved receipts (including the current
+match), never evicting in-progress or failed DTOs. Older saved matches are read
+from the durable repository, not the in-memory save-state cache.
 
 Initialization holds the exclusive platform lease before `initializeAndRecover`
 atomically imports legacy XP, updates the execution owner and recovers the prior

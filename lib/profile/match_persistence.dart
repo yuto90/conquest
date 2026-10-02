@@ -84,6 +84,8 @@ final class _PendingMatch {
 /// One composition-root owner for storage, migration and failed frozen DTOs.
 /// It outlives controllers, result routes and viewport ProviderScopes.
 final class MatchPersistence extends ChangeNotifier {
+  static const savedReceiptLimit = 8;
+
   MatchPersistence({
     required this.factory,
     required this.openBackend,
@@ -98,6 +100,7 @@ final class MatchPersistence extends ChangeNotifier {
   Future<void>? _initializing;
   Future<void> _queue = Future<void>.value();
   final Map<String, _PendingMatch> _matches = {};
+  String? _activeMatchId;
   bool _closing = false;
   Future<void>? _closingOperation;
   bool _disposed = false;
@@ -166,6 +169,7 @@ final class MatchPersistence extends ChangeNotifier {
     if (!canStart) return null;
     final id = factory.ids.next();
     requireUuid(id, 'matchId');
+    _activeMatchId = id;
     _matches[id] = _PendingMatch(
       id,
       configuration,
@@ -253,11 +257,25 @@ final class MatchPersistence extends ChangeNotifier {
         match.save = MatchSaveState(MatchSavePhase.unsaved, error: error);
       }
       match.operation = null;
+      _trimSavedReceipts();
       _changed();
     });
     match.operation = operation;
     _queue = operation;
     return operation;
+  }
+
+  void _trimSavedReceipts() {
+    final saved = _matches.values
+        .where((match) => match.save.receipt != null)
+        .toList();
+    var excess = saved.length - savedReceiptLimit;
+    for (final match in saved) {
+      if (excess <= 0) break;
+      if (match.id == _activeMatchId || match.operation != null) continue;
+      _matches.remove(match.id);
+      excess--;
+    }
   }
 
   Future<void> retry([String? id]) async {

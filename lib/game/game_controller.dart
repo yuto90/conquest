@@ -727,7 +727,8 @@ class GameController extends _$GameController {
     final phaseBeforeTick = state.phase;
     final selectedBeforeTick = state.selectedIslandId;
     final nextState = _rules.tick(state, deltaMs: deltaMs);
-    if (phaseBeforeTick == GamePhase.startCountdown &&
+    if ((phaseBeforeTick == GamePhase.startCountdown ||
+            phaseBeforeTick == GamePhase.resumeCountdown) &&
         nextState.phase == GamePhase.playing) {
       _recordFirstPlaying(nextState.configuration);
     }

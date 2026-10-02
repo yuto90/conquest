@@ -67,6 +67,74 @@ Future<ProfileFixture> ready({int? xp}) async {
 
 void main() {
   test(
+    'first playing after countdown pause/resume starts once and awards XP',
+    () async {
+      final f = await ready();
+      final h = Harness(f);
+      addTearDown(h.dispose);
+      h.controller.startGame();
+      for (var i = 0; i < 10; i++) h.loop.tick();
+      h.controller.pauseGame();
+      await f.runtime.drain();
+      expect(h.controller.currentMatchId, isNull);
+      expect(
+        await f.store.database.select(f.store.database.matchRecords).get(),
+        isEmpty,
+      );
+      h.controller.resumeGame();
+      expect(h.controller.state.phase, GamePhase.resumeCountdown);
+      for (var i = 0; i < 60; i++) h.loop.tick();
+      final id = h.controller.currentMatchId!;
+      h.controller.pauseGame();
+      h.controller.resumeGame();
+      for (var i = 0; i < 60; i++) h.loop.tick();
+      expect(h.controller.currentMatchId, id);
+      await h.finish(const GameResult.victory(elapsedMs: 50));
+      expect(h.controller.currentSave!.receipt!.xpAwarded, 1500);
+      expect(
+        (await f.store.database.select(f.store.database.matchRecords).get())
+            .length,
+        1,
+      );
+    },
+  );
+
+  test(
+    'many rematches bound saved receipt retention without evicting unsaved DTOs',
+    () async {
+      final f = await ready();
+      final h = Harness(f);
+      addTearDown(h.dispose);
+      h.play();
+      final unsaved = h.controller.currentMatchId!;
+      f.saveError = StateError('first save failed');
+      await h.finish(const GameResult.victory(elapsedMs: 50));
+      f.saveError = null;
+      for (var i = 0; i < 24; i++) {
+        h.controller.rematchGame();
+        for (var tick = 0; tick < 60; tick++) h.loop.tick();
+        await h.finish(const GameResult.victory(elapsedMs: 50));
+        expect(h.controller.currentSave!.receipt!.xpAwarded, 1500);
+      }
+      expect(f.runtime.saves.length, MatchPersistence.savedReceiptLimit + 1);
+      expect(f.runtime.saveFor(unsaved)!.phase, MatchSavePhase.unsaved);
+      await f.runtime.retry(unsaved);
+      expect(f.runtime.saves.length, MatchPersistence.savedReceiptLimit);
+      expect(
+        (await f.store.loadRecord(unsaved))!.status,
+        MatchStatus.completed,
+      );
+      expect(await f.store.totalXp(f.runtime.profile!.profileId), 25 * 1500);
+      expect(
+        (await f.store.database.select(f.store.database.matchRecords).get())
+            .length,
+        25,
+      );
+      expect(h.controller.currentSave!.receipt, isNotNull);
+    },
+  );
+
+  test(
     'result retry restores an initially failed rank stream from the ledger',
     () async {
       final f = ProfileFixture();
