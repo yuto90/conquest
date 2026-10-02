@@ -11,7 +11,7 @@ App Store Connectの審査待ち **1.0.2** に日英のサブタイトル・説�
 - 正本: [`metadata/app-store/listing.json`](../../metadata/app-store/listing.json)。各言語のテキストも同じディレクトリに保存。
 - 変更前/保存後: `before-*.json` / `after-*.json`。公開用フィールドのみ。開発者の連絡先・認証情報・内部アナリティクスを含めない。
 - 名前は現在の `Conquest Isles` を維持。`proposed_name` は確認待ちの提案で、自動アップロード用の値ではない。
-- 名前の説明語追加を採用した場合、英語は `Conquest Isles: Island RTS`、日本語は `Conquest Isles - 島取りRTS`。この場合、名前と重なる `island,RTS` / `RTS,島取り` をキーワードから削除し、英語は空き枠へ `reinforcement` を戻す。
+- 名前の説明語追加を採用した場合、英語は `Conquest Isles: Island Battles`（30文字）、日本語は `Conquest Isles - 島取り戦略ゲーム`（25文字）。略称のRTSを使わず、島を取り合うゲームだと伝える。この場合、名前と重なる `island` / `島取り` をキーワードから削除し、英語は空き枠へ `reinforcement` を戻す。`RTS` は検索する人向けの非表示キーワードとして維持する。
 - `conquest` をキーワードにも重複させず、関連する戦術・島取り・オフライン・観戦などの語に枠を使う。無関係な語、競合名、商標は入れない。
 - 説明の古い島数を8〜16島へ修正。操作練習、同じ初期盤面での再戦、XP、観戦、iPad対応を実装に合わせて説明。
 - プロモーション文は体験を伝えるための文。これ自体に検索順位を上げる効果はない。
