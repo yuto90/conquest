@@ -94,6 +94,7 @@ class HistoryRepository implements PlayerProfileRepository {
       entries.where((e) {
         final r = e.record;
         return r.start.profileId == profileId &&
+            r.isTerminal &&
             (filter.difficulty == null ||
                 filter.difficulty == r.start.configuration.cpuDifficulty) &&
             (filter.islandCount == null ||
@@ -350,6 +351,48 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'history filters expose terminal states; active detail stays readable',
+    (tester) async {
+      final repo = HistoryRepository([
+        entry(1, status: MatchStatus.inProgress),
+        entry(2, status: MatchStatus.interrupted),
+        entry(3, status: MatchStatus.abandoned),
+        entry(4),
+      ]);
+      addTearDown(repo.changes.close);
+      await mount(tester, repo);
+      expect(page(tester).entries.length, 3);
+      expect(page(tester).entries.any((e) => !e.record.isTerminal), isFalse);
+      await tester.ensureVisible(find.byKey(const ValueKey('history-result')));
+      await tester.tap(find.byKey(const ValueKey('history-result')));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('In progress'), findsNothing);
+      expect(find.text('Abandoned'), findsOneWidget);
+      expect(find.text('Result unknown'), findsOneWidget);
+      await tester.tap(find.text('Result unknown'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await drain(tester);
+      expect(repo.calls.last.filter.status, MatchStatus.interrupted);
+      expect(
+        page(
+          tester,
+          filter: MatchHistoryFilter(status: MatchStatus.interrupted),
+        ).entries.single.record.start.matchId,
+        id(2),
+      );
+      await tester.pumpWidget(const SizedBox());
+      await drain(tester);
+      await mount(
+        tester,
+        repo,
+        home: MyPageMatchDetailScreen(profileId: id(99999), matchId: id(1)),
+      );
+      expect(find.text('In progress'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'initial/loading-more errors retry without empty states or duplicate rows; repeated taps are ignored',

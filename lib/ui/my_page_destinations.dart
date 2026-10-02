@@ -93,7 +93,6 @@ class _MyPageHistoryTabState extends ConsumerState<MyPageHistoryTab>
                       (MatchStatus.completed, o): profileOutcomeLabel(l10n, o),
                     (MatchStatus.abandoned, null): l10n.myPageAbandoned,
                     (MatchStatus.interrupted, null): l10n.myPageInterrupted,
-                    (MatchStatus.inProgress, null): l10n.myPageInProgress,
                   },
                   onChanged: (result) => _change(
                     MatchHistoryFilter(
