@@ -217,6 +217,47 @@ Future<MatchRecord> seedVictory(ProfileFixture fixture, int id) async {
 }
 
 void main() {
+  testWidgets(
+    'profile initialization is loading until repository data arrives',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 2200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final fixture = await newFixture(tester, xp: 200);
+      await tester.runAsync(fixture.ready);
+      final profileId = Completer<String>();
+      final container = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [
+          matchPersistenceProvider.overrideWithValue(fixture.runtime),
+          activeProfileIdProvider.overrideWith((_) => profileId.future),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            theme: buildTacticalTheme(),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: const MyPageScreen(),
+          ),
+        ),
+      );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.text('No completed matches recorded yet.'), findsNothing);
+      expect(find.byKey(const ValueKey('edit-profile')), findsNothing);
+      profileId.complete(fixture.runtime.profile!.profileId);
+      await settle(tester);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text('Commander'), findsOneWidget);
+      expect(find.text('Total XP: 200'), findsOneWidget);
+      expect(find.text('No completed matches recorded yet.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('settings route preserves configuration, map and BGM toggle', (
     tester,
   ) async {
