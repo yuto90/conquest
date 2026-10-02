@@ -323,6 +323,34 @@ Unknown timestamps/counters in details remain null. History XP uses a correlated
 ledger SUM scoped to both profile and match, so XP entries cannot multiply matches;
 legacy XP never manufactures matches.
 
+### My Page screen and issue 132 destinations
+
+Match setup exposes `MyPageScreen.open(context, initialTab: MyPageTab.stats)`
+beside the existing rank card. Pushing a route preserves the configuration,
+generated map and root audio/persistence owner. The title's hidden actions and
+battle HUD are unchanged. The two tabs use `MyPageTab.stats/history` and a shared
+profile header; `initialTab: MyPageTab.history` is also supported.
+
+The history integration boundary is `MyPageHistoryTab(profileId: id)` in
+`lib/ui/my_page_destinations.dart`. Replace that body's explicit pending message
+in issue 132 with the history reader/filter UI. It is the inner scrollable of a
+`NestedScrollView` and should retain its `PageStorageKey` and filter state.
+`MyPageMatchDetailScreen.open(context, profileId: id, matchId: id)` pushes the
+`/my-page/match` route with both scoped IDs. Recent rows already call it using
+the persisted entry; replace its pending body with `matchDetailProvider` in
+issue 132. History filters and details are **not complete** in issue 131 and
+this integration branch must not be published before issue 132/133 verification.
+
+The editor writes only `ProfileEdit` through the existing repository, keeps
+failed drafts on screen, and confirms discarding unsaved changes. Avatar-only
+edits retain an unset name as null; localized default names are never saved.
+Names entered by users are trimmed, checked as 1–20 graphemes and reject control
+characters. `ProfileAvatars` is a storage-independent bundled asset catalog;
+unknown keys/assets use a generic icon. Read failures show a retry state rather
+than zero statistics. Completed action/time totals, non-completed counts,
+nullable win rate/fastest time, legacy XP and live ledger-derived rank remain
+repository-defined. Root queued match failures remain visible in My Page.
+
 ### Cursor and refresh contract for screens
 
 Watch `matchHistoryProvider((profileId: id, filter: filter))` and call its notifier's

@@ -9,22 +9,15 @@ import 'legacy_xp.dart';
 import 'match_contracts.dart';
 import 'match_identity.dart';
 import 'profile_database.dart' as db;
+import 'profile_avatars.dart';
 import 'profile_repository.dart';
 import 'storage_lease.dart';
+
+export 'profile_avatars.dart';
 
 enum StorageFaultPoint { afterProfile, afterLegacyEntry, afterMatch, afterXp }
 
 typedef StorageFaultHook = Future<void> Function(StorageFaultPoint point);
-
-final class ProfileAvatars {
-  static const assets = <String, String>{
-    'island_01': 'assets/islands/ally/island_01.png',
-    'island_02': 'assets/islands/ally/island_02.png',
-    'island_03': 'assets/islands/ally/island_03.png',
-    'island_04': 'assets/islands/ally/island_04.png',
-  };
-  static const defaultKey = 'island_01';
-}
 
 final class DriftProfileStore implements MatchCompletionService {
   DriftProfileStore({

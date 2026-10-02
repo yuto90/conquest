@@ -9,6 +9,154 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get myPageTitle => 'My Page / PROFILE';
+
+  @override
+  String get myPageStats => 'STATS';
+
+  @override
+  String get myPageHistory => 'HISTORY';
+
+  @override
+  String get myPageDefaultName => 'Commander';
+
+  @override
+  String get myPageEdit => 'Edit profile';
+
+  @override
+  String get myPageLocalDevice => 'Saved on this device. No cloud sync.';
+
+  @override
+  String get myPageProfileSaved => 'Profile saved on this device.';
+
+  @override
+  String get myPageLoading => 'Loading saved profile data…';
+
+  @override
+  String get myPageReadError =>
+      'Could not load saved data. Your records have not been cleared.';
+
+  @override
+  String get myPageRetry => 'Retry';
+
+  @override
+  String get myPageName => 'Display name';
+
+  @override
+  String get myPageNameHint =>
+      '1–20 characters after trimming spaces. Leave unchanged to keep the default name.';
+
+  @override
+  String get myPageInvalidName =>
+      'Use 1–20 characters without control characters.';
+
+  @override
+  String get myPageAvatar => 'Profile icon';
+
+  @override
+  String get myPageSave => 'Save';
+
+  @override
+  String get myPageSaving => 'Saving profile…';
+
+  @override
+  String get myPageSaveError =>
+      'Not saved. Your edits are still here; retry saving.';
+
+  @override
+  String get myPageUnsavedChanges => 'Unsaved changes';
+
+  @override
+  String get myPageDiscardTitle => 'Discard profile edits?';
+
+  @override
+  String get myPageKeepEditing => 'Keep editing';
+
+  @override
+  String get myPageDiscard => 'Discard';
+
+  @override
+  String get myPageCompleted => 'Completed matches';
+
+  @override
+  String get myPageWins => 'Wins';
+
+  @override
+  String get myPageLosses => 'Losses';
+
+  @override
+  String get myPageDraws => 'Draws';
+
+  @override
+  String get myPageWinRate => 'Win rate';
+
+  @override
+  String get myPageCompletedTime => 'Completed match time (h:mm:ss)';
+
+  @override
+  String get myPageDispatches => 'Dispatches';
+
+  @override
+  String get myPageForces => 'Forces sent';
+
+  @override
+  String get myPageCaptures => 'Captures';
+
+  @override
+  String get myPageAbandoned => 'Abandoned';
+
+  @override
+  String get myPageInterrupted => 'Result unknown';
+
+  @override
+  String get myPageInProgress => 'In progress';
+
+  @override
+  String get myPageNoCompleted => 'No completed matches recorded yet.';
+
+  @override
+  String get myPageByDifficulty => 'By difficulty';
+
+  @override
+  String get myPageFastest => 'Fastest victory (h:mm:ss)';
+
+  @override
+  String get myPageRecent => 'Recent 5 matches';
+
+  @override
+  String get myPageNoMatches => 'No matches recorded yet.';
+
+  @override
+  String get myPageViewHistory => 'View history';
+
+  @override
+  String get myPageMatchDetail => 'Match details';
+
+  @override
+  String get myPageHistoryPending =>
+      'History filters and match details are being added in the next integration step.';
+
+  @override
+  String myPageTotalXp({required int xp}) {
+    return 'Total XP: $xp';
+  }
+
+  @override
+  String myPageMatchXp({required int xp}) {
+    return '$xp XP earned';
+  }
+
+  @override
+  String myPageStatsSince({required String date}) {
+    return 'Statistics recorded since $date. Earlier XP has no match records.';
+  }
+
+  @override
+  String myPageAvatarChoice({required int number}) {
+    return 'Icon $number';
+  }
+
+  @override
   String get appTitle => 'CONQUEST ISLES';
 
   @override

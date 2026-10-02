@@ -22,6 +22,7 @@ import 'reviews/store_review.dart';
 import 'ui/island_assets.dart';
 import 'ui/island_count_slider.dart';
 import 'ui/match_summary.dart';
+import 'ui/my_page.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
@@ -1466,6 +1467,12 @@ class _ConfigurationPanel extends StatelessWidget {
                             _RankProgressCard(progress: rankProgress!)
                           else
                             Text(l10n.rankUnavailable),
+                          OutlinedButton.icon(
+                            key: const ValueKey('open-my-page'),
+                            onPressed: () => MyPageScreen.open(context),
+                            icon: const Icon(Icons.person_outline),
+                            label: Text(l10n.myPageTitle),
+                          ),
                           const SizedBox(height: 4),
                           IslandCountSlider(
                             value: state.configuration.totalIslandCount,
