@@ -208,6 +208,54 @@ IDs and an explicit catalog version, including repeat-notification handling.
 
 ## Verification
 
+### Durable storage foundation (#128)
+
+`ProfileStorage.open(executionId: ...)` owns a platform executor and exclusive
+writer lease. It opens and checks schema version 1, table/column identities,
+SQLite integrity and foreign keys; it does **not** initialize a profile or read
+legacy XP. Close the root-owned storage only after its queued saves finish.
+
+`storage.store.initialize(SharedPreferencesLegacyXpSource())` is the explicit
+cutover component for #129. It creates the profile, `legacy:<profileId>` ledger
+entry and migration marker in one transaction. `null` and zero import zero;
+invalid values/read failures roll back and stay retryable. Repeated initialization
+never reads/reimports the source. The old key is never written or removed.
+Read `storage_meta.execution_id` before initialization if needed for recovery:
+initialization records the current owner. An exclusive lease is required before
+recovering a specified old execution; the current execution cannot be recovered.
+
+Native uses an isolated SQLite executor in Application Support and an exclusive
+lock file. Web uses the non-stealing `conquest_profile_writer_v1` Web Lock before
+opening `conquest_profile`; in-memory and unsafe IndexedDB implementations throw.
+Asset preflight rejects missing files, SPA HTML fallbacks and wrong MIME. The
+WASM/worker URLs resolve relative to the document base URI. Serve the headers in
+`vercel.json` (or their equivalent on another host); never remove the writer lock
+to make an unsupported browser work. Database errors preserve the original file.
+
+Reproduce assets/schema sources from the repository root:
+
+```bash
+bash script/fetch_drift_web_assets.sh
+fvm dart run build_runner build --delete-conflicting-outputs
+fvm dart run drift_dev make-migrations
+fvm dart run drift_dev schema generate drift_schemas/profile test/drift/profile/generated
+fvm flutter test test/profile_storage_test.dart --reporter expanded
+fvm flutter test --platform chrome test/profile_storage.browser.dart --reporter expanded
+```
+
+The checked-in worker and WASM come from the official Drift 2.35.0 release and
+are checked against `web/drift-assets.sha256`. Never edit generated Dart/schema
+fixtures or those assets by hand. Future schema changes must bump `schemaVersion`
+and provide a tested upgrade; unknown versions/tables/columns are refused without
+reset. `StorageFaultPoint` hooks inject failures inside the migration/finalization
+transactions for rollback/retry fixtures. Receipt snapshots, including zero XP,
+are persisted on every terminal match. Reward version is the contract value `1`.
+
+Chrome unit tests cover writer exclusion, release/reacquisition, wrong MIME and
+missing assets. #133 additionally verifies durable browser reload, actual
+OPFS/IndexedDB selection, two-tab crash/restart behavior and device/UI workflows
+after #129 activates the production path.
+
 `Verify My Page` runs on every push to `feature/mypage` and PRs targeting
 `feature/mypage` or `main`, without path-based skips. It records the tested SHA,
 uses FVM 3.2.1/Flutter 3.44.8, runs build_runner (Riverpod now, Drift later), l10n,

@@ -27,8 +27,8 @@ dependencies:
     sdk: flutter
   intl: any
   flutter_hooks: ^0.21.3+1
-  flutter_riverpod: ^3.3.2
-  riverpod_annotation: ^4.0.3
+  flutter_riverpod: 3.4.3
+  riverpod_annotation: 4.0.7
   shared_preferences: ^2.3.5
   audioplayers: ^6.8.1
 
@@ -36,6 +36,11 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   in_app_review: ^2.0.12
+  drift: 2.35.0
+  sqlite3: 3.5.2
+  path_provider: 2.1.6
+  characters: 1.4.1
+  web: 1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -44,7 +49,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   build_runner: ^2.15.1
-  riverpod_generator: ^4.0.4
+  riverpod_generator: 4.0.9
+  drift_dev: 2.35.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

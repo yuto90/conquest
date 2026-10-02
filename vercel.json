@@ -1,6 +1,14 @@
 {
   "headers": [
     {
+      "source": "/sqlite3.wasm",
+      "headers": [{"key": "Content-Type", "value": "application/wasm"}]
+    },
+    {
+      "source": "/drift_worker.js",
+      "headers": [{"key": "Content-Type", "value": "text/javascript"}]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

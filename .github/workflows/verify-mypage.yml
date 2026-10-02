@@ -77,5 +77,11 @@ jobs:
       - name: Test
         run: fvm flutter test --reporter expanded
 
+      - name: Test Web writer lease and asset failures
+        run: fvm flutter test --platform chrome test/profile_storage.browser.dart --reporter expanded
+
+      - name: Verify Drift Web asset checksums
+        run: sha256sum -c web/drift-assets.sha256
+
       - name: Build release Web
         run: fvm flutter build web --release --base-href /
