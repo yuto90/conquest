@@ -74,8 +74,26 @@ jobs:
       - name: Test
         run: fvm flutter test
 
+      - name: Prepare production BGM assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          BGM_MENU_URL: ${{ secrets.BGM_MENU_URL }}
+          BGM_BATTLE_URL: ${{ secrets.BGM_BATTLE_URL }}
+          BGM_MENU_SHA256: ${{ vars.BGM_MENU_SHA256 }}
+          BGM_BATTLE_SHA256: ${{ vars.BGM_BATTLE_SHA256 }}
+        run: bash script/prepare-bgm-assets.sh assets/audio
+
       - name: Build web
         run: fvm flutter build web --release --base-href /
+
+      - name: Verify production BGM bundle
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          BGM_MENU_SHA256: ${{ vars.BGM_MENU_SHA256 }}
+          BGM_BATTLE_SHA256: ${{ vars.BGM_BATTLE_SHA256 }}
+        run: bash script/prepare-bgm-assets.sh --verify build/web/assets/assets/audio
 
       - name: Copy Vercel headers into web output
         run: cp vercel.json build/web/vercel.json
@@ -144,3 +162,11 @@ jobs:
           echo "Deployed $url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up production BGM assets
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          rm -f assets/audio/metropolis_destruction.mp3 assets/audio/tense_tactics.mp3 \
+            build/web/assets/assets/audio/metropolis_destruction.mp3 \
+            build/web/assets/assets/audio/tense_tactics.mp3

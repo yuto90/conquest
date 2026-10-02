@@ -144,4 +144,30 @@ class PrepareBgmAssetsTest < Minitest::Test
     assert_equal "always()", cleanup.fetch("if")
     FILENAMES.each { |name| assert_includes cleanup.fetch("run"), "assets/audio/#{name}" }
   end
+
+  def test_web_workflow_verifies_production_audio_without_exposing_it_to_pr_previews
+    workflow = YAML.safe_load(File.read(File.expand_path("../.github/workflows/deploy-web.yml", __dir__)), aliases: true)
+    steps = workflow.fetch("jobs").fetch("build").fetch("steps")
+    prepare = steps.index { |step| step["name"] == "Prepare production BGM assets" }
+    build = steps.index { |step| step["name"] == "Build web" }
+    verify = steps.index { |step| step["name"] == "Verify production BGM bundle" }
+    deploy = steps.index { |step| step["name"] == "Deploy to Vercel" }
+    cleanup = steps.index { |step| step["name"] == "Clean up production BGM assets" }
+    production = "github.event_name == 'push' && github.ref == 'refs/heads/main'"
+
+    assert_operator prepare, :<, build
+    assert_operator build, :<, verify
+    assert_operator verify, :<, deploy
+    assert_operator deploy, :<, cleanup
+    assert_equal production, steps[prepare].fetch("if")
+    assert_equal production, steps[verify].fetch("if")
+    assert_equal "always() && #{production}", steps[cleanup].fetch("if")
+    assert_equal "${{ secrets.BGM_MENU_URL }}", steps[prepare].fetch("env").fetch("BGM_MENU_URL")
+    assert_equal "${{ vars.BGM_BATTLE_SHA256 }}", steps[verify].fetch("env").fetch("BGM_BATTLE_SHA256")
+    assert_includes steps[verify].fetch("run"), "--verify build/web/assets/assets/audio"
+    FILENAMES.each do |name|
+      assert_includes steps[cleanup].fetch("run"), "assets/audio/#{name}"
+      assert_includes steps[cleanup].fetch("run"), "build/web/assets/assets/audio/#{name}"
+    end
+  end
 end

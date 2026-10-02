@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/build-native-platforms.yml
       - .github/workflows/build-ios-app-store.yml
+      - .github/workflows/deploy-web.yml
       - android/**
       - assets/fonts/**
       - ios/**
