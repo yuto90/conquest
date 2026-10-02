@@ -37,13 +37,14 @@ final playerProfileRepositoryProvider = FutureProvider<PlayerProfileRepository>(
       initializing = false;
     }
   },
+  retry: (_, _) => null,
 );
 
 final activeProfileIdProvider = FutureProvider<String>((ref) async {
   final runtime = ref.watch(matchPersistenceProvider);
   await ref.watch(playerProfileRepositoryProvider.future);
   return runtime!.profile!.profileId;
-});
+}, retry: (_, _) => null);
 
 final playerProfileProvider = StreamProvider.autoDispose
     .family<PlayerProfile, String>((ref, profileId) async* {
