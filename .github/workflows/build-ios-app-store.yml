@@ -256,6 +256,15 @@ jobs:
           gem install cocoapods --version 1.16.2 --no-document
           fvm flutter pub get
 
+      - name: Prepare approved BGM assets
+        shell: bash
+        env:
+          BGM_MENU_URL: ${{ secrets.BGM_MENU_URL }}
+          BGM_BATTLE_URL: ${{ secrets.BGM_BATTLE_URL }}
+          BGM_MENU_SHA256: ${{ vars.BGM_MENU_SHA256 }}
+          BGM_BATTLE_SHA256: ${{ vars.BGM_BATTLE_SHA256 }}
+        run: bash ../_release_automation/script/prepare-bgm-assets.sh assets/audio
+
       - name: Declare App Store export compliance
         shell: bash
         run: |
@@ -401,6 +410,8 @@ jobs:
         env:
           PROFILE_NAME: ${{ steps.signing.outputs.profile_name }}
           APP_VERSION: ${{ needs.preflight.outputs.app_version }}
+          BGM_MENU_SHA256: ${{ vars.BGM_MENU_SHA256 }}
+          BGM_BATTLE_SHA256: ${{ vars.BGM_BATTLE_SHA256 }}
         run: |
           set -euo pipefail
           echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
@@ -449,6 +460,9 @@ jobs:
               )
           print("Archive UIDeviceFamily and orientation settings verified")
           PY
+
+          bash ../_release_automation/script/prepare-bgm-assets.sh --verify \
+            "$RUNNER_TEMP/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/assets/audio"
 
           mkdir -p build/ios/ipa
           xcodebuild \
@@ -592,3 +606,4 @@ jobs:
             "$RUNNER_TEMP/installed-profile-path" \
             "$RUNNER_TEMP/app-store-build-provenance.json"
           rm -rf "$RUNNER_TEMP/Runner.xcarchive"
+          rm -f assets/audio/metropolis_destruction.mp3 assets/audio/tense_tactics.mp3

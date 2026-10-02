@@ -28,6 +28,8 @@
 - `APP_STORE_CONNECT_KEY_ID`
 - `APP_STORE_CONNECT_PRIVATE_KEY`
 
+BGM用には、配布承認済み2曲の保護された取得URLをSecrets `BGM_MENU_URL` / `BGM_BATTLE_URL`へ、SHA-256をVariables `BGM_MENU_SHA256` / `BGM_BATTLE_SHA256`へ登録します。[音源の取り込み手順](audio-assets.md#正式iosビルドへの取り込み)を参照してください。正式ビルドは音源が欠落・不一致の場合に停止し、Archive内にも同じ2曲が含まれることをIPA export前に検証します。
+
 証明書、profile、API keyはログやartifactへ出力しません。workflowは、1つでも不足している場合は署名・upload・metadata更新を開始せず終了します。
 
 ### App Store Connect

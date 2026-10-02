@@ -57,3 +57,31 @@
 - 取り込み後は採用トラック番号、採用ファイルのSHA-256、編集内容、確認日、iOS・Android・Web（Chrome／Safari）の検証結果、公開配布方法のライセンス根拠を必ず記録する。音源ダウンロード機能やサウンドトラック配布機能は追加しない。
 
 現時点では、アプリの再生制御とFakeテスト、戦闘用Track 2の選定・ハッシュ確認、メニュー用Track 3の参照先登録までが実施済みである。メニュー用MP3の提供・ハッシュ確認、実音源の梱包・配布承認・実機／ブラウザ音響確認・シームレス性の合格判定は保留であり、実音源なしの状態を本機能の完成とは扱わない。
+
+## 正式iOSビルドへの取り込み
+
+音源のないcheckoutをそのままビルドすると、`pubspec.yaml`のディレクトリ指定だけではMP3は生成されず、再生時にアセット読み込みが失敗する。正式ビルドは、既存の保護された音源の取得URLと承認済みSHA-256を`testflight` Environmentから受け取り、Flutterビルド前に2曲を配置する。
+
+| 設定 | 種別 | 内容 |
+| --- | --- | --- |
+| `BGM_MENU_URL` | Secret | メニュー用MP3を取得する保護されたHTTPS URL |
+| `BGM_BATTLE_URL` | Secret | 対戦用MP3を取得する保護されたHTTPS URL |
+| `BGM_MENU_SHA256` | Variable | 承認済みメニュー用MP3のSHA-256 |
+| `BGM_BATTLE_SHA256` | Variable | 承認済み対戦用MP3のSHA-256 |
+
+上記の配布承認後に設定する。URLは認証済み・署名付き等、curlで直接取得できるものを用い、期限内であることを確認する。新しい公開ストレージや音源公開用artifactは作成しない。URLをログ・Issue・PRに書かない。
+
+`script/prepare-bgm-assets.sh`は2曲の取得と検証が完了してから配置する。設定不足、ダウンロード失敗、空ファイル、ハッシュ不一致は正式ビルドを失敗にする。ArchiveのFlutterアセットにも同じハッシュ検証を行い、音源の欠落や取り違えをIPA export・uploadの前に検出する。音源入力はworkflowの終了時に削除する。通常のPRビルドとWebプレビューには音源を取り込まない。
+
+権限のあるローカル環境では、外部通信を使わず提供された2曲を配置できる。
+
+```bash
+export BGM_MENU_SHA256='<承認済みメニュー音源のSHA-256>'
+export BGM_BATTLE_SHA256='<承認済み対戦音源のSHA-256>'
+bash script/prepare-bgm-assets.sh assets/audio /path/to/approved-audio
+fvm flutter build ios --simulator --debug --no-codesign
+bash script/prepare-bgm-assets.sh --verify \
+  build/ios/iphonesimulator/Runner.app/Frameworks/App.framework/flutter_assets/assets/audio
+```
+
+提供元ディレクトリのファイル名は`metropolis_destruction.mp3`と`tense_tactics.mp3`にする。ハッシュの一致は可聴再生やライセンス確認の代わりにはならない。実音源での再生確認が終わるまでBGM修正完了とは扱わない。

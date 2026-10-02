@@ -4,17 +4,34 @@ on:
   pull_request:
     paths:
       - .github/workflows/build-native-platforms.yml
+      - .github/workflows/build-ios-app-store.yml
       - android/**
       - assets/fonts/**
       - ios/**
       - lib/**
       - pubspec.lock
       - pubspec.yaml
+      - script/prepare-bgm-assets.sh
+      - script/prepare_bgm_assets_test.rb
 
 permissions:
   contents: read
 
 jobs:
+  bgm-assets:
+    name: Test BGM build inputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@4a9ddd6f338a97768b8006bf671dfbad383215f4 # v1
+        with:
+          ruby-version: "3.3"
+      - name: Test BGM preparation and archive checks
+        run: ruby script/prepare_bgm_assets_test.rb
+
   android:
     name: Build Android release APK
     runs-on: ubuntu-24.04
