@@ -137,6 +137,34 @@ build_step_script="$(ruby -ryaml -e '
 fixture_root="$(mktemp -d)"
 trap 'rm -rf "$fixture_root"' EXIT
 mkdir -p "$fixture_root/bin" "$fixture_root/app"
+python3 - "$fixture_root" <<'PY'
+import hashlib
+from pathlib import Path
+import plistlib
+import sys
+
+root = Path(sys.argv[1])
+app = root / "runner-temp/Runner.xcarchive/Products/Applications/Runner.app"
+audio = app / "Frameworks/App.framework/flutter_assets/assets/audio"
+audio.mkdir(parents=True)
+with (app / "Info.plist").open("wb") as file:
+    plistlib.dump({
+        "UIDeviceFamily": [1, 2],
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+        "UISupportedInterfaceOrientations~ipad": [
+            "UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
+            "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight",
+        ],
+    }, file)
+tracks = {"tense_tactics.mp3": b"battle audio fixture", "metropolis_destruction.mp3": b"menu audio fixture"}
+for filename, content in tracks.items():
+    (audio / filename).write_bytes(content)
+automation = root / "_release_automation/script"
+automation.mkdir(parents=True)
+# Replace only the private input manifest: execute the actual workflow guards.
+hashes = {filename: hashlib.sha256(content).hexdigest() for filename, content in tracks.items()}
+(automation / "fetch_r2_audio.py").write_text(f"TRACKS = {hashes!r}\n")
+PY
 apply_stub="$fixture_root/bin/command-stub"
 cat > "$apply_stub" <<'STUB'
 #!/usr/bin/env bash
@@ -186,6 +214,24 @@ archive_call="$(sed -n '3p' "$fixture_root/build-calls.log")"
   printf 'signed archive must run after release signing is configured\n' >&2
   exit 1
 }
+
+printf 'corrupt audio' > "$fixture_root/runner-temp/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/flutter_assets/assets/audio/metropolis_destruction.mp3"
+if (
+  cd "$fixture_root/app"
+  PATH="$fixture_root/bin:$PATH" \
+  CALL_LOG="$fixture_root/build-calls.log" \
+  GITHUB_OUTPUT="$fixture_root/github-output" \
+  RUNNER_TEMP="$fixture_root/runner-temp" \
+  APP_BUNDLE_ID="com.yuto.conquest" \
+  APPLE_TEAM_ID="TEAM123456" \
+  PROFILE_NAME="Conquest App Store" \
+  APP_VERSION="1.2.3" \
+    bash -c "$build_step_script"
+) > "$fixture_root/corrupt-output" 2>&1; then
+  echo 'corrupt archived BGM must stop IPA export' >&2
+  exit 1
+fi
+assert_contains "$fixture_root/corrupt-output" 'Archive BGM missing or SHA-256 mismatch: metropolis_destruction.mp3'
 
 export_options_script="$(ruby -ryaml -e '
   workflow = YAML.safe_load(File.read(ARGV.fetch(0)), aliases: true)
