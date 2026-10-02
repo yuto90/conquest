@@ -333,5 +333,21 @@
   "rematchMissing": "The starting map is unavailable for rematch.",
   "@rematchMissing": {"description": "Same-map rematch action or guidance."},
   "rematchEnlarge": "Enlarge the window to rematch on the same map.",
-  "@rematchEnlarge": {"description": "Same-map rematch action or guidance."}
+  "@rematchEnlarge": {"description": "Same-map rematch action or guidance."},
+  "storageChecking": "Checking local storage…",
+  "@storageChecking": {"description": "Local match storage status and recovery action"},
+  "storageOwned": "Use the first Conquest tab, or close it and retry here. A normal match cannot start in two tabs.",
+  "@storageOwned": {"description": "Local match storage status and recovery action"},
+  "storageUnavailable": "Local storage is unavailable. Your game can continue; unsaved matches can be retried.",
+  "@storageUnavailable": {"description": "Local match storage status and recovery action"},
+  "matchSaving": "Saving match…",
+  "@matchSaving": {"description": "Local match storage status and recovery action"},
+  "matchUnsaved": "Match not saved",
+  "@matchUnsaved": {"description": "Local match storage status and recovery action"},
+  "matchSaved": "Match saved",
+  "@matchSaved": {"description": "Local match storage status and recovery action"},
+  "storageRetry": "Retry saving",
+  "@storageRetry": {"description": "Local match storage status and recovery action"},
+  "rankUnavailable": "Rank unavailable until storage loads",
+  "@rankUnavailable": {"description": "Local match storage status and recovery action"}
 }

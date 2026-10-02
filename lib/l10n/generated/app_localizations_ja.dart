@@ -623,4 +623,29 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get rematchEnlarge => '同じマップで再戦するには画面を広げてください';
+
+  @override
+  String get storageChecking => '端末の保存領域を確認中…';
+
+  @override
+  String get storageOwned =>
+      '先に開いたConquestタブを使うか、そのタブを閉じて再試行してください。2つのタブで通常対戦は開始できません。';
+
+  @override
+  String get storageUnavailable => '端末保存が利用できません。ゲームは続行できます。未保存の試合は再試行できます。';
+
+  @override
+  String get matchSaving => '試合を保存中…';
+
+  @override
+  String get matchUnsaved => '試合が未保存です';
+
+  @override
+  String get matchSaved => '試合を保存しました';
+
+  @override
+  String get storageRetry => '保存を再試行';
+
+  @override
+  String get rankUnavailable => '保存データの読込み後に階級を表示します';
 }

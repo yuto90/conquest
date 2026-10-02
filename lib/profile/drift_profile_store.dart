@@ -89,7 +89,25 @@ final class DriftProfileStore implements MatchCompletionService {
       );
 
   /// Activated only when #129 replaces the legacy writer.
-  Future<PlayerProfile> initialize(LegacyXpSource source) => _write(() async {
+  Future<PlayerProfile> initialize(LegacyXpSource source) =>
+      _write(() => _initialize(source));
+
+  /// Capture and recover the previous owner before committing the new owner.
+  Future<PlayerProfile> initializeAndRecover(LegacyXpSource source) =>
+      _write(() async {
+        final previousExecution = await _meta('execution_id');
+        final profile = await _initialize(source);
+        if (previousExecution != null && previousExecution != executionId) {
+          await _recoverInterrupted(
+            profileId: profile.profileId,
+            executionId: previousExecution,
+            recoveredAtUtc: clock.now(),
+          );
+        }
+        return profile;
+      });
+
+  Future<PlayerProfile> _initialize(LegacyXpSource source) async {
     final marker = await _meta(legacyMarker);
     if (marker != null) {
       if (marker != 'done') throw StateError('Unknown legacy migration marker');
@@ -149,13 +167,10 @@ final class DriftProfileStore implements MatchCompletionService {
     await _fault(StorageFaultPoint.afterLegacyEntry);
     await _putMeta(activeProfileKey, profileId);
     await _putMeta(legacyMarker, 'done');
-    await _putMeta(
-      'legacy_source',
-      SharedPreferencesRankProgressStore.storageKey,
-    );
+    await _putMeta('legacy_source', legacyXpStorageKey);
     await _putMeta('execution_id', executionId);
     return loadProfile(profileId);
-  });
+  }
 
   PlayerProfile _profile(db.Profile row) => PlayerProfile(
     profileId: row.profileId,
@@ -305,7 +320,19 @@ final class DriftProfileStore implements MatchCompletionService {
     required String profileId,
     required String executionId,
     required DateTime recoveredAtUtc,
-  }) => _write(() async {
+  }) => _write(
+    () => _recoverInterrupted(
+      profileId: profileId,
+      executionId: executionId,
+      recoveredAtUtc: recoveredAtUtc,
+    ),
+  );
+
+  Future<void> _recoverInterrupted({
+    required String profileId,
+    required String executionId,
+    required DateTime recoveredAtUtc,
+  }) async {
     requireUuid(executionId, 'executionId');
     if (executionId == this.executionId)
       throw const StorageUnavailable('Cannot recover live execution');
@@ -327,7 +354,7 @@ final class DriftProfileStore implements MatchCompletionService {
         recovery: true,
       );
     }
-  });
+  }
 
   Future<void> close() {
     _accepting = false;

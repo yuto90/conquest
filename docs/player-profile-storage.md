@@ -208,6 +208,33 @@ IDs and an explicit catalog version, including repeat-notification handling.
 
 ## Verification
 
+### Activated controller boundary (#129)
+
+`main` injects one `MatchPersistence` through `matchPersistenceProvider` above
+all game routes. It owns one `DurableProfileBackend` and execution UUID, eager
+initialization/recovery, and immutable pending match snapshots. Consumers watch
+`profilePersistenceStateProvider` for save/initialization changes. Current rank
+uses `rankProgressProvider`, a ledger stream, never SharedPreferences writes.
+
+`begin` is called only on the controller's first playing transition. `finish`
+and explicit paused-match `abandon` capture the end time once. `retry` resubmits
+the original snapshot, even after its result/controller has been disposed.
+`saveFor(matchId)` returns saving/unsaved/saved state; a terminal match is saved
+only with a durable receipt. Delayed receipts enrich only the current result.
+
+Initialization holds the exclusive platform lease before `initializeAndRecover`
+atomically imports legacy XP, updates the execution owner and recovers the prior
+execution. Repeated initialization never interrupts the current execution.
+`StorageAlreadyOwned` blocks normal starts and tells the user to use the first
+tab or close it before retrying; other failures keep gameplay/navigation usable
+with explicit unsaved/retry UI. No fallback DB or zero-XP import is created.
+The queue is application-memory only: forced termination can lose unsaved DTOs.
+
+App version/build comes from platform package metadata; unavailable metadata is
+recorded as `unknown` without blocking startup. Rules/metrics/reward remain `1`.
+Controller/SQLite regressions are in `test/match_persistence_controller_test.dart`;
+the existing rank widget tests now use the same real DB boundary.
+
 ### Durable storage foundation (#128)
 
 `ProfileStorage.open(executionId: ...)` owns a platform executor and exclusive

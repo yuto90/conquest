@@ -1147,6 +1147,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enlarge the window to rematch on the same map.'**
   String get rematchEnlarge;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local storage…'**
+  String get storageChecking;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Use the first Conquest tab, or close it and retry here. A normal match cannot start in two tabs.'**
+  String get storageOwned;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Local storage is unavailable. Your game can continue; unsaved matches can be retried.'**
+  String get storageUnavailable;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Saving match…'**
+  String get matchSaving;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Match not saved'**
+  String get matchUnsaved;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Match saved'**
+  String get matchSaved;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Retry saving'**
+  String get storageRetry;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Rank unavailable until storage loads'**
+  String get rankUnavailable;
 }
 
 class _AppLocalizationsDelegate
