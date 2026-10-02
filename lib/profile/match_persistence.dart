@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../game/game_state.dart';
 import '../game/match_summary.dart';
 import 'drift_profile_store.dart';
+import 'drift_profile_repository.dart';
 import 'legacy_xp.dart';
 import 'match_contracts.dart';
 import 'match_identity.dart';
@@ -14,6 +15,7 @@ import 'profile_storage.dart';
 import 'storage_lease.dart';
 
 abstract interface class ProfileBackend implements MatchCompletionService {
+  PlayerProfileRepository get repository;
   Future<PlayerProfile> initializeAndRecover(LegacyXpSource source);
   Stream<int> watchTotalXp(String profileId);
   Future<void> close();
@@ -23,6 +25,10 @@ final class DurableProfileBackend implements ProfileBackend {
   DurableProfileBackend(this.storage);
   final ProfileStorage storage;
   DriftProfileStore get store => storage.store;
+  @override
+  late final PlayerProfileRepository repository = DriftPlayerProfileRepository(
+    store,
+  );
 
   static Future<ProfileBackend> open(String executionId) async =>
       DurableProfileBackend(

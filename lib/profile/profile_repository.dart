@@ -143,7 +143,7 @@ final class MatchStatistics {
       forcesSent,
       captures,
     ]) {
-      requireNonNegative(value, 'statistics');
+      if (value != null) requireNonNegative(value, 'statistics');
     }
   }
 
@@ -152,10 +152,10 @@ final class MatchStatistics {
   final int draws;
   final int abandoned;
   final int interrupted;
-  final int elapsedMs;
-  final int dispatchCount;
-  final int forcesSent;
-  final int captures;
+  final int? elapsedMs;
+  final int? dispatchCount;
+  final int? forcesSent;
+  final int? captures;
 
   int get completed => wins + losses + draws;
   double? get winRate => completed == 0 ? null : wins / completed;
@@ -197,6 +197,8 @@ abstract interface class PlayerProfileRepository {
     MatchHistoryCursor? before,
     int limit = 20,
   });
+
+  Stream<List<MatchHistoryEntry>> watchRecentMatches(String profileId);
 
   /// Return null only for a genuinely missing match in this profile scope.
   Future<MatchHistoryEntry?> loadMatch(String profileId, String matchId);

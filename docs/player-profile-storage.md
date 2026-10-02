@@ -294,3 +294,91 @@ read-only permissions and no deployment, audio downloads or secrets. Existing
 production workflows/security are unchanged. Push validation checks actual
 integration HEAD; final main PR checks the proposed merge. #133 additionally
 owns integrated iPhone/iPad/Web UI and storage failure/restart validation.
+
+## Reactive reads and history (#130)
+
+`DurableProfileBackend.repository` uses its existing `DriftProfileStore`;
+`playerProfileRepositoryProvider` resolves that same root-injected backend.
+Never open another storage connection for a screen. Repository/provider errors
+remain errors, including initialization failure; retry the root through
+`profilePersistenceStateProvider` and the readers reconnect on success.
+`activeProfileIdProvider` exposes the recovered profile ID.
+
+`playerProfileProvider(profileId)`, `profileStatisticsProvider(ProfileQuery)`,
+`difficultyStatisticsProvider(profileId)` and `recentMatchesProvider(profileId)`
+stream committed database changes. Save with `repository.editProfile`; validation
+and serialization stay in the store. `fastestVictoryProvider` reacts to matches
+and queries the exact difficulty/island count. `matchDetailProvider` loads a
+profile/match pair once; invalidate it to retry or explicitly reload the detail.
+XP/rank still come from the existing ledger-backed `rankProgressProvider`.
+
+All history/statistics reads require `profile_id`, exclude in-progress rows and
+default to normal sessions. A `MatchHistoryFilter` combines session kind,
+difficulty, island count, terminal status and outcome with AND. Outcome implies
+completed status. `winRate` is win/(win+loss+draw), or null when the denominator
+is zero. Abandoned/interrupted counts are separate; only completed rows contribute
+elapsed/action totals. Empty completed totals are zero, but any unknown completed
+metric makes that aggregate null (known partial sums are not presented as totals).
+Unknown timestamps/counters in details remain null. History XP uses a correlated
+ledger SUM scoped to both profile and match, so XP entries cannot multiply matches;
+legacy XP never manufactures matches.
+
+### Cursor and refresh contract for screens
+
+Watch `matchHistoryProvider((profileId: id, filter: filter))` and call its notifier's
+`loadMore()` for another 20 records. The SQL orders by
+`started_at_utc DESC, match_id DESC` and uses a strict tuple cursor, never OFFSET.
+Each query returns at most 21 rows (20 plus a successor check); recent returns five.
+Cursors carry their profile/filter scope and mismatched reuse throws. Detail rows
+share the history decoder and ledger projection.
+
+This is a live keyset traversal, not a database snapshot: rows newer than the
+current cursor appear on refresh; an insertion behind it can appear on a later
+page. Equal timestamps and a clock moving backwards are resolved by match ID.
+`refresh()` discards loaded pages/cursor and starts at the head. Changing profile
+or filter selects another provider family. Generations/disposal reject pending
+appends from earlier refreshes/scopes; concurrent load-more calls are ignored.
+An append failure retains rows/cursor and exposes `loadMoreError` for retry.
+Initial load/refresh failures are AsyncError, distinct from successful empty data.
+The repository has no history cache; the screen state grows only with pages the
+user requests and releases them on refresh/disposal.
+
+History uses `Notifier<AsyncValue<MatchHistoryState>>` so loading/error states
+contain no retained pages, including dependency/external invalidation. Await
+`ref.read(matchHistoryProvider(query).notifier).firstPage` when a first-page
+future is needed; the provider itself has no `.future` modifier. Manual refresh
+keeps an already pending first-page future waiting for the new generation's
+actual result. Disposal/dependency rebuild cancels pending callers with an error;
+get the current notifier's `firstPage` to await a rebuilt reader. An active first
+query keeps the reader alive until it finishes; widgets should watch the provider
+for subsequent pagination/loading/error state, not use `firstPage` as a live feed.
+
+### Measured native SQLite reads
+
+`fvm flutter test test/profile_repository_test.dart --reporter expanded` records
+actual SQL plans, median/p95 microseconds and process RSS for 10,000 persisted
+normal loss records split across two difficulties. The native in-memory executor
+is real SQLite, not a repository mock. A passing run on 2026-10-02 used macOS
+Darwin 25.5.0 arm64, Flutter 3.44.8/Dart 3.12.2, Drift 2.35.0 and SQLite 3.53.4;
+each read had 25 timed samples including assertions/result decoding.
+
+| Read | Median us | p95 us | SQL result rows | Plan |
+| --- | ---: | ---: | ---: | --- |
+| First page | 386 | 660 | 21 | match_history(profile_id) |
+| Next page | 282 | 399 | 21 | match_history(profile_id, tuple cursor) |
+| Deep page | 416 | 1685 | 21 | match_history(profile_id, tuple cursor) |
+| Combined filter | 305 | 649 | 21 | match_history(profile_id) |
+| Statistics | 3316 | 4777 | 1 | match_execution(profile_id) |
+| Difficulty groups | 4974 | 7576 | 2 | match_execution(profile_id), temporary GROUP BY B-tree |
+| Recent five | 251 | 469 | 5 | match_history(profile_id) |
+| Detail | 80 | 169 | 1 | unique match_id/profile_id index |
+| Fastest (no wins) | 702 | 867 | 1 | match_statistics(profile_id, status, session_kind, difficulty, island_count) |
+
+History/detail plans also show a correlated scalar subquery using the XP match
+index. Aggregates scan the scoped records inside SQL without loading them into
+Dart; these timings do not imply constant aggregate cost. RSS bytes were
+200,605,696 before seeding, 227,426,304 afterwards and 229,785,600 after measured
+reads. RSS includes the test VM, database and allocator; it is not retained UI
+heap or a memory budget. The test additionally traverses every ID exactly once
+in bounded pages. These are reproducible observations, not device/Web speed
+guarantees or timing thresholds.
