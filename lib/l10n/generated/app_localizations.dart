@@ -98,6 +98,126 @@ abstract class AppLocalizations {
     Locale('ja'),
   ];
 
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get myPageAll;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Result / status'**
+  String get myPageResult;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Island count'**
+  String get myPageIslandCount;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get myPageClearFilters;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get myPageRefresh;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches match these filters.'**
+  String get myPageNoMatchingMatches;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading more matches…'**
+  String get myPageLoadingMore;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Load 20 more'**
+  String get myPageLoadMore;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load more matches. Displayed records are unchanged.'**
+  String get myPageLoadMoreError;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'This match was not found in this profile.'**
+  String get myPageMatchMissing;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get myPageUnknown;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Started (local time)'**
+  String get myPageStartedAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended (local time)'**
+  String get myPageEndedAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Interruption detected (local time)'**
+  String get myPageRecoveredAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Game time (h:mm:ss)'**
+  String get myPageMatchTime;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'XP earned in this match'**
+  String get myPageXpAwarded;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'App version'**
+  String get myPageAppVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules version'**
+  String get myPageRulesVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Metrics version'**
+  String get myPageMetricsVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatches include reinforcements. Forces sent count troops at dispatch. Captures include recaptures, not currently owned islands. Game time excludes countdown and pauses. XP is the saved award for this match.'**
+  String get myPageMetricDefinitions;
+
   /// My Page profile, statistics or editing interface.
   ///
   /// In en, this message translates to:
@@ -337,12 +457,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Match details'**
   String get myPageMatchDetail;
-
-  /// My Page profile, statistics or editing interface.
-  ///
-  /// In en, this message translates to:
-  /// **'History filters and match details are being added in the next integration step.'**
-  String get myPageHistoryPending;
 
   /// My Page profile, statistics or editing interface.
   ///

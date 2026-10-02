@@ -504,7 +504,24 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('my-page-view-history')));
       await tester.pumpAndSettle();
       expect(find.byType(MyPageHistoryTab), findsOneWidget);
-      expect(find.textContaining('next integration step'), findsOneWidget);
+      expect(find.byKey(const ValueKey('history-difficulty')), findsOneWidget);
+      expect(find.byKey(const ValueKey('history-result')), findsOneWidget);
+      expect(find.byKey(const ValueKey('history-islands')), findsOneWidget);
+      await settle(tester);
+      final history =
+          ProviderScope.containerOf(
+                tester.element(find.byType(MyPageHistoryTab)),
+              )
+              .read(
+                matchHistoryProvider((
+                  profileId: detail.profileId,
+                  filter: MatchHistoryFilter(),
+                )),
+              )
+              .requireValue;
+      expect(history.entries.length, 6);
+      expect(history.entries.first.record.start.matchId, detail.matchId);
+      expect(history.nextCursor, isNull);
     },
   );
 
