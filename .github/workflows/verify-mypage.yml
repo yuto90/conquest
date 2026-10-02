@@ -60,7 +60,16 @@ jobs:
         run: fvm dart format --output=none --set-exit-if-changed lib test integration_test
 
       - name: Check generated sources are current
-        run: git diff --exit-code -- lib test integration_test
+        shell: bash
+        run: |
+          set -euo pipefail
+          changes="$(git status --porcelain --untracked-files=all -- lib test integration_test)"
+          if [[ -n "$changes" ]]; then
+            echo "::error::Commit current generated sources before verification"
+            printf '%s\n' "$changes"
+            git diff -- lib test integration_test
+            exit 1
+          fi
 
       - name: Analyze
         run: fvm flutter analyze
