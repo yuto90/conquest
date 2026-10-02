@@ -9,6 +9,68 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get myPageAll => 'All';
+
+  @override
+  String get myPageResult => 'Result / status';
+
+  @override
+  String get myPageIslandCount => 'Island count';
+
+  @override
+  String get myPageClearFilters => 'Clear filters';
+
+  @override
+  String get myPageRefresh => 'Refresh';
+
+  @override
+  String get myPageNoMatchingMatches => 'No matches match these filters.';
+
+  @override
+  String get myPageLoadingMore => 'Loading more matches…';
+
+  @override
+  String get myPageLoadMore => 'Load 20 more';
+
+  @override
+  String get myPageLoadMoreError =>
+      'Could not load more matches. Displayed records are unchanged.';
+
+  @override
+  String get myPageMatchMissing => 'This match was not found in this profile.';
+
+  @override
+  String get myPageUnknown => 'Unknown';
+
+  @override
+  String get myPageStartedAt => 'Started (local time)';
+
+  @override
+  String get myPageEndedAt => 'Ended (local time)';
+
+  @override
+  String get myPageRecoveredAt => 'Interruption detected (local time)';
+
+  @override
+  String get myPageMatchTime => 'Game time (h:mm:ss)';
+
+  @override
+  String get myPageXpAwarded => 'XP earned in this match';
+
+  @override
+  String get myPageAppVersion => 'App version';
+
+  @override
+  String get myPageRulesVersion => 'Rules version';
+
+  @override
+  String get myPageMetricsVersion => 'Metrics version';
+
+  @override
+  String get myPageMetricDefinitions =>
+      'Dispatches include reinforcements. Forces sent count troops at dispatch. Captures include recaptures, not currently owned islands. Game time excludes countdown and pauses. XP is the saved award for this match.';
+
+  @override
   String get myPageTitle => 'My Page / PROFILE';
 
   @override
@@ -131,10 +193,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get myPageMatchDetail => 'Match details';
-
-  @override
-  String get myPageHistoryPending =>
-      'History filters and match details are being added in the next integration step.';
 
   @override
   String myPageTotalXp({required int xp}) {
