@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:conquest/profile/drift_profile_store.dart';
+import 'package:conquest/profile/drift_profile_repository.dart';
 import 'package:conquest/profile/legacy_xp.dart';
 import 'package:conquest/profile/match_contracts.dart';
 import 'package:conquest/profile/match_identity.dart';
@@ -89,6 +90,10 @@ final class ProfileFixture implements ProfileBackend {
   late final FixtureClock clock;
   late final FixtureLegacy legacy;
   late final DriftProfileStore store;
+  @override
+  late final PlayerProfileRepository repository = DriftPlayerProfileRepository(
+    store,
+  );
   late final MatchPersistence runtime;
   Object? saveError;
   Object? openError;
