@@ -1453,7 +1453,7 @@ class _ConfigurationPanel extends StatelessWidget {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 4),
                           Text(
                             l10n.settingsDescription,
                             style: TacticalTypography.of(context).body(
@@ -1462,16 +1462,29 @@ class _ConfigurationPanel extends StatelessWidget {
                               height: 1.55,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          if (rankProgress != null)
-                            _RankProgressCard(progress: rankProgress!)
-                          else
-                            Text(l10n.rankUnavailable),
-                          OutlinedButton.icon(
+                          TextButton(
                             key: const ValueKey('open-my-page'),
                             onPressed: () => MyPageScreen.open(context),
-                            icon: const Icon(Icons.person_outline),
-                            label: Text(l10n.myPageTitle),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (rankProgress != null)
+                                  _RankProgressCard(progress: rankProgress!)
+                                else
+                                  Text(l10n.rankUnavailable),
+                                Text(
+                                  l10n.myPageTitle,
+                                  textAlign: TextAlign.center,
+                                  style: TacticalTypography.of(
+                                    context,
+                                  ).mono(fontSize: 11),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 4),
                           IslandCountSlider(
@@ -1626,7 +1639,7 @@ class _ConfigurationPanel extends StatelessWidget {
                             onPressed: onTutorial,
                             label: l10n.howToPlay,
                           ),
-                          const SizedBox(height: 17),
+                          const SizedBox(height: 7),
                           Text(
                             _selectionSummary(l10n, state.configuration),
                             textAlign: TextAlign.center,
