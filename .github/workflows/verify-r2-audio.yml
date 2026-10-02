@@ -1,0 +1,31 @@
+name: Verify R2 Audio Fetcher
+
+on:
+  pull_request:
+    paths:
+      - script/fetch_r2_audio.py
+      - script/fetch_r2_audio_test.py
+      - script/testflight-workflows.test.sh
+      - .github/workflows/verify-r2-audio.yml
+      - .github/workflows/build-ios-app-store.yml
+  push:
+    branches: [main]
+    paths:
+      - script/fetch_r2_audio.py
+      - script/fetch_r2_audio_test.py
+      - script/testflight-workflows.test.sh
+      - .github/workflows/verify-r2-audio.yml
+      - .github/workflows/build-ios-app-store.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test R2 audio download and integrity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - run: python3 -m unittest discover -s script -p 'fetch_r2_audio_test.py'
+      - run: bash script/testflight-workflows.test.sh

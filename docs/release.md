@@ -30,6 +30,21 @@
 
 証明書、profile、API keyはログやartifactへ出力しません。workflowは、1つでも不足している場合は署名・upload・metadata更新を開始せず終了します。
 
+### 非公開R2のBGM入力
+
+正式なiOSビルドは、`testflight` Environmentの次の設定で非公開R2からBGMを取得します。
+
+- Variables: `R2_AUDIO_ENDPOINT`（S3 API endpoint）、`R2_AUDIO_BUCKET`（`conquest-build-audio`）
+- Secrets: `R2_AUDIO_ACCESS_KEY_ID`、`R2_AUDIO_SECRET_ACCESS_KEY`
+
+Cloudflareのキーはこのバケットだけの `Object Read only` とし、公開アクセスは無効にします。キーの値をGit、アプリ、ログ、artifactへ含めません。
+
+署名ビルド直前に `script/fetch_r2_audio.py` が2曲を一時ディレクトリへ取得し、固定したSHA-256が両方一致した後で対象commitの `assets/audio/` へ配置します。取得・検証が失敗するとビルドは停止します。Archive内のBGMも同じSHA-256で検証してからIPAをexportします。終了時に取得したMP3を削除します。
+
+取得スクリプトとハッシュは、既存の署名処理と同様に起動workflowの `_release_automation` checkoutから使用します。古い対象commitに取得スクリプトがなくても、`pubspec.yaml` が `assets/audio/` を宣言していれば同梱できます。環境にはAWS CLIとPython 3が必要です。
+
+通常のPR、Web、Android、SimulatorのworkflowにはR2のキーを渡しません。PRの `Verify R2 Audio Fetcher` は実音源やSecretsを使わず、取得成功・破損・通信失敗・設定不足を検証します。音源の出典、ハッシュ、未完了の実機音響確認は [audio-assets.md](audio-assets.md) を参照してください。
+
 ### App Store Connect
 
 workflowの初回実行前に、App Store Connect側を次の状態にします。

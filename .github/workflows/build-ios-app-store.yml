@@ -395,6 +395,18 @@ jobs:
               "$TESTFLIGHT_INTERNAL_GROUP"
           fi
 
+      - name: Test private audio fetcher
+        run: python3 -m unittest discover -s ../_release_automation/script -p 'fetch_r2_audio_test.py'
+
+      - name: Fetch verified private BGM from R2
+        shell: bash
+        env:
+          R2_AUDIO_ENDPOINT: ${{ vars.R2_AUDIO_ENDPOINT }}
+          R2_AUDIO_BUCKET: ${{ vars.R2_AUDIO_BUCKET }}
+          R2_AUDIO_ACCESS_KEY_ID: ${{ secrets.R2_AUDIO_ACCESS_KEY_ID }}
+          R2_AUDIO_SECRET_ACCESS_KEY: ${{ secrets.R2_AUDIO_SECRET_ACCESS_KEY }}
+        run: python3 ../_release_automation/script/fetch_r2_audio.py --output-dir assets/audio
+
       - name: Build signed IPA
         id: build
         shell: bash
@@ -448,6 +460,22 @@ jobs:
                   "Archive iPad orientations must include portrait and both landscape directions"
               )
           print("Archive UIDeviceFamily and orientation settings verified")
+          PY
+
+          python3 - "$RUNNER_TEMP/Runner.xcarchive/Products/Applications/Runner.app" <<'PY'
+          import hashlib
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, "../_release_automation/script")
+          from fetch_r2_audio import TRACKS
+
+          audio_dir = Path(sys.argv[1]) / "Frameworks/App.framework/flutter_assets/assets/audio"
+          for filename, expected_hash in TRACKS.items():
+              path = audio_dir / filename
+              if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected_hash:
+                  raise SystemExit(f"Archive BGM missing or SHA-256 mismatch: {filename}")
+          print("Archive contains both verified BGM assets")
           PY
 
           mkdir -p build/ios/ipa
@@ -592,3 +620,4 @@ jobs:
             "$RUNNER_TEMP/installed-profile-path" \
             "$RUNNER_TEMP/app-store-build-provenance.json"
           rm -rf "$RUNNER_TEMP/Runner.xcarchive"
+          rm -f assets/audio/tense_tactics.mp3 assets/audio/metropolis_destruction.mp3
