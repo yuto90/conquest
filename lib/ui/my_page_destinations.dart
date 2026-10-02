@@ -234,16 +234,38 @@ class MyPageMatchDetailScreen extends ConsumerWidget {
     BuildContext context, {
     required String profileId,
     required String matchId,
-  }) => Navigator.of(context).push<void>(
-    MaterialPageRoute(
+  }) async {
+    final scrollable = Scrollable.maybeOf(context);
+    final position = scrollable?.position;
+    final offset = position?.pixels;
+    final nested = context.findAncestorStateOfType<NestedScrollViewState>();
+    final outerOffset = nested?.outerController.offset;
+    final route = MaterialPageRoute<void>(
       settings: RouteSettings(
         name: '/my-page/match',
         arguments: (profileId: profileId, matchId: matchId),
       ),
       builder: (_) =>
           MyPageMatchDetailScreen(profileId: profileId, matchId: matchId),
-    ),
-  );
+    );
+    await Navigator.of(context).push<void>(route);
+    await route.completed;
+    if (scrollable == null ||
+        !scrollable.mounted ||
+        scrollable.position != position ||
+        offset == null)
+      return;
+    if (offset == 0 &&
+        nested != null &&
+        nested.mounted &&
+        outerOffset != null) {
+      nested.outerController.jumpTo(outerOffset);
+    } else {
+      position!.jumpTo(
+        offset.clamp(position.minScrollExtent, position.maxScrollExtent),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
