@@ -28,6 +28,8 @@ import 'ui/title_screen.dart';
 import 'tutorial/tutorial_screen.dart';
 import 'tutorial/tutorial_session.dart';
 import 'web_visibility.dart';
+import 'profile/match_persistence.dart';
+import 'profile/storage_lease.dart';
 
 AppLocalizations _appLocalizations(BuildContext context) {
   return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
@@ -216,6 +218,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
   @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    ref.watch(profilePersistenceStateProvider);
     if (_showTitle) {
       // Keep the configuration controller alive while the title is visible so
       // returning to match setup preserves the user's selections and map.
@@ -227,6 +230,12 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
         fit: StackFit.expand,
         children: [
           TitleScreen(onStart: _showGame),
+          const Positioned(
+            top: 8,
+            left: 12,
+            right: 12,
+            child: _StorageNotice(),
+          ),
           if (_appBgmController.canRetry)
             Positioned(
               left: 12,
@@ -275,8 +284,7 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
     });
     final viewport = ref.watch(mapViewportProvider);
     final state = ref.watch(gameControllerProvider);
-    final rankProgress =
-        ref.watch(rankProgressProvider).value ?? RankProgress.zero;
+    final rankProgress = ref.watch(rankProgressProvider).value;
     final controller = ref.read(gameControllerProvider.notifier);
     final canRenderCurrentMap = viewport.canRenderIslands(state.islands);
     final isPlayerInteractionEnabled =
@@ -367,7 +375,8 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   onStart:
                       state.islands.length ==
                               state.configuration.totalIslandCount &&
-                          canRenderCurrentMap
+                          canRenderCurrentMap &&
+                          controller.canStartMatch
                       ? controller.startGame
                       : null,
                 ),
@@ -384,7 +393,11 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   configuration: state.configuration,
                   result: state.result!,
                   summary: state.matchSummary,
-                  rankProgress: rankProgress,
+                  rankProgress: rankProgress ?? RankProgress.zero,
+                  save: controller.currentSave,
+                  onRetry: () => ref
+                      .read(matchPersistenceProvider)
+                      ?.retry(controller.currentMatchId),
                   onRematch: controller.rematchGame,
                   rematchUnavailableReason: controller.rematchUnavailableReason,
                   onReplay: controller.replayGame,
@@ -403,6 +416,13 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                       onRetry: _appBgmController.retry,
                     ),
                   ),
+                ),
+              if (state.phase != GamePhase.result)
+                const Positioned(
+                  top: 8,
+                  left: 12,
+                  right: 12,
+                  child: _StorageNotice(),
                 ),
               if (!state.viewportUnavailable) _CountdownOverlay(state: state),
               if (state.viewportUnavailable)
@@ -1066,8 +1086,12 @@ class _ResultPanel extends StatelessWidget {
     required this.rematchUnavailableReason,
     required this.onReplay,
     required this.onSettings,
+    required this.save,
+    required this.onRetry,
   });
 
+  final MatchSaveState? save;
+  final VoidCallback onRetry;
   final GameConfiguration configuration;
   final GameResult result;
   final MatchSummary summary;
@@ -1166,6 +1190,10 @@ class _ResultPanel extends StatelessWidget {
                     configuration: configuration,
                     summary: summary,
                   ),
+                ],
+                if (save != null) ...[
+                  const SizedBox(height: 12),
+                  _MatchSaveNotice(save: save!, onRetry: onRetry),
                 ],
                 if (result.xpAwarded > 0) ...[
                   const SizedBox(height: 18),
@@ -1379,7 +1407,7 @@ class _ConfigurationPanel extends StatelessWidget {
   });
 
   final GameState state;
-  final RankProgress rankProgress;
+  final RankProgress? rankProgress;
   final VoidCallback? onStart;
   final VoidCallback onTitle;
   final VoidCallback onTutorial;
@@ -1434,7 +1462,10 @@ class _ConfigurationPanel extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 4),
-                          _RankProgressCard(progress: rankProgress),
+                          if (rankProgress != null)
+                            _RankProgressCard(progress: rankProgress!)
+                          else
+                            Text(l10n.rankUnavailable),
                           const SizedBox(height: 4),
                           IslandCountSlider(
                             value: state.configuration.totalIslandCount,
@@ -1857,6 +1888,83 @@ String _difficultyLabel(AppLocalizations l10n, CpuDifficulty difficulty) =>
       CpuDifficulty.normal => l10n.difficultyNormal,
       CpuDifficulty.hard => l10n.difficultyHard,
     };
+
+class _MatchSaveNotice extends StatelessWidget {
+  const _MatchSaveNotice({required this.save, required this.onRetry});
+  final MatchSaveState save;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _appLocalizations(context);
+    return Column(
+      children: [
+        Text(
+          switch (save.phase) {
+            MatchSavePhase.saving => l10n.matchSaving,
+            MatchSavePhase.unsaved => l10n.matchUnsaved,
+            MatchSavePhase.saved =>
+              save.receipt == null ? l10n.matchSaving : l10n.matchSaved,
+          },
+          key: const ValueKey('match-save-status'),
+          textAlign: TextAlign.center,
+        ),
+        if (save.phase == MatchSavePhase.unsaved)
+          TextButton(
+            key: const ValueKey('retry-match-save'),
+            onPressed: onRetry,
+            child: Text(l10n.storageRetry),
+          ),
+      ],
+    );
+  }
+}
+
+class _StorageNotice extends ConsumerWidget {
+  const _StorageNotice();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(profilePersistenceStateProvider);
+    final persistence = ref.read(matchPersistenceProvider);
+    if (persistence == null) return const SizedBox.shrink();
+    final failed = persistence.saves.values.any(
+      (s) => s.phase == MatchSavePhase.unsaved,
+    );
+    if (!persistence.checkingOwnership &&
+        persistence.initializationError == null &&
+        !failed)
+      return const SizedBox.shrink();
+    final l10n = _appLocalizations(context);
+    return Material(
+      key: const ValueKey('storage-notice'),
+      color: TacticalPalette.surface,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              persistence.checkingOwnership
+                  ? l10n.storageChecking
+                  : persistence.initializationError is StorageAlreadyOwned
+                  ? l10n.storageOwned
+                  : l10n.storageUnavailable,
+              textAlign: TextAlign.center,
+            ),
+            if (!persistence.checkingOwnership)
+              TextButton(
+                key: const ValueKey('retry-storage'),
+                onPressed: () async {
+                  await persistence.retry();
+                  if (context.mounted) ref.invalidate(rankProgressProvider);
+                },
+                child: Text(l10n.storageRetry),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _CountdownOverlay extends StatelessWidget {
   const _CountdownOverlay({required this.state});

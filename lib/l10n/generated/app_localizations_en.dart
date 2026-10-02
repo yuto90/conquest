@@ -643,4 +643,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get rematchEnlarge => 'Enlarge the window to rematch on the same map.';
+
+  @override
+  String get storageChecking => 'Checking local storage…';
+
+  @override
+  String get storageOwned =>
+      'Use the first Conquest tab, or close it and retry here. A normal match cannot start in two tabs.';
+
+  @override
+  String get storageUnavailable =>
+      'Local storage is unavailable. Your game can continue; unsaved matches can be retried.';
+
+  @override
+  String get matchSaving => 'Saving match…';
+
+  @override
+  String get matchUnsaved => 'Match not saved';
+
+  @override
+  String get matchSaved => 'Match saved';
+
+  @override
+  String get storageRetry => 'Retry saving';
+
+  @override
+  String get rankUnavailable => 'Rank unavailable until storage loads';
 }

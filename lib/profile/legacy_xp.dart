@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../rank_progression.dart';
+const legacyXpStorageKey = 'conquest.rank.totalXp';
 
 abstract interface class LegacyXpSource {
   Future<Object?> read();
@@ -16,6 +16,6 @@ final class SharedPreferencesLegacyXpSource implements LegacyXpSource {
   Future<Object?> read() async {
     final preferences = await _preferences;
     await preferences.reload();
-    return preferences.get(SharedPreferencesRankProgressStore.storageKey);
+    return preferences.get(legacyXpStorageKey);
   }
 }

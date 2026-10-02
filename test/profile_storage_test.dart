@@ -121,7 +121,7 @@ void main() {
   test(
     'SharedPreferences adapter preserves raw values and leaves legacy key read-only',
     () async {
-      final key = SharedPreferencesRankProgressStore.storageKey;
+      final key = legacyXpStorageKey;
       SharedPreferences.setMockInitialValues({key: 8700});
       final preferences = await SharedPreferences.getInstance();
       final store = makeStore();

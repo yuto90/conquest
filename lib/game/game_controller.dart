@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,8 @@ import 'game_loop.dart';
 import 'game_rules.dart';
 import 'game_state.dart';
 import '../rank_progression.dart';
+import '../profile/match_persistence.dart';
+import '../profile/match_contracts.dart';
 
 part 'game_controller.g.dart';
 
@@ -29,6 +32,9 @@ final gameConfigurationProvider = Provider<GameConfiguration>(
 );
 
 final gameRulesProvider = Provider<GameRules>((ref) => const GameRules());
+final gameSessionOriginProvider = Provider<SessionOrigin>(
+  (ref) => SessionOrigin.gameplay,
+);
 
 /// The renderer supplies the SafeArea-sized layout viewport before the
 /// controller is created.  Keeping it as a provider makes the map generator
@@ -95,9 +101,16 @@ class GameController extends _$GameController {
   GameConfiguration? _cachedConfiguration;
   GameState? _cachedInitialState;
   _MatchStartSnapshot? _matchStartSnapshot;
-  var _matchSerial = 0;
-  var _currentMatchId = 'match-0';
-  var _rankRewardGranted = false;
+  String? _currentMatchId;
+  MatchPersistence? _persistence;
+  bool _finalizationSubmitted = false;
+
+  String? get currentMatchId => _currentMatchId;
+  MatchSaveState? get currentSave => _persistence?.saveFor(_currentMatchId);
+  bool get canStartMatch =>
+      !_disposed &&
+      (state.configuration.gameMode == GameMode.cpuVsCpu ||
+          (_persistence?.canStart ?? true));
 
   static const _interactionFeedbackDurationMs = 1500;
 
@@ -107,6 +120,9 @@ class GameController extends _$GameController {
     // notifier after a watched viewport changes.  A completed rebuild is a
     // live controller again; the final disposal still leaves this true.
     _disposed = false;
+    _persistence = ref.read(matchPersistenceProvider);
+    final persistence = _persistence;
+    persistence?.addListener(_applyReceipt);
     _gameLoop = ref.read(gameLoopProvider);
     _random = ref.read(randomProvider);
     _clock = ref.read(gameClockProvider);
@@ -118,6 +134,7 @@ class GameController extends _$GameController {
     final viewport = ref.watch(mapViewportProvider);
     final providerConfiguration = ref.read(gameConfigurationProvider);
     ref.onDispose(() {
+      persistence?.removeListener(_applyReceipt);
       _disposed = true;
       _gameLoop.stop();
     });
@@ -195,7 +212,8 @@ class GameController extends _$GameController {
   /// islands, or run CPU decisions during that phase; the first playing tick
   /// after the countdown is the shared start boundary for every subsystem.
   void startGame() {
-    if (_disposed ||
+    if (!canStartMatch ||
+        _disposed ||
         state.viewportUnavailable ||
         state.phase == GamePhase.playing ||
         (state.phase == GamePhase.configuration &&
@@ -294,16 +312,16 @@ class GameController extends _$GameController {
     if (nextState == state) {
       return;
     }
-    state = nextState;
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
-    _awardRankForResult(result);
+    _submitCompletion(nextState);
+    state = nextState;
   }
 
   /// Leaves the current match and shows the island-count configuration again.
   ///
-  /// A match is intentionally not persisted.  Returning to settings creates
+  /// Explicitly abandoning a played match is recorded. Returning creates
   /// a fresh map, clears all transient match state, and leaves the loop
   /// stopped until the player starts another match.
   void returnToConfiguration() {
@@ -315,7 +333,13 @@ class GameController extends _$GameController {
     _gameLoop.stop();
     _lastTickMs = null;
     _clearCpuDecisionDeadlines();
-    _rankRewardGranted = false;
+    if (state.phase == GamePhase.paused &&
+        _currentMatchId != null &&
+        !_finalizationSubmitted) {
+      _finalizationSubmitted = true;
+      unawaited(_persistence!.abandon(_currentMatchId!, state.matchSummary));
+    }
+    _currentMatchId = null;
     _matchStartSnapshot = null;
     state = _newInitialStateFor(
       configuration: state.configuration,
@@ -328,7 +352,7 @@ class GameController extends _$GameController {
 
   /// Starts a new match with the same island count and a newly generated map.
   void replayGame() {
-    if (_disposed || state.phase != GamePhase.result) {
+    if (!canStartMatch || _disposed || state.phase != GamePhase.result) {
       return;
     }
 
@@ -380,7 +404,8 @@ class GameController extends _$GameController {
 
   /// Restores the starting board without consuming map-generation randomness.
   void rematchGame() {
-    if (_disposed ||
+    if (!canStartMatch ||
+        _disposed ||
         state.phase != GamePhase.result ||
         rematchUnavailableReason != null) {
       return;
@@ -391,45 +416,50 @@ class GameController extends _$GameController {
   }
 
   void _beginNewMatch() {
-    _matchSerial++;
-    _currentMatchId = 'match-$_matchSerial';
-    _rankRewardGranted = false;
+    _currentMatchId = null;
+    _finalizationSubmitted = false;
   }
 
-  bool _isRankEligible(GameConfiguration configuration, GameResult result) {
-    return configuration.gameMode == GameMode.playerVsCpu &&
-        result.type == GameResultType.victory &&
-        result.winner == Faction.player;
+  void _recordFirstPlaying(GameConfiguration configuration) {
+    _currentMatchId ??= _persistence?.begin(
+      configuration,
+      origin: ref.read(gameSessionOriginProvider),
+    );
   }
 
-  Future<void> _awardRankForMatch({
-    required String matchId,
-    required CpuDifficulty difficulty,
-  }) async {
-    try {
-      final award = await ref
-          .read(rankProgressProvider.notifier)
-          .recordVictory(matchId: matchId, difficulty: difficulty);
-      if (_disposed ||
-          _currentMatchId != matchId ||
-          state.phase != GamePhase.result ||
-          state.result == null) {
-        return;
-      }
-      if (award.xpAwarded == 0 || state.result!.xpAwarded != 0) return;
-      state = state.finishWithResult(
-        state.result!.copyWith(
-          xpAwarded: award.xpAwarded,
-          rankBefore: award.before.rank,
-          rankAfter: award.after.rank,
-          totalXpBefore: award.before.totalXp,
-          totalXpAfter: award.after.totalXp,
-        ),
-      );
-    } catch (_) {
-      // Rank progression must never make a completed match unusable. The
-      // manager already keeps the loaded value in memory when storage fails.
-    }
+  void _submitCompletion(GameState finished) {
+    final id = _currentMatchId;
+    if (id == null || _finalizationSubmitted || finished.result == null) return;
+    _finalizationSubmitted = true;
+    unawaited(
+      _persistence!.finish(
+        id,
+        result: finished.result!,
+        summary: finished.matchSummary,
+      ),
+    );
+  }
+
+  void _applyReceipt() {
+    if (_disposed || stateOrNull == null || state.phase != GamePhase.result)
+      return;
+    final receipt = currentSave?.receipt;
+    if (receipt == null ||
+        receipt.record.start.matchId != _currentMatchId ||
+        state.result == null)
+      return;
+    if (state.result!.totalXpAfter != null) return;
+    final before = RankProgress.fromTotalXp(receipt.totalXpBefore);
+    final after = RankProgress.fromTotalXp(receipt.totalXpAfter);
+    state = state.finishWithResult(
+      state.result!.copyWith(
+        xpAwarded: receipt.xpAwarded,
+        rankBefore: before.rank,
+        rankAfter: after.rank,
+        totalXpBefore: receipt.totalXpBefore,
+        totalXpAfter: receipt.totalXpAfter,
+      ),
+    );
   }
 
   /// Compatibility alias for callers that name the replay action restart.
@@ -697,6 +727,19 @@ class GameController extends _$GameController {
     final phaseBeforeTick = state.phase;
     final selectedBeforeTick = state.selectedIslandId;
     final nextState = _rules.tick(state, deltaMs: deltaMs);
+    if ((phaseBeforeTick == GamePhase.startCountdown ||
+            phaseBeforeTick == GamePhase.resumeCountdown) &&
+        nextState.phase == GamePhase.playing) {
+      _recordFirstPlaying(nextState.configuration);
+    }
+    if (nextState.phase == GamePhase.result) {
+      _gameLoop.stop();
+      _lastTickMs = null;
+      _clearCpuDecisionDeadlines();
+      _submitCompletion(nextState);
+      state = nextState;
+      return;
+    }
     state = nextState;
     if (phaseBeforeTick == GamePhase.playing &&
         selectedBeforeTick != null &&
@@ -719,24 +762,6 @@ class GameController extends _$GameController {
       }
       _runCpuDecisionIfDue();
     }
-    if (nextState.phase == GamePhase.result) {
-      _gameLoop.stop();
-      _lastTickMs = null;
-      _clearCpuDecisionDeadlines();
-      final result = nextState.result;
-      if (result != null) _awardRankForResult(result);
-    }
-  }
-
-  void _awardRankForResult(GameResult result) {
-    if (!_isRankEligible(state.configuration, result) || _rankRewardGranted) {
-      return;
-    }
-    _rankRewardGranted = true;
-    _awardRankForMatch(
-      difficulty: state.configuration.cpuDifficulty,
-      matchId: _currentMatchId,
-    );
   }
 
   Iterable<Faction> get _activeCpuFactions =>
