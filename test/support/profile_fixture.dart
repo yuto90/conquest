@@ -54,6 +54,8 @@ final class ProfileFixture implements ProfileBackend {
     ProfileDatabase? database,
     FixtureIds? ids,
     LegacyXpSource? legacySource,
+    StorageLease? lease,
+    StorageFaultHook? faultHook,
   }) {
     final identities = ids ?? FixtureIds();
     clock = FixtureClock();
@@ -67,10 +69,11 @@ final class ProfileFixture implements ProfileBackend {
     store = DriftProfileStore(
       database: database ?? ProfileDatabase(NativeDatabase.memory()),
       executionId: factory.executionId,
-      lease: FixtureLease(),
+      lease: lease ?? FixtureLease(),
       ids: identities,
       clock: clock,
       faultHook: (point) async {
+        await faultHook?.call(point);
         if (point != StorageFaultPoint.afterMatch) return;
         final index = saveCount++;
         if (saveError != null) throw saveError!;

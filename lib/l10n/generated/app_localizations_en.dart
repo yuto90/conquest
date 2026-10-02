@@ -639,7 +639,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get quitTitle => 'Quit match?';
 
   @override
-  String get quitDescription => 'Your current match will not be saved.';
+  String get quitDescription =>
+      'You cannot resume this match. Normal matches are recorded as abandoned if saving succeeds; spectator and practice sessions are not recorded.';
 
   @override
   String get cancel => 'Cancel';

@@ -8,9 +8,11 @@ import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/game/match_summary.dart';
 import 'package:conquest/profile/match_contracts.dart';
+import 'package:conquest/profile/drift_profile_store.dart';
 import 'package:conquest/profile/legacy_xp.dart';
 import 'package:conquest/profile/match_persistence.dart';
 import 'package:conquest/profile/profile_database.dart';
+import 'package:conquest/profile/profile_repository.dart';
 import 'package:conquest/profile/storage_lease.dart';
 import 'package:conquest/rank_progression.dart';
 import 'package:drift/native.dart';
@@ -66,6 +68,66 @@ Future<ProfileFixture> ready({int? xp}) async {
 }
 
 void main() {
+  test(
+    'lost commit acknowledgment and delayed retry preserve the newer result and edited profile',
+    () async {
+      var finalizing = false;
+      var failOnce = true;
+      final f = ProfileFixture(
+        xp: 500,
+        faultHook: (point) async {
+          if (point == StorageFaultPoint.beforeMatch) finalizing = true;
+          if (point == StorageFaultPoint.afterCommit &&
+              finalizing &&
+              failOnce) {
+            failOnce = false;
+            throw StateError('lost acknowledgment');
+          }
+        },
+      );
+      await f.ready();
+      addTearDown(f.runtime.close);
+      final h = Harness(f);
+      addTearDown(h.dispose);
+      h.play();
+      final oldId = h.controller.currentMatchId!;
+      await h.finish(const GameResult.victory(elapsedMs: 50));
+      expect(f.runtime.saveFor(oldId)!.phase, MatchSavePhase.unsaved);
+      expect((await f.store.loadRecord(oldId))!.status, MatchStatus.completed);
+      expect(await f.store.totalXp(f.runtime.profile!.profileId), 2000);
+      h.controller.rematchGame();
+      for (var i = 0; i < 60; i++) h.loop.tick();
+      final newId = h.controller.currentMatchId!;
+      await h.finish(const GameResult.victory(elapsedMs: 100));
+      final newResult = h.controller.state.result;
+      final profile = await f.repository.editProfile(
+        f.runtime.profile!.profileId,
+        ProfileEdit(displayName: 'Current commander', avatarKey: 'island_02'),
+      );
+      await Future.wait(List.generate(10, (_) => f.runtime.retry(oldId)));
+      expect(h.controller.currentMatchId, newId);
+      expect(h.controller.state.result, newResult);
+      expect(newResult!.totalXpAfter, 3500);
+      expect(f.runtime.saveFor(oldId)!.receipt!.totalXpBefore, 500);
+      expect(f.runtime.saveFor(oldId)!.receipt!.totalXpAfter, 2000);
+      final persistedProfile = await f.repository
+          .watchProfile(profile.profileId)
+          .first;
+      expect(persistedProfile.profileId, profile.profileId);
+      expect(persistedProfile.displayName, profile.displayName);
+      expect(persistedProfile.avatarKey, profile.avatarKey);
+      expect(persistedProfile.updatedAtUtc, profile.updatedAtUtc);
+      expect(await f.store.totalXp(profile.profileId), 3500);
+      expect(
+        (await f.repository.watchStatistics(profile.profileId).first).wins,
+        2,
+      );
+      expect(
+        await f.store.database.select(f.store.database.xpEntries).get(),
+        hasLength(3),
+      );
+    },
+  );
   test(
     'first playing after countdown pause/resume starts once and awards XP',
     () async {

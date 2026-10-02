@@ -620,7 +620,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get quitTitle => '対戦を終了しますか？';
 
   @override
-  String get quitDescription => '現在の対戦内容は保存されません。';
+  String get quitDescription =>
+      'この対戦は再開できません。通常対戦は保存に成功すると途中終了として記録されます。観戦・練習は記録されません。';
 
   @override
   String get cancel => 'キャンセル';

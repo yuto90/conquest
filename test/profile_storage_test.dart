@@ -349,6 +349,7 @@ void main() {
   for (final fault in [
     StorageFaultPoint.afterProfile,
     StorageFaultPoint.afterLegacyEntry,
+    StorageFaultPoint.beforeCommit,
   ]) {
     test(
       'migration fault $fault rolls back all writes and retries once',
@@ -383,8 +384,11 @@ void main() {
   }
 
   for (final fault in [
+    StorageFaultPoint.beforeMatch,
     StorageFaultPoint.afterMatch,
+    StorageFaultPoint.beforeXp,
     StorageFaultPoint.afterXp,
+    StorageFaultPoint.beforeCommit,
   ]) {
     test(
       'finalization fault $fault rolls back match and XP before retry',
@@ -396,10 +400,12 @@ void main() {
           },
         );
         addTearDown(store.close);
+        fail = false;
         await store.initialize(LegacyFixture(500));
         final context = start(100);
         await store.recordStart(context);
         final frozen = complete(context);
+        fail = true;
         await expectLater(store.complete(frozen), throwsStateError);
         expect(
           (await store.loadRecord(context.matchId))!.status,
@@ -414,6 +420,96 @@ void main() {
       },
     );
   }
+
+  test(
+    'native opener preserves an ambiguous committed receipt across retry and reopen',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('conquest-ack-');
+      addTearDown(() => directory.delete(recursive: true));
+      final connection = await native.openStorageConnection(
+        supportDirectory: directory,
+      );
+      var loseAcknowledgment = false;
+      final store = makeStore(
+        executor: connection.executor,
+        lease: connection.lease,
+        faultHook: (point) async {
+          if (point == StorageFaultPoint.afterCommit && loseAcknowledgment) {
+            loseAcknowledgment = false;
+            throw StateError('commit succeeded, acknowledgment lost');
+          }
+        },
+      );
+      await store.initialize(LegacyFixture(500));
+      final frozen = complete(start(100));
+      await store.recordStart(frozen.record.start);
+      loseAcknowledgment = true;
+      await expectLater(store.complete(frozen), throwsStateError);
+      expect(await store.loadRecord(start(100).matchId), frozen.record);
+      expect(await store.totalXp(profile), 2000);
+      final later = complete(start(101));
+      await store.recordStart(later.record.start);
+      await store.complete(later);
+      final receipt = await store.complete(frozen);
+      expect(receipt.totalXpBefore, 500);
+      expect(receipt.totalXpAfter, 2000);
+      expect(await store.totalXp(profile), 3500);
+      expect(await store.complete(frozen), receipt);
+      expect(
+        await store.database.select(store.database.xpEntries).get(),
+        hasLength(3),
+      );
+      await store.close();
+      expect(connection.lease.isHeld, isFalse);
+      final next = await native.openStorageConnection(
+        supportDirectory: directory,
+      );
+      final reopened = makeStore(executor: next.executor, lease: next.lease);
+      addTearDown(reopened.close);
+      final legacy = LegacyFixture(999999)..fail = true;
+      await reopened.initializeAndRecover(legacy);
+      expect(legacy.reads, 0);
+      expect(await reopened.complete(frozen), receipt);
+      expect(await reopened.totalXp(profile), 3500);
+    },
+  );
+
+  test(
+    'migration acknowledgment failure never reimports after restart',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'conquest-import-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/profile.sqlite');
+      final store = makeStore(
+        executor: NativeDatabase(file),
+        faultHook: (point) async {
+          if (point == StorageFaultPoint.afterCommit)
+            throw StateError('lost ack');
+        },
+      );
+      await expectLater(
+        store.initialize(LegacyFixture(8700)),
+        throwsStateError,
+      );
+      await store.close();
+      final reopened = makeStore(executor: NativeDatabase(file));
+      addTearDown(reopened.close);
+      final source = LegacyFixture(999)..fail = true;
+      await reopened.initializeAndRecover(source);
+      expect(source.reads, 0);
+      expect(await reopened.totalXp(profile), 8700);
+      expect(
+        await reopened.database.select(reopened.database.xpEntries).get(),
+        hasLength(1),
+      );
+      expect(
+        await reopened.database.select(reopened.database.matchRecords).get(),
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'serialized rewards and replay receipts retain original zero/nonzero snapshots',
