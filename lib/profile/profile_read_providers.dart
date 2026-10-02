@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../game/game_state.dart';
@@ -123,38 +125,83 @@ final class MatchHistoryState {
   final Object? loadMoreError;
 }
 
-final matchHistoryProvider = AsyncNotifierProvider.autoDispose
-    .family<MatchHistoryController, MatchHistoryState, ProfileQuery>(
-      MatchHistoryController.new,
-    );
+final matchHistoryProvider = NotifierProvider.autoDispose
+    .family<
+      MatchHistoryController,
+      AsyncValue<MatchHistoryState>,
+      ProfileQuery
+    >(MatchHistoryController.new);
 
-final class MatchHistoryController extends AsyncNotifier<MatchHistoryState> {
+final class MatchHistoryController
+    extends Notifier<AsyncValue<MatchHistoryState>> {
   MatchHistoryController(this.query);
   final ProfileQuery query;
   int _generation = 0;
+  Completer<MatchHistoryState>? _firstPage;
+
+  Future<MatchHistoryState> get firstPage => _firstPage!.future;
 
   @override
-  Future<MatchHistoryState> build() async {
+  AsyncValue<MatchHistoryState> build() {
     _generation++;
-    ref.onDispose(() => _generation++);
-    final repository = await ref.watch(playerProfileRepositoryProvider.future);
-    final page = await repository.loadHistory(
-      query.profileId,
-      filter: query.filter,
+    ref.onDispose(() {
+      _generation++;
+      if (_firstPage case final pending? when !pending.isCompleted) {
+        pending.completeError(StateError('History reader disposed'));
+      }
+    });
+    _prepareFirstPage();
+    unawaited(
+      _loadFirst(
+        ref.watch(playerProfileRepositoryProvider.future),
+        _generation,
+      ),
     );
-    return MatchHistoryState(
-      entries: page.entries,
-      nextCursor: page.nextCursor,
-    );
+    return const AsyncLoading();
+  }
+
+  void _prepareFirstPage() {
+    if (_firstPage == null || _firstPage!.isCompleted) {
+      _firstPage = Completer<MatchHistoryState>();
+      _firstPage!.future.ignore();
+    }
+  }
+
+  Future<void> _loadFirst(
+    Future<PlayerProfileRepository> repositoryFuture,
+    int generation,
+  ) async {
+    final keepAlive = ref.keepAlive();
+    try {
+      final repository = await repositoryFuture;
+      final page = await repository.loadHistory(
+        query.profileId,
+        filter: query.filter,
+      );
+      if (!ref.mounted || generation != _generation) return;
+      final result = MatchHistoryState(
+        entries: page.entries,
+        nextCursor: page.nextCursor,
+      );
+      _firstPage!.complete(result);
+      state = AsyncData(result);
+    } catch (error, stack) {
+      if (!ref.mounted || generation != _generation) return;
+      _firstPage!.completeError(error, stack);
+      state = AsyncError(error, stack);
+    } finally {
+      keepAlive.close();
+    }
   }
 
   /// Drops all loaded pages. A new first page never shares an old cursor.
   void refresh() {
     _generation++;
-    if (!state.isLoading) {
-      state = AsyncData(MatchHistoryState(entries: const []));
-    }
-    ref.invalidateSelf(asReload: true);
+    _prepareFirstPage();
+    state = const AsyncLoading();
+    unawaited(
+      _loadFirst(ref.read(playerProfileRepositoryProvider.future), _generation),
+    );
   }
 
   Future<void> loadMore() async {

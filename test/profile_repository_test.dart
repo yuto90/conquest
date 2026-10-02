@@ -596,6 +596,42 @@ void main() {
   );
 
   test(
+    'history cold-start reports root failure and retries into successful empty data',
+    () async {
+      final fixture = ProfileFixture()..openError = StateError('unavailable');
+      addTearDown(fixture.store.close);
+      final container = ProviderContainer(
+        overrides: [
+          matchPersistenceProvider.overrideWithValue(fixture.runtime),
+        ],
+        retry: (_, _) => null,
+      );
+      addTearDown(container.dispose);
+      final provider = matchHistoryProvider((
+        profileId: uuid(101),
+        filter: MatchHistoryFilter(),
+      ));
+      final subscription = container.listen(provider, (_, _) {});
+      addTearDown(subscription.close);
+      await expectLater(
+        container.read(provider.notifier).firstPage,
+        throwsStateError,
+      );
+      expect(container.read(provider).hasError, isTrue);
+      expect(container.read(provider).hasValue, isFalse);
+      fixture.openError = null;
+      await fixture.runtime.retry();
+      await container.pump();
+      expect(
+        (await container.read(provider.notifier).firstPage).entries,
+        isEmpty,
+      );
+      expect(container.read(provider).hasError, isFalse);
+      expect(container.read(provider).hasValue, isTrue);
+    },
+  );
+
+  test(
     'history controller preserves rows on error, ignores duplicate loads and stale refresh/filter responses',
     () async {
       final probe = QueryProbe();
@@ -621,9 +657,9 @@ void main() {
       final provider = matchHistoryProvider(scope);
       final subscription = container.listen(provider, (_, _) {});
       addTearDown(subscription.close);
-      final initial = await container.read(provider.future);
+      final initial = await container.read(provider.notifier).firstPage;
       expect(initial.entries.length, 20);
-      final controller = container.read(provider.notifier);
+      var controller = container.read(provider.notifier);
       probe.historyError = StateError('read failed');
       await controller.loadMore();
       expect(container.read(provider).requireValue.entries.length, 20);
@@ -645,7 +681,7 @@ void main() {
       expect(container.read(provider).isLoading, isTrue);
       expect(container.read(provider).value?.entries ?? [], isEmpty);
       expect(container.read(provider).value?.nextCursor, isNull);
-      final refreshed = container.read(provider.future);
+      final refreshed = container.read(provider.notifier).firstPage;
       await probe.captured!.future;
       gate.complete();
       await pending;
@@ -660,6 +696,33 @@ void main() {
       expect(container.read(provider).requireValue.entries.length, 41);
       expect(container.read(provider).requireValue.nextCursor, isNull);
 
+      final reloadGate = Completer<void>();
+      final manualGate = Completer<void>();
+      addTearDown(() {
+        for (final gate in [reloadGate, manualGate]) {
+          if (!gate.isCompleted) gate.complete();
+        }
+      });
+      probe.historyGate = reloadGate;
+      probe.captured = Completer<void>();
+      container.invalidate(provider);
+      controller = container.read(provider.notifier);
+      final reloaded = controller.firstPage;
+      var reloadCompleted = false;
+      reloaded.then((_) => reloadCompleted = true);
+      await probe.captured!.future;
+      expect(container.read(provider).hasValue, isFalse);
+      probe.historyGate = manualGate;
+      probe.captured = Completer<void>();
+      controller.refresh();
+      await probe.captured!.future;
+      expect(container.read(provider).hasValue, isFalse);
+      reloadGate.complete();
+      await container.pump();
+      expect(reloadCompleted, isFalse);
+      manualGate.complete();
+      expect((await reloaded).entries.length, 20);
+
       final oldScope = (
         profileId: scope.profileId,
         filter: MatchHistoryFilter(difficulty: CpuDifficulty.normal),
@@ -669,7 +732,7 @@ void main() {
       final oldGate = Completer<void>();
       probe.historyGate = oldGate;
       probe.captured = Completer<void>();
-      final oldFuture = container.read(oldProvider.future);
+      final oldFuture = container.read(oldProvider.notifier).firstPage;
       await probe.captured!.future;
       final newProvider = matchHistoryProvider((
         profileId: scope.profileId,
@@ -677,7 +740,7 @@ void main() {
       ));
       final newSubscription = container.listen(newProvider, (_, _) {});
       addTearDown(newSubscription.close);
-      final newPage = await container.read(newProvider.future);
+      final newPage = await container.read(newProvider.notifier).firstPage;
       oldSubscription.close();
       oldGate.complete();
       await oldFuture;
@@ -691,7 +754,10 @@ void main() {
       expect(container.read(newProvider).requireValue.entries, newPage.entries);
       probe.historyError = StateError('first page failed');
       controller.refresh();
-      await expectLater(container.read(provider.future), throwsStateError);
+      await expectLater(
+        container.read(provider.notifier).firstPage,
+        throwsStateError,
+      );
       expect(container.read(provider).hasError, isTrue);
       expect(container.read(provider).value?.entries ?? [], isEmpty);
       expect(container.read(provider).value?.nextCursor, isNull);
@@ -730,7 +796,7 @@ void main() {
       probe.captured = Completer<void>();
       final subscription = container.listen(provider, (_, _) {});
       addTearDown(subscription.close);
-      final initial = container.read(provider.future);
+      final initial = container.read(provider.notifier).firstPage;
       var completed = false;
       initial.then((_) => completed = true);
       await probe.captured!.future;
@@ -744,7 +810,7 @@ void main() {
         probe.historyGate = gates[i];
         probe.captured = Completer<void>();
         controller.refresh();
-        container.read(provider.future);
+        container.read(provider.notifier).firstPage;
         await probe.captured!.future;
         expect(completed, isFalse);
         expect(container.read(provider).isLoading, isTrue);

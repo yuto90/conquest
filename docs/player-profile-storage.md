@@ -343,6 +343,16 @@ Initial load/refresh failures are AsyncError, distinct from successful empty dat
 The repository has no history cache; the screen state grows only with pages the
 user requests and releases them on refresh/disposal.
 
+History uses `Notifier<AsyncValue<MatchHistoryState>>` so loading/error states
+contain no retained pages, including dependency/external invalidation. Await
+`ref.read(matchHistoryProvider(query).notifier).firstPage` when a first-page
+future is needed; the provider itself has no `.future` modifier. Manual refresh
+keeps an already pending first-page future waiting for the new generation's
+actual result. Disposal/dependency rebuild cancels pending callers with an error;
+get the current notifier's `firstPage` to await a rebuilt reader. An active first
+query keeps the reader alive until it finishes; widgets should watch the provider
+for subsequent pagination/loading/error state, not use `firstPage` as a live feed.
+
 ### Measured native SQLite reads
 
 `fvm flutter test test/profile_repository_test.dart --reporter expanded` records
