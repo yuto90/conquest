@@ -18,7 +18,7 @@ class Profiles extends Table with TableInfo<Profiles, Profile> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL PRIMARY KEY CHECK (length(profile_id) = 36 AND profile_id = lower(profile_id))',
+        'NOT NULL PRIMARY KEY CHECK (length(profile_id) = 36 AND profile_id = lower(profile_id) AND profile_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(profile_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   static const VerificationMeta _displayNameMeta = const VerificationMeta(
     'displayName',
@@ -465,7 +465,7 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL PRIMARY KEY CHECK (length(match_id) = 36 AND match_id = lower(match_id))',
+        'NOT NULL PRIMARY KEY CHECK (length(match_id) = 36 AND match_id = lower(match_id) AND match_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(match_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   static const VerificationMeta _profileIdMeta = const VerificationMeta(
     'profileId',
@@ -488,7 +488,7 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (length(execution_id) = 36 AND execution_id = lower(execution_id))',
+        'NOT NULL CHECK (length(execution_id) = 36 AND execution_id = lower(execution_id) AND execution_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(execution_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   static const VerificationMeta _sessionKindMeta = const VerificationMeta(
     'sessionKind',

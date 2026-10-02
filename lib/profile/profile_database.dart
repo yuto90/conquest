@@ -27,6 +27,28 @@ class ProfileDatabase extends _$ProfileDatabase {
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
+      final tables = await customSelect(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+      ).get();
+      final names = tables.map((row) => row.read<String>('name')).toSet();
+      if (names.length != allTables.length ||
+          !names.containsAll(allTables.map((table) => table.actualTableName))) {
+        throw StateError('Unrecognized profile database tables');
+      }
+      for (final table in allTables) {
+        final columns = await customSelect(
+          'PRAGMA table_info("${table.actualTableName}")',
+        ).get();
+        final columnNames = columns
+            .map((row) => row.read<String>('name'))
+            .toSet();
+        if (columnNames.length != table.$columns.length ||
+            !columnNames.containsAll(
+              table.$columns.map((column) => column.name),
+            )) {
+          throw StateError('Unrecognized profile database columns');
+        }
+      }
       final integrity = await customSelect('PRAGMA quick_check').get();
       if (integrity.length != 1 ||
           integrity.single.data.values.single != 'ok') {

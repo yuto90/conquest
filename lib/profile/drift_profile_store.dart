@@ -41,7 +41,7 @@ final class DriftProfileStore implements MatchCompletionService {
 
   static const legacyMarker = 'legacy_xp_v1';
   static const activeProfileKey = 'active_profile_id';
-  static const rewardVersion = 'victory_v1';
+  static const rewardVersion = '1';
 
   final db.ProfileDatabase database;
   final String executionId;

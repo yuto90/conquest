@@ -1,5 +1,7 @@
 CREATE TABLE profiles (
-  profile_id TEXT NOT NULL PRIMARY KEY CHECK(length(profile_id) = 36 AND profile_id = lower(profile_id)),
+  profile_id TEXT NOT NULL PRIMARY KEY CHECK(length(profile_id) = 36 AND profile_id = lower(profile_id)
+    AND profile_id GLOB '????????-????-4???-[89ab]???-????????????'
+    AND NOT ("replace"(profile_id, '-', '') GLOB '*[^0-9a-f]*')),
   display_name TEXT CHECK(display_name IS NULL OR length(trim(display_name)) > 0),
   avatar_key TEXT NOT NULL CHECK(avatar_key IN ('island_01', 'island_02', 'island_03', 'island_04')),
   created_at_utc INTEGER NOT NULL,
@@ -8,9 +10,13 @@ CREATE TABLE profiles (
 );
 
 CREATE TABLE match_records (
-  match_id TEXT NOT NULL PRIMARY KEY CHECK(length(match_id) = 36 AND match_id = lower(match_id)),
+  match_id TEXT NOT NULL PRIMARY KEY CHECK(length(match_id) = 36 AND match_id = lower(match_id)
+    AND match_id GLOB '????????-????-4???-[89ab]???-????????????'
+    AND NOT ("replace"(match_id, '-', '') GLOB '*[^0-9a-f]*')),
   profile_id TEXT NOT NULL REFERENCES profiles(profile_id),
-  execution_id TEXT NOT NULL CHECK(length(execution_id) = 36 AND execution_id = lower(execution_id)),
+  execution_id TEXT NOT NULL CHECK(length(execution_id) = 36 AND execution_id = lower(execution_id)
+    AND execution_id GLOB '????????-????-4???-[89ab]???-????????????'
+    AND NOT ("replace"(execution_id, '-', '') GLOB '*[^0-9a-f]*')),
   session_kind TEXT NOT NULL CHECK(session_kind = 'normal'),
   origin TEXT NOT NULL CHECK(origin = 'gameplay'),
   game_mode TEXT NOT NULL CHECK(game_mode = 'player_vs_cpu'),

@@ -66,12 +66,20 @@ final class WebWriterLease implements StorageLease {
 Future<StorageConnection> openStorageConnection() async {
   final lease = await WebWriterLease.acquire();
   try {
+    final base = Uri.parse(web.document.baseURI);
+    final sqlite3Uri = base.resolve('sqlite3.wasm');
+    final workerUri = base.resolve('drift_worker.js');
+    await Future.wait([
+      verifyStorageAsset(sqlite3Uri, {'application/wasm'}),
+      verifyStorageAsset(workerUri, {
+        'text/javascript',
+        'application/javascript',
+      }),
+    ]);
     final result = await WasmDatabase.open(
       databaseName: 'conquest_profile',
-      sqlite3Uri: Uri.parse(web.document.baseURI).resolve('sqlite3.wasm'),
-      driftWorkerUri: Uri.parse(
-        web.document.baseURI,
-      ).resolve('drift_worker.js'),
+      sqlite3Uri: sqlite3Uri,
+      driftWorkerUri: workerUri,
     );
     if (result.chosenImplementation == WasmStorageImplementation.inMemory ||
         result.chosenImplementation ==
@@ -89,5 +97,17 @@ Future<StorageConnection> openStorageConnection() async {
   } catch (_) {
     await lease.release();
     rethrow;
+  }
+}
+
+Future<void> verifyStorageAsset(Uri uri, Set<String> contentTypes) async {
+  final response = await web.window.fetch(uri.toString().toJS).toDart;
+  final contentType = response.headers
+      .get('content-type')
+      ?.split(';')
+      .first
+      .trim();
+  if (!response.ok || !contentTypes.contains(contentType)) {
+    throw StorageUnavailable('Storage asset unavailable or wrong MIME: $uri');
   }
 }
