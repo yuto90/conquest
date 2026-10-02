@@ -151,7 +151,8 @@ final class MatchHistoryController extends AsyncNotifier<MatchHistoryState> {
   /// Drops all loaded pages. A new first page never shares an old cursor.
   void refresh() {
     _generation++;
-    ref.invalidateSelf();
+    state = AsyncData(MatchHistoryState(entries: const []));
+    ref.invalidateSelf(asReload: true);
   }
 
   Future<void> loadMore() async {

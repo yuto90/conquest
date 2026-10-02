@@ -638,11 +638,21 @@ void main() {
       await probe.captured!.future;
       await controller.loadMore();
       expect(container.read(provider).requireValue.loadingMore, isTrue);
+      final refreshGate = Completer<void>();
+      probe.historyGate = refreshGate;
+      probe.captured = Completer<void>();
       controller.refresh();
-      await container.pump();
-      expect((await container.read(provider.future)).entries.length, 20);
+      expect(container.read(provider).isLoading, isTrue);
+      expect(container.read(provider).value?.entries ?? [], isEmpty);
+      expect(container.read(provider).value?.nextCursor, isNull);
+      final refreshed = container.read(provider.future);
+      await probe.captured!.future;
       gate.complete();
       await pending;
+      expect(container.read(provider).value?.entries ?? [], isEmpty);
+      expect(container.read(provider).value?.nextCursor, isNull);
+      refreshGate.complete();
+      expect((await refreshed).entries.length, 20);
       expect(container.read(provider).requireValue.entries.length, 20);
       await controller.loadMore();
       expect(container.read(provider).requireValue.entries.length, 40);
@@ -683,6 +693,8 @@ void main() {
       controller.refresh();
       await expectLater(container.read(provider.future), throwsStateError);
       expect(container.read(provider).hasError, isTrue);
+      expect(container.read(provider).value?.entries ?? [], isEmpty);
+      expect(container.read(provider).value?.nextCursor, isNull);
     },
   );
 
