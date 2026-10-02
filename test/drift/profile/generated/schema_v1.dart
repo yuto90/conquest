@@ -16,7 +16,7 @@ class Profiles extends Table with TableInfo {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL PRIMARY KEY CHECK (length(profile_id) = 36 AND profile_id = lower(profile_id) AND profile_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(profile_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
+        'NOT NULL PRIMARY KEY CHECK (length(profile_id) = 36 AND profile_id = lower(profile_id) AND profile_id GLOB \'????????-????-[1-8]???-[89ab]???-????????????\' AND NOT("replace"(profile_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   late final GeneratedColumn<String> displayName = GeneratedColumn<String>(
     'display_name',
@@ -102,7 +102,7 @@ class MatchRecords extends Table with TableInfo {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL PRIMARY KEY CHECK (length(match_id) = 36 AND match_id = lower(match_id) AND match_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(match_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
+        'NOT NULL PRIMARY KEY CHECK (length(match_id) = 36 AND match_id = lower(match_id) AND match_id GLOB \'????????-????-[1-8]???-[89ab]???-????????????\' AND NOT("replace"(match_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
     'profile_id',
@@ -119,7 +119,7 @@ class MatchRecords extends Table with TableInfo {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     $customConstraints:
-        'NOT NULL CHECK (length(execution_id) = 36 AND execution_id = lower(execution_id) AND execution_id GLOB \'????????-????-4???-[89ab]???-????????????\' AND NOT("replace"(execution_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
+        'NOT NULL CHECK (length(execution_id) = 36 AND execution_id = lower(execution_id) AND execution_id GLOB \'????????-????-[1-8]???-[89ab]???-????????????\' AND NOT("replace"(execution_id, \'-\', \'\') GLOB \'*[^0-9a-f]*\'))',
   );
   late final GeneratedColumn<String> sessionKind = GeneratedColumn<String>(
     'session_kind',

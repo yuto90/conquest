@@ -36,8 +36,10 @@ final class TestLease implements StorageLease {
 }
 
 final class FixedIds implements UuidGenerator {
+  FixedIds([this.id = profile]);
+  final String id;
   @override
-  String next() => profile;
+  String next() => id;
 }
 
 final class FixedClock implements UtcClock {
@@ -227,6 +229,43 @@ void main() {
       expect(await store.totalXp(profile), 1600);
     },
   );
+
+  for (var version = 1; version <= 8; version++) {
+    test(
+      'canonical UUID v$version contract is accepted for every identity',
+      () async {
+        final profileId = profile.replaceFirst('-4000-', '-${version}000-');
+        final executionId = execution.replaceFirst('-4000-', '-${version}000-');
+        final store = DriftProfileStore(
+          database: db.ProfileDatabase(NativeDatabase.memory()),
+          executionId: executionId,
+          lease: TestLease(),
+          ids: FixedIds(profileId),
+          clock: FixedClock(),
+        );
+        addTearDown(store.close);
+        expect(
+          (await store.initialize(LegacyFixture(500))).profileId,
+          profileId,
+        );
+        final context = MatchStartContext(
+          matchId: start(100).matchId.replaceFirst('-4000-', '-${version}000-'),
+          profileId: profileId,
+          executionId: executionId,
+          configuration: GameConfiguration(),
+          sessionKind: SessionKind.normal,
+          origin: SessionOrigin.gameplay,
+          startedAtUtc: now,
+          appVersion: '1.0.2+3',
+          rulesVersion: '1',
+        );
+        await store.recordStart(context);
+        final receipt = await store.complete(complete(context));
+        expect(receipt.totalXpAfter, 2000);
+        expect((await store.loadRecord(context.matchId))!.start, context);
+      },
+    );
+  }
 
   test('v1 snapshot validates against fresh and reopened schema', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
@@ -520,7 +559,7 @@ void main() {
         "status = 'interrupted', recovered_at_utc = 123",
         'island_count = 6',
         "match_id = 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'",
-        "execution_id = '00000000-0000-1000-8000-000000000010'",
+        "execution_id = '00000000-0000-0000-8000-000000000010'",
       ]) {
         await expectLater(
           database.customStatement('UPDATE match_records SET $changes'),
