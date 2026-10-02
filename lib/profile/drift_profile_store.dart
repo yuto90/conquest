@@ -15,7 +15,16 @@ import 'storage_lease.dart';
 
 export 'profile_avatars.dart';
 
-enum StorageFaultPoint { afterProfile, afterLegacyEntry, afterMatch, afterXp }
+enum StorageFaultPoint {
+  afterProfile,
+  afterLegacyEntry,
+  beforeMatch,
+  afterMatch,
+  beforeXp,
+  afterXp,
+  beforeCommit,
+  afterCommit,
+}
 
 typedef StorageFaultHook = Future<void> Function(StorageFaultPoint point);
 
@@ -56,9 +65,15 @@ final class DriftProfileStore implements MatchCompletionService {
   Future<T> _write<T>(Future<T> Function() action) {
     if (!_accepting) throw const StorageUnavailable('Storage is closing');
     requireOwnership();
-    final operation = _queue.then((_) {
+    final operation = _queue.then((_) async {
       requireOwnership();
-      return database.transaction(action);
+      final result = await database.transaction(() async {
+        final result = await action();
+        await _fault(StorageFaultPoint.beforeCommit);
+        return result;
+      });
+      await _fault(StorageFaultPoint.afterCommit);
+      return result;
     });
     _queue = operation.then<void>(
       (_) {},
@@ -283,10 +298,12 @@ final class DriftProfileStore implements MatchCompletionService {
       totalXpAfter: before + award,
       rewardVersion: rewardVersion,
     );
+    await _fault(StorageFaultPoint.beforeMatch);
     await (database.update(database.matchRecords)
           ..where((m) => m.matchId.equals(record.start.matchId)))
         .write(_encode(record, receipt: receipt));
     await _fault(StorageFaultPoint.afterMatch);
+    await _fault(StorageFaultPoint.beforeXp);
     if (award > 0) {
       await database
           .into(database.xpEntries)

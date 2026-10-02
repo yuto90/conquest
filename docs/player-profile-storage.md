@@ -277,14 +277,21 @@ The checked-in worker and WASM come from the official Drift 2.35.0 release and
 are checked against `web/drift-assets.sha256`. Never edit generated Dart/schema
 fixtures or those assets by hand. Future schema changes must bump `schemaVersion`
 and provide a tested upgrade; unknown versions/tables/columns are refused without
-reset. `StorageFaultPoint` hooks inject failures inside the migration/finalization
-transactions for rollback/retry fixtures. Receipt snapshots, including zero XP,
+reset. `StorageFaultPoint` hooks inject failures at migration writes, before/after
+the match update and XP insert, and before commit for rollback/retry fixtures.
+`afterCommit` runs outside the transaction, modelling a durable success whose
+acknowledgment was lost. Retry reads the original receipt and cannot award XP
+again; committed migration metadata prevents legacy reimport after restart.
+These hooks are injected only by tests; production does not configure one.
+Receipt snapshots, including zero XP,
 are persisted on every terminal match. Reward version is the contract value `1`.
 
 Chrome unit tests cover writer exclusion, release/reacquisition, wrong MIME and
-missing assets. #133 additionally verifies durable browser reload, actual
-OPFS/IndexedDB selection, two-tab crash/restart behavior and device/UI workflows
-after #129 activates the production path.
+missing assets. Actual release-browser reload, OPFS/IndexedDB selection, two-tab
+crash/restart behavior and iPhone/iPad workflows require the parent session's
+UI validation after #133 integration; shell tests do not establish that evidence.
+See [issue 133 QA](qa/issue-133.md) for executed checks and pending device/browser
+acceptance checks.
 
 `Verify My Page` runs on every push to `feature/mypage` and PRs targeting
 `feature/mypage` or `main`, without path-based skips. It records the tested SHA,
@@ -293,7 +300,8 @@ format, generated-source diff, analyze, full tests and release Web build. It has
 read-only permissions and no deployment, audio downloads or secrets. Existing
 production workflows/security are unchanged. Push validation checks actual
 integration HEAD; final main PR checks the proposed merge. #133 additionally
-owns integrated iPhone/iPad/Web UI and storage failure/restart validation.
+records automated evidence; the parent owns integrated iPhone/iPad/Web UI and
+storage failure/restart validation.
 
 ## Reactive reads and history (#130)
 
@@ -332,14 +340,14 @@ battle HUD are unchanged. The two tabs use `MyPageTab.stats/history` and a share
 profile header; `initialTab: MyPageTab.history` is also supported.
 
 The history integration boundary is `MyPageHistoryTab(profileId: id)` in
-`lib/ui/my_page_destinations.dart`. Replace that body's explicit pending message
-in issue 132 with the history reader/filter UI. It is the inner scrollable of a
-`NestedScrollView` and should retain its `PageStorageKey` and filter state.
+`lib/ui/my_page_destinations.dart`. Issue 132 implements the history reader/filter
+UI as the inner scrollable of a `NestedScrollView`, retaining its
+`PageStorageKey` and filter state.
 `MyPageMatchDetailScreen.open(context, profileId: id, matchId: id)` pushes the
 `/my-page/match` route with both scoped IDs. Recent rows already call it using
-the persisted entry; replace its pending body with `matchDetailProvider` in
-issue 132. History filters and details are **not complete** in issue 131 and
-this integration branch must not be published before issue 132/133 verification.
+the persisted entry; its body reads `matchDetailProvider`. History filters and
+details are implemented in issue 132; final integration must pass issue 133
+verification and the parent's device/browser checks before publication.
 
 The editor writes only `ProfileEdit` through the existing repository, keeps
 failed drafts on screen, and confirms discarding unsaved changes. Avatar-only

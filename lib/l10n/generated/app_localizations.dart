@@ -1197,7 +1197,7 @@ abstract class AppLocalizations {
   /// The quit confirmation dialog explanation.
   ///
   /// In en, this message translates to:
-  /// **'Your current match will not be saved.'**
+  /// **'You cannot resume this match. Normal matches are recorded as abandoned if saving succeeds; spectator and practice sessions are not recorded.'**
   String get quitDescription;
 
   /// The cancel action.
@@ -1236,7 +1236,7 @@ abstract class AppLocalizations {
   /// **'Draw'**
   String get draw;
 
-  /// The heading for the non-persistent player match summary.
+  /// The heading for the player match summary.
   ///
   /// In en, this message translates to:
   /// **'Match Summary'**

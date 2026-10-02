@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:conquest/audio/bgm_player.dart';
 import 'package:conquest/game/game_controller.dart';
@@ -11,6 +12,8 @@ import 'package:conquest/profile/match_contracts.dart';
 import 'package:conquest/profile/match_persistence.dart';
 import 'package:conquest/profile/profile_read_providers.dart';
 import 'package:conquest/profile/profile_repository.dart';
+import 'package:conquest/profile/profile_database.dart' as db;
+import 'package:conquest/profile/storage_native.dart' as native;
 import 'package:conquest/rank_progression.dart';
 import 'package:conquest/ui/my_page.dart';
 import 'package:conquest/ui/my_page_destinations.dart';
@@ -22,6 +25,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/profile_fixture.dart';
+import 'support/profile_widget_io.dart';
+import 'match_persistence_controller_test.dart' show Harness;
 
 final class _RepositoryProbe implements PlayerProfileRepository {
   _RepositoryProbe(this.delegate);
@@ -103,7 +108,19 @@ final class _SilentBgm implements BgmPlayer {
   Future<void> dispose() async {}
 }
 
-Future<void> settle(WidgetTester tester) async {
+Future<void> settle(
+  WidgetTester tester, {
+  bool backgroundDatabase = false,
+}) async {
+  if (backgroundDatabase) {
+    for (var attempt = 0; attempt < 50; attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      if (find.byType(CircularProgressIndicator).evaluate().isEmpty) break;
+    }
+  }
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 30)),
   );
@@ -135,6 +152,7 @@ Future<ProviderContainer> mount(
   _RepositoryProbe? repository,
   Locale locale = const Locale('en'),
   double scale = 1,
+  bool backgroundDatabase = false,
 }) async {
   await tester.runAsync(fixture.ready);
   final container = ProviderContainer(
@@ -168,7 +186,7 @@ Future<ProviderContainer> mount(
             ),
     ),
   );
-  await settle(tester);
+  await settle(tester, backgroundDatabase: backgroundDatabase);
   return container;
 }
 
@@ -217,6 +235,119 @@ Future<MatchRecord> seedVictory(ProfileFixture fixture, int id) async {
 }
 
 void main() {
+  testWidgets(
+    'native opener restart restores controller receipts, profile and provider/UI totals',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 2200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final directory = (await tester.runAsync(
+        () => Directory.systemTemp.createTemp('conquest-ui-reopen-'),
+      ))!;
+      addTearDown(() => directory.delete(recursive: true));
+      final ids = FixtureIds();
+      late ProfileFixture reopened;
+      late String profileId;
+      late String matchId;
+      const summary = MatchSummary(
+        elapsedMs: 65000,
+        playerDispatchCount: 4,
+        playerDispatchedForces: 77,
+        playerCaptureCount: 3,
+      );
+      await tester.runAsync(() async {
+        final first = await native.openStorageConnection(
+          supportDirectory: directory,
+        );
+        final fixture = ProfileFixture(
+          database: db.ProfileDatabase(first.executor),
+          lease: first.lease,
+          ids: ids,
+          xp: 500,
+        );
+        await fixture.ready();
+        final harness = Harness(fixture);
+        harness.play();
+        harness.controller.state = harness.controller.state.copyWith(
+          matchSummary: summary,
+        );
+        matchId = harness.controller.currentMatchId!;
+        await harness.finish(const GameResult.victory(elapsedMs: 65000));
+        profileId = fixture.runtime.profile!.profileId;
+        await fixture.repository.editProfile(
+          profileId,
+          ProfileEdit(displayName: 'Restored captain', avatarKey: 'island_02'),
+        );
+        expect(harness.controller.state.result!.totalXpAfter, 2000);
+        harness.dispose();
+        await fixture.runtime.close();
+        final next = await native.openStorageConnection(
+          supportDirectory: directory,
+        );
+        reopened = ProfileFixture(
+          database: db.ProfileDatabase(next.executor),
+          lease: next.lease,
+          ids: ids,
+          xp: 999999,
+        );
+        await reopened.ready();
+        expect(reopened.runtime.profile!.profileId, profileId);
+        expect(reopened.legacy.reads, 0);
+        expect(
+          (await reopened.repository.loadMatch(
+            profileId,
+            matchId,
+          ))!.record.metrics,
+          MatchMetrics.fromSummary(summary),
+        );
+      });
+      final container = await mount(tester, reopened, backgroundDatabase: true);
+      expect(find.text('Restored captain'), findsOneWidget);
+      expect(find.text('Total XP: 2000'), findsOneWidget);
+      expect(find.text('100%'), findsWidgets);
+      expect(find.text('0:01:05'), findsWidgets);
+      await tester.runAsync(() async {
+        expect(
+          (await container.read(rankProgressProvider.future)).totalXp,
+          2000,
+        );
+        final stats = await container.read(
+          profileStatisticsProvider((
+            profileId: profileId,
+            filter: MatchHistoryFilter(),
+          )).future,
+        );
+        expect(stats.wins, 1);
+        expect(stats.elapsedMs, 65000);
+        expect(stats.dispatchCount, 4);
+        expect(stats.forcesSent, 77);
+        expect(stats.captures, 3);
+        expect(
+          (await container.read(
+            playerProfileProvider(profileId).future,
+          )).displayName,
+          'Restored captain',
+        );
+      });
+      await reveal(tester, find.byType(MyPageRecentMatchRow));
+      final row = tester.widget<MyPageRecentMatchRow>(
+        find.byType(MyPageRecentMatchRow),
+      );
+      expect(row.entry.record.start.matchId, matchId);
+      expect(row.entry.xpAwarded, 1500);
+      await tester.tap(find.byType(MyPageRecentMatchRow));
+      await settle(tester, backgroundDatabase: true);
+      expect(find.byType(MyPageMatchDetailScreen), findsOneWidget);
+      expect(find.text('77'), findsOneWidget);
+      expect(find.text('1,500'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+      await tester.pump(const Duration(milliseconds: 1));
+      await runProfileIo(tester, reopened.runtime.close);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets(
     'profile initialization is loading until repository data arrives',
     (tester) async {
