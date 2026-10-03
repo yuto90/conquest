@@ -1,0 +1,95 @@
+{
+  "environment": {
+    "os": "macos",
+    "mode": "flutter test debug / offscreen",
+    "sample_pixels": 192,
+    "logical_dp": 64,
+    "dpr": 3,
+    "scope": "eight representatives only; not release frame profiling"
+  },
+  "assets": {
+    "individual": {
+      "eight_png_bytes": 91279,
+      "eight_gzip_bytes": 90299,
+      "per_rank_png_bytes": {
+        "0": 9784,
+        "1": 8964,
+        "46": 13486,
+        "51": 8030,
+        "76": 7776,
+        "91": 13277,
+        "100": 13336,
+        "140": 16626
+      }
+    },
+    "geometry": {
+      "eight_png_bytes": 60560,
+      "eight_gzip_bytes": 59496,
+      "per_rank_png_bytes": {
+        "0": 7241,
+        "1": 6421,
+        "46": 10804,
+        "51": 5495,
+        "76": 5224,
+        "91": 7519,
+        "100": 7523,
+        "140": 10333
+      }
+    },
+    "composite": {
+      "eight_png_bytes": 69524,
+      "eight_gzip_bytes": 68249,
+      "per_rank_png_bytes": {
+        "0": 7241,
+        "1": 6421,
+        "46": 10804,
+        "51": 5495,
+        "76": 5224,
+        "91": 10723,
+        "100": 10791,
+        "140": 12825
+      }
+    }
+  },
+  "crest_png_bytes": 9310,
+  "crest_gzip_bytes": 9218,
+  "decoded_rgba_bytes_per_192px_image": 147456,
+  "decoded_rgba_bytes_eight_images": 1179648,
+  "decoded_rgba_bytes_141_images_if_all_loaded": 20791296,
+  "timings": {
+    "individual": {
+      "record_1000_samples_us": {
+        "median": 2,
+        "p95": 3
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 42,
+        "p95": 118
+      }
+    },
+    "geometry": {
+      "record_1000_samples_us": {
+        "median": 9,
+        "p95": 19
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 82,
+        "p95": 177
+      }
+    },
+    "composite": {
+      "record_1000_samples_us": {
+        "median": 6,
+        "p95": 16
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 186,
+        "p95": 256
+      }
+    }
+  },
+  "png_decode_30_samples_us": {
+    "median": 293,
+    "p95": 454
+  }
+}
