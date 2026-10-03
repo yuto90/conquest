@@ -17,6 +17,7 @@ concurrency:
 jobs:
   build:
     name: Build Flutter web and deploy to Vercel
+    if: github.event_name != 'pull_request' || github.base_ref != 'feature/mypage'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment:

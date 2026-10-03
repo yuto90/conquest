@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'profile/match_persistence.dart';
 
 import 'game/game_state.dart';
 import 'l10n/generated/app_localizations.dart';
@@ -478,140 +478,20 @@ int victoryXpFor(CpuDifficulty difficulty) => switch (difficulty) {
   CpuDifficulty.hard => 3000,
 };
 
-abstract interface class RankProgressStore {
-  Future<int?> loadTotalXp();
-  Future<void> saveTotalXp(int totalXp);
-}
-
-final class SharedPreferencesRankProgressStore implements RankProgressStore {
-  SharedPreferencesRankProgressStore({Future<SharedPreferences>? preferences})
-    : _preferences = preferences ?? SharedPreferences.getInstance();
-
-  static const storageKey = 'conquest.rank.totalXp';
-
-  final Future<SharedPreferences> _preferences;
-
-  @override
-  Future<int?> loadTotalXp() async {
-    final preferences = await _preferences;
-    return preferences.getInt(storageKey);
+/// Rank reads are ledger-derived; only match finalization can award XP.
+final rankProgressProvider = StreamProvider<RankProgress>((ref) async* {
+  final persistence = ref.watch(matchPersistenceProvider);
+  ref.watch(
+    profilePersistenceStateProvider.select(
+      (_) => persistence?.profile?.profileId,
+    ),
+  );
+  if (persistence == null) {
+    yield RankProgress.zero;
+    return;
   }
-
-  @override
-  Future<void> saveTotalXp(int totalXp) async {
-    final preferences = await _preferences;
-    final saved = await preferences.setInt(storageKey, totalXp);
-    if (!saved) {
-      throw StateError('Unable to save rank XP');
-    }
-  }
-}
-
-/// The local rank account. Mutations are serialized behind the load and each
-/// match id can be awarded at most once.
-final class RankProgressManager {
-  RankProgressManager({required this.store});
-
-  final RankProgressStore store;
-
-  Future<RankProgress>? _loadFuture;
-  Future<void> _mutationQueue = Future<void>.value();
-  RankProgress? _current;
-  final Set<String> _awardedMatchIds = <String>{};
-
-  Object? storageError;
-
-  RankProgress get current => _current ?? RankProgress.zero;
-
-  Future<RankProgress> load() {
-    final current = _current;
-    if (current != null) return Future<RankProgress>.value(current);
-    final existing = _loadFuture;
-    if (existing != null) return existing;
-    final future = _loadFromStorage();
-    _loadFuture = future;
-    return future;
-  }
-
-  Future<RankProgress> _loadFromStorage() async {
-    try {
-      final storedXp = await store.loadTotalXp();
-      _current = RankProgress.fromTotalXp(storedXp ?? 0);
-      storageError = null;
-    } catch (error) {
-      storageError = error;
-      _current = RankProgress.zero;
-    }
-    return _current!;
-  }
-
-  Future<RankAward> recordVictory({
-    required String matchId,
-    required CpuDifficulty difficulty,
-  }) {
-    late final Future<RankAward> operation;
-    operation = _mutationQueue.then((_) async {
-      final before = await load();
-      if (_awardedMatchIds.contains(matchId)) {
-        return RankAward.none(before);
-      }
-
-      final after = RankProgress.fromTotalXp(
-        before.totalXp + victoryXpFor(difficulty),
-      );
-      try {
-        await store.saveTotalXp(after.totalXp);
-      } catch (error) {
-        storageError = error;
-        rethrow;
-      }
-      storageError = null;
-      _current = after;
-      _awardedMatchIds.add(matchId);
-      return RankAward(
-        before: before,
-        after: after,
-        xpAwarded: victoryXpFor(difficulty),
-      );
-    });
-    _mutationQueue = operation.then<void>(
-      (_) {},
-      onError: (Object _, StackTrace __) {},
-    );
-    return operation;
-  }
-}
-
-final rankProgressStoreProvider = Provider<RankProgressStore>(
-  (ref) => SharedPreferencesRankProgressStore(),
-);
-
-final rankProgressProvider =
-    AsyncNotifierProvider<RankProgressNotifier, RankProgress>(
-      RankProgressNotifier.new,
-    );
-
-final class RankProgressNotifier extends AsyncNotifier<RankProgress> {
-  late RankProgressManager _manager;
-
-  @override
-  Future<RankProgress> build() async {
-    _manager = RankProgressManager(store: ref.read(rankProgressStoreProvider));
-    return _manager.load();
-  }
-
-  Object? get storageError => _manager.storageError;
-
-  Future<RankAward> recordVictory({
-    required String matchId,
-    required CpuDifficulty difficulty,
-  }) async {
-    await future;
-    final award = await _manager.recordVictory(
-      matchId: matchId,
-      difficulty: difficulty,
-    );
-    state = AsyncData(award.after);
-    return award;
-  }
-}
+  await persistence.initialize();
+  yield* persistence.backend!
+      .watchTotalXp(persistence.profile!.profileId)
+      .map(RankProgress.fromTotalXp);
+}, retry: (_, _) => null);

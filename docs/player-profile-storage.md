@@ -1,0 +1,420 @@
+# Player profile and match storage contracts
+
+This document is the shared boundary for issues #127–#133 of
+[#126](https://github.com/yuto90/conquest/issues/126). The integration branch
+`feature/mypage` was created once from `main` at
+`7961d67aefd31c09164f287c7a3751b996e6f758`. Subissue PRs target that branch;
+only the parent owns the final integration PR to `main`.
+
+## Ownership and identity
+
+- `GameConfiguration`, `GameResult` and `MatchSummary` remain the game truth.
+  `lib/profile/` contains immutable snapshots and interfaces, not a second
+  game engine. No DB, migration activation or controller wiring occurs in #127.
+- `profile_id`: UUID identifying a durable local storage scope. Generate with
+  an injected `UuidGenerator` only when creating a new profile; persist it and
+  reuse it after restart. Display name, avatar and rank are not identity.
+- `match_id`: UUID identifying one actual playable match. REMATCH and NEW MAP
+  both create new IDs, even with identical settings/board. Never persist the
+  controller's existing process-local `match-N` as a key.
+- `execution_id`: UUID generated once by the root-owned `MatchContextFactory`
+  per application execution, not per controller, screen or match. It identifies
+  a writer for recovery and Web ownership. It is not a profile or auth account.
+- `user_id`: future authentication subject, distinct from all three IDs. A
+  future account can bind multiple profiles. No auth/cloud SDK, service
+  credentials, cloud synchronization or login UI is introduced in this work.
+- UUIDs are canonical lowercase text, never array indexes, localized names or
+  timestamps. `SecureUuidGenerator` emits UUID v4 using `Random.secure`.
+  UUID/UTC clock interfaces can be replaced by deterministic test values.
+
+## Eligible sessions
+
+Eligibility requires **explicit** `SessionOrigin.gameplay`, `SessionKind.normal`
+and `GameMode.playerVsCpu`, with a supported normal island count. Difficulty or
+island count alone cannot establish origin. `newMatch` returns null for excluded
+sessions; `MatchRecord` rejects excluded contexts as a second boundary.
+
+| Source / final state | History | Completed metrics / win rate | XP |
+| --- | --- | --- | --- |
+| Normal victory | completed / win | Included | Existing victory reward, once |
+| Normal defeat | completed / loss | Included | 0 |
+| Normal draw | completed / draw | Included | 0 |
+| REMATCH / NEW MAP | New UUID, same rules | Included upon completion | Once per new match |
+| Explicit quit after playing starts | abandoned, outcome null | Excluded; separate count | 0 |
+| Previous dead execution's unfinished match | interrupted, outcome null | Excluded; separate count | 0 |
+| Countdown cancellation before first playing | No row / no match context | Excluded | 0 |
+| Spectator, including normal island counts | No row | Excluded | 0 |
+| Practice, including a future normal-sized lesson | No row | Excluded | 0 |
+| Preview, CPU forecast, synthetic test sessions | No row | Excluded | 0 |
+| Future daily session | Reserved `daily`, currently excluded | Separate policy in #113 | Separate policy |
+
+Tests of normal persistence explicitly use gameplay origin; synthetic engine
+simulations use test/preview/forecast origin and cannot accidentally write.
+
+## Start, terminal state and retry boundary
+
+```text
+first playing boundary -> retain one MatchStartContext -> in_progress
+  -> completed (known result, end time and all metrics)
+  -> abandoned (known quit time and current summary; no outcome)
+  -> interrupted (recovery time only; end time/metrics/outcome unknown)
+```
+
+#129 calls `newMatch` once at the first playing boundary (after countdown),
+retains its context and sends `recordStart`. Pause/resume, provider rebuild,
+rotation and notification reuse that object. Never create another UUID in
+`Widget.build`, a result listener or a retry. Each new rematch/new map calls the
+factory again. Controller lifetime must not determine the persistent identity.
+
+Freeze `MatchCompletion.fromGame` once at result determination, using the same
+context and original end time. It copies the existing summary, requires exact
+agreement with `GameResult.elapsedMs`, and validates player win/loss/draw.
+It deliberately ignores result-screen XP/rank enrichment: receipt rendering
+must not create a different completion or trigger another award.
+
+`MatchCompletionService` is the root write boundary. #128/#129 implement:
+
+1. Serialize profile initialization/migration and subsequent mutations.
+2. In a DB transaction, locate the start by `match_id` and require identical
+   immutable start fields (including profile, execution, origin and versions).
+   Same start is idempotent; different contents conflict. A delayed identical
+   start cannot revert a terminal record.
+3. Only `in_progress` can enter a terminal state. An already finalized identical
+   DTO returns the **original** `MatchCommitReceipt`, including original XP
+   before/after, even if other matches have changed current XP. Use
+   `requireSameFinalization` inside the transaction; different content throws
+   `MatchCommitConflict`. Completed vs abandoned/interrupted also conflicts.
+4. Final record plus eligible XP entry commit atomically. Return a receipt only
+   after durable commit; throw on failure, never report an in-memory success.
+   Zero-XP terminal receipts still preserve their original XP snapshots.
+5. Keep failed frozen DTOs in a root queue during this application execution;
+   retry the same DTO/end timestamp. Screen disposal does not cancel valid old
+   saves. Apply a delayed receipt to UI only if its match ID is still current.
+   Unsaved data can be lost on forced process termination.
+
+Recovery requires exclusive writer ownership and proof that the **specified old**
+execution is dead. Do not recover on ordinary backgrounding or recover another
+live Web tab. #128 implements persistent Web owner locking; #129 wires cold
+start recovery. No interrupted board is resumed. `recovered_at_utc` describes
+discovery, not the unknown match end.
+
+## Metrics and NULL semantics (metrics version 1)
+
+| Persistent value | Existing source / meaning |
+| --- | --- |
+| `elapsed_ms` | `GameResult.elapsedMs` = frozen `MatchSummary.elapsedMs`; game time only |
+| `dispatch_count` | `playerDispatchCount`: established positive player dispatches, including allied reinforcements |
+| `forces_sent` | `playerDispatchedForces`: sum of forces on those established dispatches |
+| `captures` | `playerCaptureCount`: neutral/CPU -> player ownership transitions, including recaptures |
+
+Selections, refused commands, same-owner attacks, equal-force attacks without
+ownership change, CPU actions and forecasts are not additional counters.
+Concurrent arrivals already counted by the engine are copied once. Persistence
+and UI never independently recount events.
+
+All known counts, elapsed milliseconds and XP values must be non-negative.
+Validation is runtime validation, including release builds; asserts alone are
+insufficient. Known zero is distinct from unknown null. In-progress and recovered
+interrupted rows have null metrics. Abandoned rows retain the known summary but
+are excluded from completed aggregates. Completed rows require every metric.
+
+UTC timestamps normalize to UTC at millisecond precision and persist as integer
+epoch milliseconds; reconstruction cannot change idempotency equality.
+They are display/order data; **never subtract them to obtain match duration**.
+A clock adjustment may make end time earlier than start; that is allowed and
+does not modify game elapsed time. Missing end times are not replaced by recovery
+time or zero. `stats_started_at_utc` is recording activation, not an invented
+installation date.
+
+## Read contracts and UI boundary
+
+`PlayerProfileRepository` exposes profile/XP/statistics subscriptions, editing,
+difficulty aggregates, fastest conditioned victory, bounded history and detail.
+Riverpod adapters in #130 inject this interface; Widgets cannot use SQL or
+SharedPreferences. Failures throw or emit stream errors, not empty data.
+
+- Completed = wins + losses + draws. Win rate = wins/completed, undefined/null
+  for zero completed matches (render `—`). Abandoned/interrupted are separate.
+  Actions and total time sum **completed only**; label time as completed-match
+  time, not total application play time.
+- Fastest victory is MIN(elapsed_ms) for exact difficulty **and** island count;
+  no qualifying win returns null, including legacy-XP-only profiles.
+- Current XP comes from the ledger; rank and progress use existing `RankCatalog`.
+  Do not persist another authoritative total, win rate or rank in `profiles`.
+  Do not join XP rows in a way that multiplies match counts.
+- History order is `(started_at_utc DESC, match_id DESC)`. Use strict keyset
+  `(time < cursor.time OR time = cursor.time AND id < cursor.id)`. Fetch at most
+  limit+1 to determine continuation, never load all history in UI. Default page
+  20, recent 5, valid requested limits 1–100. Cursor stores profile/filter scope;
+  `requireScope` rejects cross-query reuse. Changing filters resets cursor.
+- Detail always scopes both profile and match IDs. It returns the stored
+  configuration/metrics/XP, not the current controller state. Unknown metrics
+  remain null and render `—`. History entries/pages are immutable.
+- Profile edits contain only display name/avatar, never XP/history/identity.
+  Repositories validate trimmed 1–20 graphemes, no control characters, and
+  bundled avatar keys before saving. Null name is the unset default, localized
+  by UI; unknown stored avatar keys render a generic icon. UI preserves pending
+  edits on failure. Full edit validation/UI belongs to #130/#131.
+
+#131 owns the common profile header and two tabs (STATS/HISTORY); #132 supplies
+the history tab and detail route using the same repository/filter/cursor contract.
+Opening/returning preserves configuration and the generated board. Loading,
+empty, filtered-empty, additional-page failure and storage failure are distinct.
+
+## Storage and versions for downstream implementation
+
+#128 creates `profiles`, `match_records`, `xp_entries`, `storage_meta` with foreign
+keys on every connection, profile-consistent XP, runtime/SQL constraints matching
+these DTOs and indexes for history and aggregation. Preserve stable enum storage
+keys supplied here, never `.index` or translated labels. `origin` is eligibility
+provenance retained in the start context; only approved normal gameplay is
+persisted in this initial schema.
+
+- `schemaVersion`: Drift schema compatibility, owned by #128 migrations.
+- `app_version`: actual application build/version for diagnostics.
+- `rules_version`: explicit engine rules revision, initial `1`; update when
+  gameplay semantics change, independently of the app or DB schema version.
+- `metrics_version`: initial `1` above. Historical meanings are not silently
+  reinterpreted; future changes need an explicit compatibility policy.
+- `reward_version`: initial `1`, representing existing victory rewards
+  Very Easy=500, Easy=1000, Normal=1500, Hard=3000. #129 reuses `victoryXpFor`
+  and `RankCatalog`; it removes the independent `recordVictory` path when
+  enabling DB writes. Result XP is receipt output, not completion input.
+- Future award `catalog_version`: separate from all the above.
+
+XP ledger uses unique `(match_id, reason)` for victory rewards. Legacy import has
+an independently stable unique entry ID (do not rely on nullable UNIQUE match
+IDs), and the imported value is not a past match. Profile creation, import and
+marker commit together. Keep the old SharedPreferences key read-only after
+cutover; never invent wins from it or discard above-max-rank XP. Invalid values
+and read errors cannot become successful zero imports. #128 provides migration
+parts only; activation is atomic with #129's XP write switch. Unknown/corrupt DB
+must not be deleted or silently replaced by memory storage.
+
+## Shared boundaries with #124 / #125
+
+#124 is rank badge presentation only. My Page works with existing localized rank
+text plus a generic icon until a shared badge exists; badge artwork is not a
+storage key, metric, XP source or prerequisite for this feature.
+
+#125 consumes the **same stable ID, frozen start and completion** for awards.
+It must reuse these counters, capture eligible assignments at start when its
+catalog is introduced, and join the same durable finalization boundary. The
+earlier separate SharedPreferences award-profile proposal must not become a
+second authoritative match/XP write path. Award evaluation/catalog migrations
+are separate work; no ribbons, medals, extra XP or award tables are added here.
+Any future award persistence needs atomic consistency with finalization, stable
+IDs and an explicit catalog version, including repeat-notification handling.
+
+## Verification
+
+### Activated controller boundary (#129)
+
+`main` injects one `MatchPersistence` through `matchPersistenceProvider` above
+all game routes. It owns one `DurableProfileBackend` and execution UUID, eager
+initialization/recovery, and immutable pending match snapshots. Consumers watch
+`profilePersistenceStateProvider` for save/initialization changes. Current rank
+uses `rankProgressProvider`, a ledger stream, never SharedPreferences writes.
+
+`begin` is called only on the controller's first playing transition. `finish`
+and explicit paused-match `abandon` capture the end time once. `retry` resubmits
+the original snapshot, even after its result/controller has been disposed.
+`saveFor(matchId)` returns saving/unsaved/saved state; a terminal match is saved
+only with a durable receipt. Delayed receipts enrich only the current result.
+The coordinator retains at most eight saved receipts (including the current
+match), never evicting in-progress or failed DTOs. Older saved matches are read
+from the durable repository, not the in-memory save-state cache.
+
+Initialization holds the exclusive platform lease before `initializeAndRecover`
+atomically imports legacy XP, updates the execution owner and recovers the prior
+execution. Repeated initialization never interrupts the current execution.
+`StorageAlreadyOwned` blocks normal starts and tells the user to use the first
+tab or close it before retrying; other failures keep gameplay/navigation usable
+with explicit unsaved/retry UI. No fallback DB or zero-XP import is created.
+The queue is application-memory only: forced termination can lose unsaved DTOs.
+
+App version/build comes from platform package metadata; unavailable metadata is
+recorded as `unknown` without blocking startup. Rules/metrics/reward remain `1`.
+Controller/SQLite regressions are in `test/match_persistence_controller_test.dart`;
+the existing rank widget tests now use the same real DB boundary.
+
+### Durable storage foundation (#128)
+
+`ProfileStorage.open(executionId: ...)` owns a platform executor and exclusive
+writer lease. It opens and checks schema version 1, table/column identities,
+SQLite integrity and foreign keys; it does **not** initialize a profile or read
+legacy XP. Close the root-owned storage only after its queued saves finish.
+
+`storage.store.initialize(SharedPreferencesLegacyXpSource())` is the explicit
+cutover component for #129. It creates the profile, `legacy:<profileId>` ledger
+entry and migration marker in one transaction. `null` and zero import zero;
+invalid values/read failures roll back and stay retryable. Repeated initialization
+never reads/reimports the source. The old key is never written or removed.
+Read `storage_meta.execution_id` before initialization if needed for recovery:
+initialization records the current owner. An exclusive lease is required before
+recovering a specified old execution; the current execution cannot be recovered.
+
+Native uses an isolated SQLite executor in Application Support and an exclusive
+lock file. Web uses the non-stealing `conquest_profile_writer_v1` Web Lock before
+opening `conquest_profile`; in-memory and unsafe IndexedDB implementations throw.
+Asset preflight rejects missing files, SPA HTML fallbacks and wrong MIME. The
+WASM/worker URLs resolve relative to the document base URI. Serve the headers in
+`vercel.json` (or their equivalent on another host); never remove the writer lock
+to make an unsupported browser work. Database errors preserve the original file.
+
+Reproduce assets/schema sources from the repository root:
+
+```bash
+bash script/fetch_drift_web_assets.sh
+fvm dart run build_runner build --delete-conflicting-outputs
+fvm dart run drift_dev make-migrations
+fvm dart run drift_dev schema generate drift_schemas/profile test/drift/profile/generated
+fvm flutter test test/profile_storage_test.dart --reporter expanded
+fvm flutter test --platform chrome test/profile_storage.browser.dart --reporter expanded
+```
+
+The checked-in worker and WASM come from the official Drift 2.35.0 release and
+are checked against `web/drift-assets.sha256`. Never edit generated Dart/schema
+fixtures or those assets by hand. Future schema changes must bump `schemaVersion`
+and provide a tested upgrade; unknown versions/tables/columns are refused without
+reset. `StorageFaultPoint` hooks inject failures at migration writes, before/after
+the match update and XP insert, and before commit for rollback/retry fixtures.
+`afterCommit` runs outside the transaction, modelling a durable success whose
+acknowledgment was lost. Retry reads the original receipt and cannot award XP
+again; committed migration metadata prevents legacy reimport after restart.
+These hooks are injected only by tests; production does not configure one.
+Receipt snapshots, including zero XP,
+are persisted on every terminal match. Reward version is the contract value `1`.
+
+Chrome unit tests cover writer exclusion, release/reacquisition, wrong MIME and
+missing assets. Actual release-browser reload, OPFS/IndexedDB selection, two-tab
+crash/restart behavior and iPhone/iPad workflows require the parent session's
+UI validation after #133 integration; shell tests do not establish that evidence.
+See [issue 133 QA](qa/issue-133.md) for executed checks and pending device/browser
+acceptance checks.
+
+`Verify My Page` runs on every push to `feature/mypage` and PRs targeting
+`feature/mypage` or `main`, without path-based skips. It records the tested SHA,
+uses FVM 3.2.1/Flutter 3.44.8, runs build_runner (Riverpod now, Drift later), l10n,
+format, generated-source diff, analyze, full tests and release Web build. It has
+read-only permissions and no deployment, audio downloads or secrets. Existing
+production workflows/security are unchanged. Push validation checks actual
+integration HEAD; final main PR checks the proposed merge. #133 additionally
+records automated evidence; the parent owns integrated iPhone/iPad/Web UI and
+storage failure/restart validation.
+
+## Reactive reads and history (#130)
+
+`DurableProfileBackend.repository` uses its existing `DriftProfileStore`;
+`playerProfileRepositoryProvider` resolves that same root-injected backend.
+Never open another storage connection for a screen. Repository/provider errors
+remain errors, including initialization failure; retry the root through
+`profilePersistenceStateProvider` and the readers reconnect on success.
+`activeProfileIdProvider` exposes the recovered profile ID.
+
+`playerProfileProvider(profileId)`, `profileStatisticsProvider(ProfileQuery)`,
+`difficultyStatisticsProvider(profileId)` and `recentMatchesProvider(profileId)`
+stream committed database changes. Save with `repository.editProfile`; validation
+and serialization stay in the store. `fastestVictoryProvider` reacts to matches
+and queries the exact difficulty/island count. `matchDetailProvider` loads a
+profile/match pair once; invalidate it to retry or explicitly reload the detail.
+XP/rank still come from the existing ledger-backed `rankProgressProvider`.
+
+All history/statistics reads require `profile_id`, exclude in-progress rows and
+default to normal sessions. A `MatchHistoryFilter` combines session kind,
+difficulty, island count, terminal status and outcome with AND. Outcome implies
+completed status. `winRate` is win/(win+loss+draw), or null when the denominator
+is zero. Abandoned/interrupted counts are separate; only completed rows contribute
+elapsed/action totals. Empty completed totals are zero, but any unknown completed
+metric makes that aggregate null (known partial sums are not presented as totals).
+Unknown timestamps/counters in details remain null. History XP uses a correlated
+ledger SUM scoped to both profile and match, so XP entries cannot multiply matches;
+legacy XP never manufactures matches.
+
+### My Page screen and issue 132 destinations
+
+Match setup exposes `MyPageScreen.open(context, initialTab: MyPageTab.stats)`
+beside the existing rank card. Pushing a route preserves the configuration,
+generated map and root audio/persistence owner. The title's hidden actions and
+battle HUD are unchanged. The two tabs use `MyPageTab.stats/history` and a shared
+profile header; `initialTab: MyPageTab.history` is also supported.
+
+The history integration boundary is `MyPageHistoryTab(profileId: id)` in
+`lib/ui/my_page_destinations.dart`. Issue 132 implements the history reader/filter
+UI as the inner scrollable of a `NestedScrollView`, retaining its
+`PageStorageKey` and filter state.
+`MyPageMatchDetailScreen.open(context, profileId: id, matchId: id)` pushes the
+`/my-page/match` route with both scoped IDs. Recent rows already call it using
+the persisted entry; its body reads `matchDetailProvider`. History filters and
+details are implemented in issue 132; final integration must pass issue 133
+verification and the parent's device/browser checks before publication.
+
+The editor writes only `ProfileEdit` through the existing repository, keeps
+failed drafts on screen, and confirms discarding unsaved changes. Avatar-only
+edits retain an unset name as null; localized default names are never saved.
+Names entered by users are trimmed, checked as 1–20 graphemes and reject control
+characters. `ProfileAvatars` is a storage-independent bundled asset catalog;
+unknown keys/assets use a generic icon. Read failures show a retry state rather
+than zero statistics. Completed action/time totals, non-completed counts,
+nullable win rate/fastest time, legacy XP and live ledger-derived rank remain
+repository-defined. Root queued match failures remain visible in My Page.
+
+### Cursor and refresh contract for screens
+
+Watch `matchHistoryProvider((profileId: id, filter: filter))` and call its notifier's
+`loadMore()` for another 20 records. The SQL orders by
+`started_at_utc DESC, match_id DESC` and uses a strict tuple cursor, never OFFSET.
+Each query returns at most 21 rows (20 plus a successor check); recent returns five.
+Cursors carry their profile/filter scope and mismatched reuse throws. Detail rows
+share the history decoder and ledger projection.
+
+This is a live keyset traversal, not a database snapshot: rows newer than the
+current cursor appear on refresh; an insertion behind it can appear on a later
+page. Equal timestamps and a clock moving backwards are resolved by match ID.
+`refresh()` discards loaded pages/cursor and starts at the head. Changing profile
+or filter selects another provider family. Generations/disposal reject pending
+appends from earlier refreshes/scopes; concurrent load-more calls are ignored.
+An append failure retains rows/cursor and exposes `loadMoreError` for retry.
+Initial load/refresh failures are AsyncError, distinct from successful empty data.
+The repository has no history cache; the screen state grows only with pages the
+user requests and releases them on refresh/disposal.
+
+History uses `Notifier<AsyncValue<MatchHistoryState>>` so loading/error states
+contain no retained pages, including dependency/external invalidation. Await
+`ref.read(matchHistoryProvider(query).notifier).firstPage` when a first-page
+future is needed; the provider itself has no `.future` modifier. Manual refresh
+keeps an already pending first-page future waiting for the new generation's
+actual result. Disposal/dependency rebuild cancels pending callers with an error;
+get the current notifier's `firstPage` to await a rebuilt reader. An active first
+query keeps the reader alive until it finishes; widgets should watch the provider
+for subsequent pagination/loading/error state, not use `firstPage` as a live feed.
+
+### Measured native SQLite reads
+
+`fvm flutter test test/profile_repository_test.dart --reporter expanded` records
+actual SQL plans, median/p95 microseconds and process RSS for 10,000 persisted
+normal loss records split across two difficulties. The native in-memory executor
+is real SQLite, not a repository mock. A passing run on 2026-10-02 used macOS
+Darwin 25.5.0 arm64, Flutter 3.44.8/Dart 3.12.2, Drift 2.35.0 and SQLite 3.53.4;
+each read had 25 timed samples including assertions/result decoding.
+
+| Read | Median us | p95 us | SQL result rows | Plan |
+| --- | ---: | ---: | ---: | --- |
+| First page | 386 | 660 | 21 | match_history(profile_id) |
+| Next page | 282 | 399 | 21 | match_history(profile_id, tuple cursor) |
+| Deep page | 416 | 1685 | 21 | match_history(profile_id, tuple cursor) |
+| Combined filter | 305 | 649 | 21 | match_history(profile_id) |
+| Statistics | 3316 | 4777 | 1 | match_execution(profile_id) |
+| Difficulty groups | 4974 | 7576 | 2 | match_execution(profile_id), temporary GROUP BY B-tree |
+| Recent five | 251 | 469 | 5 | match_history(profile_id) |
+| Detail | 80 | 169 | 1 | unique match_id/profile_id index |
+| Fastest (no wins) | 702 | 867 | 1 | match_statistics(profile_id, status, session_kind, difficulty, island_count) |
+
+History/detail plans also show a correlated scalar subquery using the XP match
+index. Aggregates scan the scoped records inside SQL without loading them into
+Dart; these timings do not imply constant aggregate cost. RSS bytes were
+200,605,696 before seeding, 227,426,304 afterwards and 229,785,600 after measured
+reads. RSS includes the test VM, database and allocator; it is not retained UI
+heap or a memory budget. The test additionally traverses every ID exactly once
+in bounded pages. These are reproducible observations, not device/Web speed
+guarantees or timing thresholds.

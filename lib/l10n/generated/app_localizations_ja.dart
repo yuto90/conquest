@@ -9,6 +9,207 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get myPageAll => 'すべて';
+
+  @override
+  String get myPageResult => '勝敗・終了状態';
+
+  @override
+  String get myPageIslandCount => '島数';
+
+  @override
+  String get myPageClearFilters => '絞り込みを解除';
+
+  @override
+  String get myPageRefresh => '更新';
+
+  @override
+  String get myPageNoMatchingMatches => '条件に該当する試合はありません。';
+
+  @override
+  String get myPageLoadingMore => '追加の試合を読込み中…';
+
+  @override
+  String get myPageLoadMore => 'さらに20件読込む';
+
+  @override
+  String get myPageLoadMoreError => '追加の試合を読込めませんでした。表示済みの記録は保持されています。';
+
+  @override
+  String get myPageMatchMissing => 'このプロフィールに試合が見つかりません。';
+
+  @override
+  String get myPageUnknown => '不明';
+
+  @override
+  String get myPageStartedAt => '開始日時（現地時間）';
+
+  @override
+  String get myPageEndedAt => '終了日時（現地時間）';
+
+  @override
+  String get myPageRecoveredAt => '中断の検出日時（現地時間）';
+
+  @override
+  String get myPageMatchTime => 'ゲーム内時間（時:分:秒）';
+
+  @override
+  String get myPageXpAwarded => 'この試合の獲得XP';
+
+  @override
+  String get myPageAppVersion => 'アプリバージョン';
+
+  @override
+  String get myPageRulesVersion => 'ルールバージョン';
+
+  @override
+  String get myPageMetricsVersion => '集計バージョン';
+
+  @override
+  String get myPageMetricDefinitions =>
+      '出兵回数には味方への増援を含みます。派遣兵力は出兵時の兵数です。占領回数には再占領を含み、現在の所有島数とは異なります。ゲーム内時間にはカウントダウンと一時停止を含みません。XPはこの試合に保存された付与額です。';
+
+  @override
+  String get myPageTitle => 'マイページ / PROFILE';
+
+  @override
+  String get myPageStats => '戦績';
+
+  @override
+  String get myPageHistory => '履歴';
+
+  @override
+  String get myPageDefaultName => '司令官';
+
+  @override
+  String get myPageEdit => 'プロフィール編集';
+
+  @override
+  String get myPageLocalDevice => 'この端末に保存。クラウド同期は行いません。';
+
+  @override
+  String get myPageProfileSaved => 'プロフィールをこの端末に保存しました。';
+
+  @override
+  String get myPageLoading => '保存データを読み込み中…';
+
+  @override
+  String get myPageReadError => '保存データを読み込めませんでした。記録は削除していません。';
+
+  @override
+  String get myPageRetry => '再試行';
+
+  @override
+  String get myPageName => '表示名';
+
+  @override
+  String get myPageNameHint => '前後の空白を除き1〜20文字。既定名を使う場合は未入力のままにしてください。';
+
+  @override
+  String get myPageInvalidName => '制御文字を含まない1〜20文字で入力してください。';
+
+  @override
+  String get myPageAvatar => 'プロフィールアイコン';
+
+  @override
+  String get myPageSave => '保存';
+
+  @override
+  String get myPageSaving => 'プロフィールを保存中…';
+
+  @override
+  String get myPageSaveError => '未保存です。編集内容を保持しています。保存を再試行してください。';
+
+  @override
+  String get myPageUnsavedChanges => '未保存の変更があります';
+
+  @override
+  String get myPageDiscardTitle => '編集内容を破棄しますか？';
+
+  @override
+  String get myPageKeepEditing => '編集を続ける';
+
+  @override
+  String get myPageDiscard => '破棄';
+
+  @override
+  String get myPageCompleted => '完了試合数';
+
+  @override
+  String get myPageWins => '勝利';
+
+  @override
+  String get myPageLosses => '敗北';
+
+  @override
+  String get myPageDraws => '引分';
+
+  @override
+  String get myPageWinRate => '勝率';
+
+  @override
+  String get myPageCompletedTime => '完了試合の累計時間（時:分:秒）';
+
+  @override
+  String get myPageDispatches => '出兵回数';
+
+  @override
+  String get myPageForces => '派遣兵力';
+
+  @override
+  String get myPageCaptures => '占領回数';
+
+  @override
+  String get myPageAbandoned => '途中終了';
+
+  @override
+  String get myPageInterrupted => '結果不明';
+
+  @override
+  String get myPageInProgress => '対戦中';
+
+  @override
+  String get myPageNoCompleted => '記録された完了試合はまだありません。';
+
+  @override
+  String get myPageByDifficulty => '難易度別戦績';
+
+  @override
+  String get myPageFastest => '条件別最短勝利時間（時:分:秒）';
+
+  @override
+  String get myPageRecent => '最近5試合';
+
+  @override
+  String get myPageNoMatches => '記録された試合はまだありません。';
+
+  @override
+  String get myPageViewHistory => '履歴を見る';
+
+  @override
+  String get myPageMatchDetail => '試合詳細';
+
+  @override
+  String myPageTotalXp({required int xp}) {
+    return '累積XP: $xp';
+  }
+
+  @override
+  String myPageMatchXp({required int xp}) {
+    return '獲得XP: $xp';
+  }
+
+  @override
+  String myPageStatsSince({required String date}) {
+    return '戦績は$dateの記録開始以降です。それ以前のXPには試合記録がありません。';
+  }
+
+  @override
+  String myPageAvatarChoice({required int number}) {
+    return 'アイコン$number';
+  }
+
+  @override
   String get appTitle => 'CONQUEST ISLES';
 
   @override
@@ -419,7 +620,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get quitTitle => '対戦を終了しますか？';
 
   @override
-  String get quitDescription => '現在の対戦内容は保存されません。';
+  String get quitDescription =>
+      'この対戦は再開できません。通常対戦は保存に成功すると途中終了として記録されます。観戦・練習は記録されません。';
 
   @override
   String get cancel => 'キャンセル';
@@ -623,4 +825,29 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get rematchEnlarge => '同じマップで再戦するには画面を広げてください';
+
+  @override
+  String get storageChecking => '端末の保存領域を確認中…';
+
+  @override
+  String get storageOwned =>
+      '先に開いたConquestタブを使うか、そのタブを閉じて再試行してください。2つのタブで通常対戦は開始できません。';
+
+  @override
+  String get storageUnavailable => '端末保存が利用できません。ゲームは続行できます。未保存の試合は再試行できます。';
+
+  @override
+  String get matchSaving => '試合を保存中…';
+
+  @override
+  String get matchUnsaved => '試合が未保存です';
+
+  @override
+  String get matchSaved => '試合を保存しました';
+
+  @override
+  String get storageRetry => '保存を再試行';
+
+  @override
+  String get rankUnavailable => '保存データの読込み後に階級を表示します';
 }

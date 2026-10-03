@@ -98,6 +98,390 @@ abstract class AppLocalizations {
     Locale('ja'),
   ];
 
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get myPageAll;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Result / status'**
+  String get myPageResult;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Island count'**
+  String get myPageIslandCount;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear filters'**
+  String get myPageClearFilters;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get myPageRefresh;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches match these filters.'**
+  String get myPageNoMatchingMatches;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading more matches…'**
+  String get myPageLoadingMore;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Load 20 more'**
+  String get myPageLoadMore;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load more matches. Displayed records are unchanged.'**
+  String get myPageLoadMoreError;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'This match was not found in this profile.'**
+  String get myPageMatchMissing;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get myPageUnknown;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Started (local time)'**
+  String get myPageStartedAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Ended (local time)'**
+  String get myPageEndedAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Interruption detected (local time)'**
+  String get myPageRecoveredAt;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Game time (h:mm:ss)'**
+  String get myPageMatchTime;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'XP earned in this match'**
+  String get myPageXpAwarded;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'App version'**
+  String get myPageAppVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Rules version'**
+  String get myPageRulesVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Metrics version'**
+  String get myPageMetricsVersion;
+
+  /// Saved match history filters, states and detail labels.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatches include reinforcements. Forces sent count troops at dispatch. Captures include recaptures, not currently owned islands. Game time excludes countdown and pauses. XP is the saved award for this match.'**
+  String get myPageMetricDefinitions;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'My Page / PROFILE'**
+  String get myPageTitle;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'STATS'**
+  String get myPageStats;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'HISTORY'**
+  String get myPageHistory;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Commander'**
+  String get myPageDefaultName;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get myPageEdit;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device. No cloud sync.'**
+  String get myPageLocalDevice;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile saved on this device.'**
+  String get myPageProfileSaved;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading saved profile data…'**
+  String get myPageLoading;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load saved data. Your records have not been cleared.'**
+  String get myPageReadError;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get myPageRetry;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get myPageName;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'1–20 characters after trimming spaces. Leave unchanged to keep the default name.'**
+  String get myPageNameHint;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Use 1–20 characters without control characters.'**
+  String get myPageInvalidName;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile icon'**
+  String get myPageAvatar;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get myPageSave;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving profile…'**
+  String get myPageSaving;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Not saved. Your edits are still here; retry saving.'**
+  String get myPageSaveError;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get myPageUnsavedChanges;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard profile edits?'**
+  String get myPageDiscardTitle;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep editing'**
+  String get myPageKeepEditing;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get myPageDiscard;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed matches'**
+  String get myPageCompleted;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Wins'**
+  String get myPageWins;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Losses'**
+  String get myPageLosses;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Draws'**
+  String get myPageDraws;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Win rate'**
+  String get myPageWinRate;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed match time (h:mm:ss)'**
+  String get myPageCompletedTime;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Dispatches'**
+  String get myPageDispatches;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Forces sent'**
+  String get myPageForces;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Captures'**
+  String get myPageCaptures;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Abandoned'**
+  String get myPageAbandoned;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Result unknown'**
+  String get myPageInterrupted;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get myPageInProgress;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed matches recorded yet.'**
+  String get myPageNoCompleted;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'By difficulty'**
+  String get myPageByDifficulty;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest victory (h:mm:ss)'**
+  String get myPageFastest;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent 5 matches'**
+  String get myPageRecent;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches recorded yet.'**
+  String get myPageNoMatches;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'View history'**
+  String get myPageViewHistory;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Match details'**
+  String get myPageMatchDetail;
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Total XP: {xp}'**
+  String myPageTotalXp({required int xp});
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'{xp} XP earned'**
+  String myPageMatchXp({required int xp});
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics recorded since {date}. Earlier XP has no match records.'**
+  String myPageStatsSince({required String date});
+
+  /// My Page profile, statistics or editing interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon {number}'**
+  String myPageAvatarChoice({required int number});
+
   /// The application title shown by the Web entry point and Flutter app.
   ///
   /// In en, this message translates to:
@@ -813,7 +1197,7 @@ abstract class AppLocalizations {
   /// The quit confirmation dialog explanation.
   ///
   /// In en, this message translates to:
-  /// **'Your current match will not be saved.'**
+  /// **'You cannot resume this match. Normal matches are recorded as abandoned if saving succeeds; spectator and practice sessions are not recorded.'**
   String get quitDescription;
 
   /// The cancel action.
@@ -852,7 +1236,7 @@ abstract class AppLocalizations {
   /// **'Draw'**
   String get draw;
 
-  /// The heading for the non-persistent player match summary.
+  /// The heading for the player match summary.
   ///
   /// In en, this message translates to:
   /// **'Match Summary'**
@@ -1147,6 +1531,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enlarge the window to rematch on the same map.'**
   String get rematchEnlarge;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Checking local storage…'**
+  String get storageChecking;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Use the first Conquest tab, or close it and retry here. A normal match cannot start in two tabs.'**
+  String get storageOwned;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Local storage is unavailable. Your game can continue; unsaved matches can be retried.'**
+  String get storageUnavailable;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Saving match…'**
+  String get matchSaving;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Match not saved'**
+  String get matchUnsaved;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Match saved'**
+  String get matchSaved;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Retry saving'**
+  String get storageRetry;
+
+  /// Local match storage status and recovery action
+  ///
+  /// In en, this message translates to:
+  /// **'Rank unavailable until storage loads'**
+  String get rankUnavailable;
 }
 
 class _AppLocalizationsDelegate
