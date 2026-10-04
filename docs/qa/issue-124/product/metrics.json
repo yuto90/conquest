@@ -1,0 +1,138 @@
+{
+  "environment": {
+    "os": "macos",
+    "mode": "flutter test debug / offscreen; not release frame profiling",
+    "flutter": "3.44.8",
+    "dpr": 3,
+    "scope": "Canvas layers + decoded crest; excludes widget layout and compositing"
+  },
+  "shared_crest_png_bytes": 9310,
+  "shared_crest_gzip_bytes": 9218,
+  "shared_crest_decoded_rgba_bytes": 147456,
+  "png_decode_30_samples_us": {
+    "median": 247,
+    "p95": 481
+  },
+  "timings": {
+    "rank_0_36dp": {
+      "record_1000_samples_us": {
+        "median": 4,
+        "p95": 10
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 49,
+        "p95": 58
+      }
+    },
+    "rank_44_36dp": {
+      "record_1000_samples_us": {
+        "median": 6,
+        "p95": 18
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 58,
+        "p95": 110
+      }
+    },
+    "rank_99_36dp": {
+      "record_1000_samples_us": {
+        "median": 5,
+        "p95": 9
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 80,
+        "p95": 182
+      }
+    },
+    "rank_105_36dp": {
+      "record_1000_samples_us": {
+        "median": 4,
+        "p95": 9
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 124,
+        "p95": 279
+      }
+    },
+    "rank_139_36dp": {
+      "record_1000_samples_us": {
+        "median": 9,
+        "p95": 32
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 91,
+        "p95": 147
+      }
+    },
+    "rank_140_36dp": {
+      "record_1000_samples_us": {
+        "median": 6,
+        "p95": 13
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 106,
+        "p95": 187
+      }
+    },
+    "rank_0_56dp": {
+      "record_1000_samples_us": {
+        "median": 2,
+        "p95": 5
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 69,
+        "p95": 97
+      }
+    },
+    "rank_44_56dp": {
+      "record_1000_samples_us": {
+        "median": 4,
+        "p95": 6
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 88,
+        "p95": 140
+      }
+    },
+    "rank_99_56dp": {
+      "record_1000_samples_us": {
+        "median": 3,
+        "p95": 4
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 147,
+        "p95": 201
+      }
+    },
+    "rank_105_56dp": {
+      "record_1000_samples_us": {
+        "median": 3,
+        "p95": 4
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 197,
+        "p95": 730
+      }
+    },
+    "rank_139_56dp": {
+      "record_1000_samples_us": {
+        "median": 6,
+        "p95": 10
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 166,
+        "p95": 242
+      }
+    },
+    "rank_140_56dp": {
+      "record_1000_samples_us": {
+        "median": 5,
+        "p95": 6
+      },
+      "offscreen_raster_30_samples_us": {
+        "median": 159,
+        "p95": 223
+      }
+    }
+  }
+}

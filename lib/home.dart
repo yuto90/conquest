@@ -23,6 +23,7 @@ import 'ui/island_assets.dart';
 import 'ui/island_count_slider.dart';
 import 'ui/match_summary.dart';
 import 'ui/my_page.dart';
+import 'ui/rank_badge.dart';
 import 'ui/tactical_map_background.dart';
 import 'ui/tactical_theme.dart';
 import 'ui/title_screen.dart';
@@ -1251,23 +1252,10 @@ class _RankProgressCard extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final rankLabel = Text(
-            l10n.rankDisplay(
-              rank: progress.rank,
-              title: progress.localizedTitle(l10n),
-            ),
-            overflow: TextOverflow.ellipsis,
-            style: TacticalTypography.of(context).mono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: TacticalPalette.foreground,
-            ),
-          );
           final progressLabel = Text(
             progress.isMax
                 ? l10n.rankMax
                 : l10n.rankProgress(xp: progress.xpToNextRank),
-            overflow: TextOverflow.ellipsis,
             style: TacticalTypography.of(
               context,
             ).mono(fontSize: 8, color: TacticalPalette.muted),
@@ -1284,30 +1272,20 @@ class _RankProgressCard extends StatelessWidget {
               ),
             ),
           );
-          if (constraints.maxWidth < 120) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return RankBadgeLabel(
+            progress: progress,
+            style: TacticalTypography.of(context).mono(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: TacticalPalette.foreground,
+            ),
+            supporting: Row(
               children: [
-                rankLabel,
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(child: progressLabel),
-                    const SizedBox(width: 6),
-                    progressBar,
-                  ],
-                ),
+                Expanded(child: progressLabel),
+                const SizedBox(width: 6),
+                progressBar,
               ],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: rankLabel),
-              const SizedBox(width: 6),
-              Flexible(child: progressLabel),
-              const SizedBox(width: 6),
-              progressBar,
-            ],
+            ),
           );
         },
       ),
@@ -1350,6 +1328,26 @@ class _RankAwardSummary extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (result.totalXpAfter != null) ...[
+                RankBadgeLabel(
+                  progress: after,
+                  badgeSize: 56,
+                  label: result.didRankUp
+                      ? l10n.rankUp(
+                          rank: result.rankAfter!,
+                          title: after.localizedTitle(l10n),
+                        )
+                      : null,
+                  style: TacticalTypography.of(context).mono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: result.didRankUp
+                        ? TacticalPalette.player
+                        : TacticalPalette.foreground,
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               Text(
                 l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
                 textAlign: TextAlign.center,
@@ -1373,7 +1371,7 @@ class _RankAwardSummary extends StatelessWidget {
                   TacticalPalette.player,
                 ),
               ),
-              if (result.didRankUp) ...[
+              if (result.didRankUp && result.totalXpAfter == null) ...[
                 const SizedBox(height: 8),
                 Text(
                   l10n.rankUp(
@@ -1428,6 +1426,7 @@ class _ConfigurationPanel extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final verticalPadding = constraints.maxHeight <= 500 ? 4.0 : 24.0;
+              final sectionGap = constraints.maxHeight <= 500 ? 4.0 : 16.0;
               return Center(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(
@@ -1497,7 +1496,7 @@ class _ConfigurationPanel extends StatelessWidget {
                                     .read(gameControllerProvider.notifier)
                                     .selectIslandCount(count),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: sectionGap),
                           Text(
                             l10n.gameModeLabel,
                             style: TacticalTypography.of(context).mono(
@@ -1521,7 +1520,7 @@ class _ConfigurationPanel extends StatelessWidget {
                               ],
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: sectionGap),
                           Text(
                             state.configuration.gameMode == GameMode.cpuVsCpu
                                 ? l10n.playerCpuDifficultyLabel

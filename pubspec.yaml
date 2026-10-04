@@ -70,6 +70,7 @@ flutter:
     - assets/islands/enemy/
     - assets/islands/neutral/
     - assets/audio/
+    - assets/rank_badges/chart-crest.png
 
   fonts:
     - family: Noto Sans JP
