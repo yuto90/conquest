@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:conquest/awards/award_manager.dart';
 import 'package:conquest/profile/drift_profile_store.dart';
 import 'package:conquest/profile/drift_profile_repository.dart';
 import 'package:conquest/profile/legacy_xp.dart';
@@ -56,6 +57,7 @@ final class ProfileFixture implements ProfileBackend {
     LegacyXpSource? legacySource,
     StorageLease? lease,
     StorageFaultHook? faultHook,
+    AwardManager? awards,
   }) {
     final identities = ids ?? FixtureIds();
     clock = FixtureClock();
@@ -87,6 +89,7 @@ final class ProfileFixture implements ProfileBackend {
         return this;
       },
       legacyXp: legacySource ?? legacy,
+      awards: awards,
     );
   }
 

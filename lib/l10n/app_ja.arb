@@ -1,4 +1,281 @@
 {
+  "awardsTitle": "任務・アワード",
+  "@awardsTitle": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsAssignments": "任務",
+  "@awardsAssignments": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCollection": "アワード",
+  "@awardsCollection": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsRibbons": "リボン",
+  "@awardsRibbons": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsMedals": "メダル",
+  "@awardsMedals": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsIntroduction": "通常CPU戦の完了で進行します。解放済みの任務はすべて自動集計。報酬はバッジのみで追加XPはありません。",
+  "@awardsIntroduction": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLocalOnly": "この端末内に保存します。アプリ・ブラウザのデータ消去で記録は消えます。未完了の試合は集計しません。",
+  "@awardsLocalOnly": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLocked": "ロック中",
+  "@awardsLocked": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsInProgress": "進行中",
+  "@awardsInProgress": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCompleted": "達成済み",
+  "@awardsCompleted": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnearned": "未獲得",
+  "@awardsUnearned": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsBronze": "ブロンズ",
+  "@awardsBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSilver": "シルバー",
+  "@awardsSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsGold": "ゴールド",
+  "@awardsGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureTrack": "占領",
+  "@awardsCaptureTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandTrack": "指揮",
+  "@awardsCommandTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsTrack": "戦術",
+  "@awardsTacticsTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureBronze": "上陸訓練",
+  "@awardsCaptureBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureSilver": "熟練の上陸部隊",
+  "@awardsCaptureSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureGold": "群島の征服者",
+  "@awardsCaptureGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandBronze": "初めての指揮",
+  "@awardsCommandBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandSilver": "戦場の指揮官",
+  "@awardsCommandSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandGold": "歴戦の指揮官",
+  "@awardsCommandGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsBronze": "連続攻勢",
+  "@awardsTacticsBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsSilver": "戦術的勝利",
+  "@awardsTacticsSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsGold": "迅速な決着",
+  "@awardsTacticsGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCapture": "占領",
+  "@awardsCapture": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsManeuver": "機動",
+  "@awardsManeuver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsDeployment": "兵力派遣",
+  "@awardsDeployment": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsVictory": "勝利",
+  "@awardsVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsHardVictory": "難敵撃破",
+  "@awardsHardVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSwiftVictory": "速攻",
+  "@awardsSwiftVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCapturesMetric": "占領回数",
+  "@awardsCapturesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsDispatchesMetric": "成立した出兵回数",
+  "@awardsDispatchesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsForcesMetric": "派遣兵力",
+  "@awardsForcesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsWinsMetric": "勝利数",
+  "@awardsWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsNormalWinsMetric": "Normal・Hardでの勝利数",
+  "@awardsNormalWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsHardWinsMetric": "Hardでの勝利数",
+  "@awardsHardWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureRibbonsMetric": "占領リボン",
+  "@awardsCaptureRibbonsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSingleMatch": "同じ1試合で（完了試合のベスト記録）",
+  "@awardsSingleMatch": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCumulative": "アワード導入後の累計",
+  "@awardsCumulative": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsThisMatch": "今回のアワード",
+  "@awardsThisMatch": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsEmpty": "今回はアワードを獲得していません。",
+  "@awardsEmpty": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSaving": "アワードを保存中…",
+  "@awardsSaving": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnsaved": "アワードは未保存です。二重加算せず再試行できます。再戦も可能です。",
+  "@awardsUnsaved": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnavailable": "実績を読み込めません。既存データは上書きしません。",
+  "@awardsUnavailable": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsRetry": "実績保存を再試行",
+  "@awardsRetry": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLoading": "実績を読み込み中…",
+  "@awardsLoading": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsBadgeReward": "報酬：任務達成バッジ",
+  "@awardsBadgeReward": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsPrerequisite": "前提任務：{name}",
+  "@awardsPrerequisite": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "awardsCount": "獲得数：{count}",
+  "@awardsCount": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsNextMedal": "次のメダル：リボン {count} / {target} 個",
+  "@awardsNextMedal": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsPerMatch": "1試合：{metric} {count} ごとにリボン1個",
+  "@awardsPerMatch": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "metric": {
+        "type": "String"
+      }
+    }
+  },
+  "awardsWithin": "Normal・Hardで{seconds}秒以内に勝利",
+  "@awardsWithin": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsTimeCondition": "ゲーム内時間：{time} / {seconds}秒以内",
+  "@awardsTimeCondition": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsMedalCondition": "対応リボン{count}個ごとにメダル1個（リボンは消費しません）",
+  "@awardsMedalCondition": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsCompletedAt": "初回達成：{date}",
+  "@awardsCompletedAt": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "myPageAll": "すべて",
   "@myPageAll": {"description":"Saved match history filters, states and detail labels."},
   "myPageResult": "勝敗・終了状態",

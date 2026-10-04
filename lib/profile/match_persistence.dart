@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../awards/award_manager.dart';
+import '../awards/award_progress.dart';
 import '../game/game_state.dart';
 import '../game/match_summary.dart';
 import 'drift_profile_store.dart';
@@ -96,7 +98,12 @@ final class MatchPersistence extends ChangeNotifier {
     required this.factory,
     required this.openBackend,
     required this.legacyXp,
-  });
+    this.awards,
+  }) {
+    awards?.addListener(_changed);
+  }
+
+  final AwardManager? awards;
 
   final MatchContextFactory factory;
   final Future<ProfileBackend> Function(String executionId) openBackend;
@@ -143,6 +150,7 @@ final class MatchPersistence extends ChangeNotifier {
     try {
       _backend ??= await openBackend(factory.executionId);
       _profile = await _backend!.initializeAndRecover(legacyXp);
+      unawaited(awards?.initialize(_profile!.profileId));
       initializationError = null;
     } catch (error) {
       initializationError = error;
@@ -181,6 +189,10 @@ final class MatchPersistence extends ChangeNotifier {
       configuration,
       storageUtc(factory.clock.now()),
     );
+    awards?.begin(id, () async {
+      await initialize();
+      return _profile!.profileId;
+    });
     unawaited(_attempt(_matches[id]!));
     return id;
   }
@@ -199,6 +211,18 @@ final class MatchPersistence extends ChangeNotifier {
     match.result = result;
     match.summary = summary;
     match.endedAt = storageUtc(factory.clock.now());
+    unawaited(
+      awards?.complete(
+        AwardMatch(
+          id: id,
+          difficulty: match.configuration.cpuDifficulty,
+          won: result.winner == Faction.player,
+          elapsedMs: result.elapsedMs,
+          summary: summary,
+          endedAtUtc: match.endedAt!,
+        ),
+      ),
+    );
     return _attempt(match);
   }
 
@@ -210,6 +234,7 @@ final class MatchPersistence extends ChangeNotifier {
       return match.operation ?? Future.value();
     }
     match.abandoned = true;
+    awards?.abandon(id);
     match.summary = summary;
     match.endedAt = storageUtc(factory.clock.now());
     return _attempt(match);
@@ -305,6 +330,17 @@ final class MatchPersistence extends ChangeNotifier {
       draining = _queue;
       await draining;
     } while (draining != _queue);
+    await awards?.drain();
+  }
+
+  Future<void> retryAwards([String? id]) async {
+    try {
+      await initialize();
+      await awards?.initialize(_profile!.profileId);
+      await awards?.retry(id);
+    } catch (_) {
+      // The profile and award owners expose errors independently.
+    }
   }
 
   Future<void> close() {
@@ -325,6 +361,7 @@ final class MatchPersistence extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    awards?.removeListener(_changed);
     unawaited(close());
     super.dispose();
   }

@@ -32,6 +32,9 @@ import 'tutorial/tutorial_session.dart';
 import 'web_visibility.dart';
 import 'profile/match_persistence.dart';
 import 'profile/storage_lease.dart';
+import 'awards/award_manager.dart';
+import 'awards/award_result.dart';
+import 'awards/awards_screen.dart';
 
 AppLocalizations _appLocalizations(BuildContext context) {
   return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
@@ -397,6 +400,13 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   summary: state.matchSummary,
                   rankProgress: rankProgress ?? RankProgress.zero,
                   save: controller.currentSave,
+                  awards: ref
+                      .read(matchPersistenceProvider)
+                      ?.awards
+                      ?.stateFor(controller.currentMatchId),
+                  onRetryAwards: () => ref
+                      .read(matchPersistenceProvider)
+                      ?.retryAwards(controller.currentMatchId),
                   onRetry: () => ref
                       .read(matchPersistenceProvider)
                       ?.retry(controller.currentMatchId),
@@ -1090,9 +1100,13 @@ class _ResultPanel extends StatelessWidget {
     required this.onSettings,
     required this.save,
     required this.onRetry,
+    required this.awards,
+    required this.onRetryAwards,
   });
 
   final MatchSaveState? save;
+  final AwardMatchState? awards;
+  final VoidCallback onRetryAwards;
   final VoidCallback onRetry;
   final GameConfiguration configuration;
   final GameResult result;
@@ -1200,6 +1214,14 @@ class _ResultPanel extends StatelessWidget {
                 if (result.xpAwarded > 0) ...[
                   const SizedBox(height: 18),
                   _RankAwardSummary(result: result, progress: rankProgress),
+                ],
+                if (awards != null) ...[
+                  const SizedBox(height: 18),
+                  AwardResultPanel(
+                    state: awards!,
+                    onRetry: onRetryAwards,
+                    l10n: l10n,
+                  ),
                 ],
                 const SizedBox(height: 22),
                 Semantics(
@@ -1649,6 +1671,11 @@ class _ConfigurationPanel extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          TextButton(
+                            key: const ValueKey('open-awards'),
+                            onPressed: () => AwardsScreen.open(context),
+                            child: Text(l10n.awardsTitle),
+                          ),
                           TextButton(
                             key: const ValueKey('return-title'),
                             onPressed: onTitle,

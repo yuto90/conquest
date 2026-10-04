@@ -9,6 +9,195 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get awardsTitle => '任務・アワード';
+
+  @override
+  String get awardsAssignments => '任務';
+
+  @override
+  String get awardsCollection => 'アワード';
+
+  @override
+  String get awardsRibbons => 'リボン';
+
+  @override
+  String get awardsMedals => 'メダル';
+
+  @override
+  String get awardsIntroduction =>
+      '通常CPU戦の完了で進行します。解放済みの任務はすべて自動集計。報酬はバッジのみで追加XPはありません。';
+
+  @override
+  String get awardsLocalOnly =>
+      'この端末内に保存します。アプリ・ブラウザのデータ消去で記録は消えます。未完了の試合は集計しません。';
+
+  @override
+  String get awardsLocked => 'ロック中';
+
+  @override
+  String get awardsInProgress => '進行中';
+
+  @override
+  String get awardsCompleted => '達成済み';
+
+  @override
+  String get awardsUnearned => '未獲得';
+
+  @override
+  String get awardsBronze => 'ブロンズ';
+
+  @override
+  String get awardsSilver => 'シルバー';
+
+  @override
+  String get awardsGold => 'ゴールド';
+
+  @override
+  String get awardsCaptureTrack => '占領';
+
+  @override
+  String get awardsCommandTrack => '指揮';
+
+  @override
+  String get awardsTacticsTrack => '戦術';
+
+  @override
+  String get awardsCaptureBronze => '上陸訓練';
+
+  @override
+  String get awardsCaptureSilver => '熟練の上陸部隊';
+
+  @override
+  String get awardsCaptureGold => '群島の征服者';
+
+  @override
+  String get awardsCommandBronze => '初めての指揮';
+
+  @override
+  String get awardsCommandSilver => '戦場の指揮官';
+
+  @override
+  String get awardsCommandGold => '歴戦の指揮官';
+
+  @override
+  String get awardsTacticsBronze => '連続攻勢';
+
+  @override
+  String get awardsTacticsSilver => '戦術的勝利';
+
+  @override
+  String get awardsTacticsGold => '迅速な決着';
+
+  @override
+  String get awardsCapture => '占領';
+
+  @override
+  String get awardsManeuver => '機動';
+
+  @override
+  String get awardsDeployment => '兵力派遣';
+
+  @override
+  String get awardsVictory => '勝利';
+
+  @override
+  String get awardsHardVictory => '難敵撃破';
+
+  @override
+  String get awardsSwiftVictory => '速攻';
+
+  @override
+  String get awardsCapturesMetric => '占領回数';
+
+  @override
+  String get awardsDispatchesMetric => '成立した出兵回数';
+
+  @override
+  String get awardsForcesMetric => '派遣兵力';
+
+  @override
+  String get awardsWinsMetric => '勝利数';
+
+  @override
+  String get awardsNormalWinsMetric => 'Normal・Hardでの勝利数';
+
+  @override
+  String get awardsHardWinsMetric => 'Hardでの勝利数';
+
+  @override
+  String get awardsCaptureRibbonsMetric => '占領リボン';
+
+  @override
+  String get awardsSingleMatch => '同じ1試合で（完了試合のベスト記録）';
+
+  @override
+  String get awardsCumulative => 'アワード導入後の累計';
+
+  @override
+  String get awardsThisMatch => '今回のアワード';
+
+  @override
+  String get awardsEmpty => '今回はアワードを獲得していません。';
+
+  @override
+  String get awardsSaving => 'アワードを保存中…';
+
+  @override
+  String get awardsUnsaved => 'アワードは未保存です。二重加算せず再試行できます。再戦も可能です。';
+
+  @override
+  String get awardsUnavailable => '実績を読み込めません。既存データは上書きしません。';
+
+  @override
+  String get awardsRetry => '実績保存を再試行';
+
+  @override
+  String get awardsLoading => '実績を読み込み中…';
+
+  @override
+  String get awardsBadgeReward => '報酬：任務達成バッジ';
+
+  @override
+  String awardsPrerequisite({required String name}) {
+    return '前提任務：$name';
+  }
+
+  @override
+  String awardsCount({required int count}) {
+    return '獲得数：$count';
+  }
+
+  @override
+  String awardsNextMedal({required int count, required int target}) {
+    return '次のメダル：リボン $count / $target 個';
+  }
+
+  @override
+  String awardsPerMatch({required int count, required String metric}) {
+    return '1試合：$metric $count ごとにリボン1個';
+  }
+
+  @override
+  String awardsWithin({required int seconds}) {
+    return 'Normal・Hardで$seconds秒以内に勝利';
+  }
+
+  @override
+  String awardsTimeCondition({required String time, required int seconds}) {
+    return 'ゲーム内時間：$time / $seconds秒以内';
+  }
+
+  @override
+  String awardsMedalCondition({required int count}) {
+    return '対応リボン$count個ごとにメダル1個（リボンは消費しません）';
+  }
+
+  @override
+  String awardsCompletedAt({required String date}) {
+    return '初回達成：$date';
+  }
+
+  @override
   String get myPageAll => 'すべて';
 
   @override

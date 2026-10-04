@@ -1,4 +1,281 @@
 {
+  "awardsTitle": "Assignments & Awards",
+  "@awardsTitle": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsAssignments": "Assignments",
+  "@awardsAssignments": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCollection": "Awards",
+  "@awardsCollection": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsRibbons": "Ribbons",
+  "@awardsRibbons": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsMedals": "Medals",
+  "@awardsMedals": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsIntroduction": "Complete normal CPU matches to progress. All unlocked assignments are tracked automatically. Badges only — no bonus XP.",
+  "@awardsIntroduction": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLocalOnly": "Stored on this device. Clearing app or browser data removes awards. Unfinished matches do not count.",
+  "@awardsLocalOnly": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLocked": "Locked",
+  "@awardsLocked": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsInProgress": "In progress",
+  "@awardsInProgress": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCompleted": "Completed",
+  "@awardsCompleted": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnearned": "Not earned",
+  "@awardsUnearned": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsBronze": "Bronze",
+  "@awardsBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSilver": "Silver",
+  "@awardsSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsGold": "Gold",
+  "@awardsGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureTrack": "Island conquest",
+  "@awardsCaptureTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandTrack": "Command",
+  "@awardsCommandTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsTrack": "Tactics",
+  "@awardsTacticsTrack": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureBronze": "Island Recruit",
+  "@awardsCaptureBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureSilver": "Island Veteran",
+  "@awardsCaptureSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureGold": "Island Conqueror",
+  "@awardsCaptureGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandBronze": "First Command",
+  "@awardsCommandBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandSilver": "Field Commander",
+  "@awardsCommandSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCommandGold": "Veteran Commander",
+  "@awardsCommandGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsBronze": "Coordinated Assault",
+  "@awardsTacticsBronze": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsSilver": "Tactical Victory",
+  "@awardsTacticsSilver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsTacticsGold": "Decisive Command",
+  "@awardsTacticsGold": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCapture": "Capture",
+  "@awardsCapture": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsManeuver": "Maneuver",
+  "@awardsManeuver": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsDeployment": "Deployment",
+  "@awardsDeployment": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsVictory": "Victory",
+  "@awardsVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsHardVictory": "Hard Victory",
+  "@awardsHardVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSwiftVictory": "Swift Victory",
+  "@awardsSwiftVictory": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCapturesMetric": "Islands captured",
+  "@awardsCapturesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsDispatchesMetric": "Successful dispatches",
+  "@awardsDispatchesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsForcesMetric": "Forces sent",
+  "@awardsForcesMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsWinsMetric": "Victories",
+  "@awardsWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsNormalWinsMetric": "Normal / Hard victories",
+  "@awardsNormalWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsHardWinsMetric": "Hard victories",
+  "@awardsHardWinsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCaptureRibbonsMetric": "Capture ribbons",
+  "@awardsCaptureRibbonsMetric": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSingleMatch": "In the same single match (best completed attempt)",
+  "@awardsSingleMatch": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsCumulative": "Cumulative since awards were introduced",
+  "@awardsCumulative": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsThisMatch": "This match's awards",
+  "@awardsThisMatch": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsEmpty": "No awards earned this match.",
+  "@awardsEmpty": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsSaving": "Saving awards…",
+  "@awardsSaving": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnsaved": "Awards are not saved. Retry is safe; you can keep playing.",
+  "@awardsUnsaved": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsUnavailable": "Award records are unavailable. Existing data will not be overwritten.",
+  "@awardsUnavailable": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsRetry": "Retry award save",
+  "@awardsRetry": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsLoading": "Loading awards…",
+  "@awardsLoading": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsBadgeReward": "Reward: assignment badge",
+  "@awardsBadgeReward": {
+    "description": "Assignments and awards interface."
+  },
+  "awardsPrerequisite": "Requires: {name}",
+  "@awardsPrerequisite": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "awardsCount": "Earned: {count}",
+  "@awardsCount": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsNextMedal": "Next medal: {count} / {target} ribbons",
+  "@awardsNextMedal": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "target": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsPerMatch": "Per match: one ribbon per {count} {metric}",
+  "@awardsPerMatch": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "metric": {
+        "type": "String"
+      }
+    }
+  },
+  "awardsWithin": "Win on Normal / Hard within {seconds} seconds",
+  "@awardsWithin": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsTimeCondition": "Game time: {time} / within {seconds} seconds",
+  "@awardsTimeCondition": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsMedalCondition": "One medal per {count} matching ribbons (ribbons are not consumed)",
+  "@awardsMedalCondition": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "awardsCompletedAt": "First completed: {date}",
+  "@awardsCompletedAt": {
+    "description": "Assignments and awards interface.",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "myPageAll": "All",
   "@myPageAll": {"description":"Saved match history filters, states and detail labels."},
   "myPageResult": "Result / status",
