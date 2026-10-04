@@ -91,8 +91,25 @@ fvm flutter build web --release --no-pub
 
 ## 残る確認事項
 
+### ローカル実UI検証（製品revision f611f85）
+
+実ChromeでローカルWeb **release**を操作し、iPhone17/iPad miniのiOS 26.5 Simulator **debug**で補助確認。Web releaseのビルド成功とは別に、日英390×844/280×500のRank 0・36dpカード・Start操作・My Page往復を確認した。
+
+Webでは8島/Very Easyの試合を実操作で自然勝利し、保存完了・**+500XP**・56dp結果階級章を確認。再戦・新マップ・中断後の設定復帰でXPが次まで2500のまま維持され、報酬重複なし。実際のCPU同士観戦の完了結果でXP 0の報酬領域非表示も確認した。
+
+通常の勝利originとは別の隔離ローカルoriginにテスト用XPをseedし、Rank 74の長い英語名折り返し・Chrome 200%で上段配置、Rank 140の共有PNGリクエスト遮断によるfallbackを確認。seedを自然獲得として扱わない。Chrome zoomはOS文字倍率テストではない。
+
+iPhoneは通常表示、OS `accessibility-extra-large` で全文ラベル・上段配置・スクロール後のStart操作を確認。iPad miniは縦横の階級カードとStart表示を確認した。Web/iPhoneのアクセシビリティツリーで階級ラベル1件を確認したが、音声読み上げ検証とは別。意図的に非公開の音源は追加せず、既知のBGM欠落警告後にOFFで検証を継続した。
+
+**既存UIの注意点**: 文字拡大時のモード/難度ボタンは `PLAY VS C...` / `Ver...` / `Nor...` に省略される。当該 `_GameModeChoice` / `_DifficultyChoice` のコードはmain `bee2d95`・PoC `76ad721`・製品headで同一。階級名自体は全文表示・開始操作も可能であり、今回の製品階級章の不具合ではなく、今後の既存UIアクセシビリティ改善候補として残す。
+
+通常全657テスト・analyze・format・Web releaseビルド成功。製品commit `f611f85` のCIは4件成功（Android release APK / iOS Simulator debug / codegen-analyze-test-release Web / 既存PR Preview）。本番公開は行っていない。注釈付き操作録画と主要実UIスクリーンショットはPR本文とセッションの成果物へ掲載する。
+
+### 未検証との区別
+
 - 実機iPhone/iPadでの小サイズの見分け・profile/releaseフレーム性能・メモリは未測定。
 - VoiceOver/TalkBackの実機読み上げ・フォーカス順は未検証。Semanticsテストと区別する。
 - 色覚シミュレーション・低解像度端末・OS全体のコントラスト/文字設定での検査は未実施。
-- Web releaseのローカル操作確認とSimulatorの可否・結果はPR本文に分けて追記する。ビルド成功だけをUI/性能確認扱いにしない。Previewの確認はユーザー側で行う。
+- 実UIの全141階級総当たり・昇級結果・結果中の最新プロフィール変更によるsnapshot固定・画像デコード失敗/読込途中・native結果は未検証（対応するwidget/統合テストは別途成功）。画像リクエスト遮断とデコード失敗は同一条件とみなさない。
+- Previewの確認はユーザー側で行う。Web releaseの操作成功をフレーム性能測定扱いにしない。
 - 承認範囲内の製品実装に追加仕様判断はない。配置の最終見た目確認と上記実機検証を残してDraftを維持する。My Page等へ勝手に追加展開しない。
