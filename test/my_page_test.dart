@@ -131,7 +131,7 @@ Future<ProfileFixture> newFixture(WidgetTester tester, {int? xp}) async {
   final fixture = (await tester.runAsync(() async => ProfileFixture(xp: xp)))!;
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
-    await tester.runAsync(fixture.runtime.close);
+    await runProfileIo(tester, fixture.runtime.close);
   });
   return fixture;
 }
@@ -445,14 +445,18 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('profile-avatar-island_03')));
     await tester.showKeyboard(find.byKey(const ValueKey('profile-name')));
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await settle(tester);
-    final stored = await tester.runAsync(
-      () => fixture.repository
-          .watchProfile(fixture.runtime.profile!.profileId)
-          .first,
+    await runProfileIo(
+      tester,
+      () => tester.testTextInput.receiveAction(TextInputAction.done),
     );
-    expect(stored!.displayName, '👨‍👩‍👧‍👦隊長');
+    await settle(tester);
+    late PlayerProfile stored;
+    await runProfileIo(tester, () async {
+      stored = await fixture.repository
+          .watchProfile(fixture.runtime.profile!.profileId)
+          .first;
+    });
+    expect(stored.displayName, '👨‍👩‍👧‍👦隊長');
     expect(stored.avatarKey, 'island_03');
     expect(find.byKey(const ValueKey('profile-editor')), findsNothing);
     expect(find.text('👨‍👩‍👧‍👦隊長'), findsOneWidget);
@@ -518,22 +522,24 @@ void main() {
       expect(find.text('Captain'), findsOneWidget);
       expect(find.textContaining('Not saved.'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
-      final unchanged = await tester.runAsync(
-        () => fixture.repository
+      late PlayerProfile unchanged;
+      await runProfileIo(tester, () async {
+        unchanged = await fixture.repository
             .watchProfile(fixture.runtime.profile!.profileId)
-            .first,
-      );
-      expect(unchanged!.displayName, isNull);
+            .first;
+      });
+      expect(unchanged.displayName, isNull);
       probe.editError = null;
       await save(tester);
       expect(probe.edits, 2);
       expect(find.byKey(const ValueKey('profile-editor')), findsNothing);
-      final stored = await tester.runAsync(
-        () => fixture.repository
+      late PlayerProfile stored;
+      await runProfileIo(tester, () async {
+        stored = await fixture.repository
             .watchProfile(fixture.runtime.profile!.profileId)
-            .first,
-      );
-      expect(stored!.displayName, 'Captain');
+            .first;
+      });
+      expect(stored.displayName, 'Captain');
       expect(stored.avatarKey, 'island_02');
     },
   );

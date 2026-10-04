@@ -35,6 +35,7 @@ CREATE TABLE match_records (
   app_version TEXT NOT NULL CHECK(length(trim(app_version)) > 0),
   rules_version TEXT NOT NULL CHECK(length(trim(rules_version)) > 0),
   metrics_version INTEGER NOT NULL CHECK(metrics_version >= 1),
+  award_required BOOLEAN NOT NULL DEFAULT FALSE CHECK(award_required IN (0, 1)),
   receipt_xp INTEGER CHECK(receipt_xp >= 0),
   receipt_before INTEGER CHECK(receipt_before >= 0),
   receipt_after INTEGER CHECK(receipt_after >= 0),
@@ -97,4 +98,19 @@ END;
 CREATE TABLE storage_meta (
   "key" TEXT NOT NULL PRIMARY KEY,
   value TEXT NOT NULL
+);
+
+CREATE TABLE award_profiles (
+  profile_id TEXT NOT NULL PRIMARY KEY REFERENCES profiles(profile_id),
+  snapshot TEXT NOT NULL,
+  legacy_snapshot TEXT
+);
+
+CREATE TABLE award_match_states (
+  match_id TEXT NOT NULL PRIMARY KEY,
+  profile_id TEXT NOT NULL REFERENCES award_profiles(profile_id),
+  catalog_version INTEGER NOT NULL CHECK(catalog_version > 0),
+  eligible_assignments TEXT NOT NULL,
+  evaluation_receipt TEXT,
+  FOREIGN KEY(match_id, profile_id) REFERENCES match_records(match_id, profile_id)
 );

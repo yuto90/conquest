@@ -32,6 +32,9 @@ import 'tutorial/tutorial_session.dart';
 import 'web_visibility.dart';
 import 'profile/match_persistence.dart';
 import 'profile/storage_lease.dart';
+import 'awards/award_manager.dart';
+import 'awards/award_result.dart';
+import 'awards/awards_screen.dart';
 
 AppLocalizations _appLocalizations(BuildContext context) {
   return Localizations.of<AppLocalizations>(context, AppLocalizations) ??
@@ -397,6 +400,13 @@ class _GameSurfaceState extends ConsumerState<_GameSurface>
                   summary: state.matchSummary,
                   rankProgress: rankProgress ?? RankProgress.zero,
                   save: controller.currentSave,
+                  awards: ref
+                      .read(matchPersistenceProvider)
+                      ?.awards
+                      ?.stateFor(controller.currentMatchId),
+                  onRetryAwards: () => ref
+                      .read(matchPersistenceProvider)
+                      ?.retryAwards(controller.currentMatchId),
                   onRetry: () => ref
                       .read(matchPersistenceProvider)
                       ?.retry(controller.currentMatchId),
@@ -1078,7 +1088,7 @@ class _BgmRetryButton extends StatelessWidget {
   }
 }
 
-class _ResultPanel extends StatelessWidget {
+class _ResultPanel extends StatefulWidget {
   const _ResultPanel({
     required this.configuration,
     required this.result,
@@ -1090,9 +1100,13 @@ class _ResultPanel extends StatelessWidget {
     required this.onSettings,
     required this.save,
     required this.onRetry,
+    required this.awards,
+    required this.onRetryAwards,
   });
 
   final MatchSaveState? save;
+  final AwardMatchState? awards;
+  final VoidCallback onRetryAwards;
   final VoidCallback onRetry;
   final GameConfiguration configuration;
   final GameResult result;
@@ -1104,17 +1118,104 @@ class _ResultPanel extends StatelessWidget {
   final VoidCallback onSettings;
 
   @override
+  State<_ResultPanel> createState() => _ResultPanelState();
+}
+
+class _ResultPanelState extends State<_ResultPanel> {
+  ValueNotifier<_ResultPanel>? _details;
+
+  @override
+  void didUpdateWidget(covariant _ResultPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_details != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _details?.value = widget;
+      });
+    }
+  }
+
+  Future<void> _showDetails() async {
+    if (_details != null) return;
+    final details = ValueNotifier(widget);
+    _details = details;
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => ValueListenableBuilder<_ResultPanel>(
+          valueListenable: details,
+          builder: (context, panel, _) {
+            final l10n = _appLocalizations(context);
+            return AlertDialog(
+              key: const ValueKey('result-details'),
+              scrollable: true,
+              insetPadding: const EdgeInsets.all(16),
+              constraints: const BoxConstraints(maxWidth: 560),
+              title: Text(l10n.myPageMatchDetail),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (panel.configuration.gameMode == GameMode.playerVsCpu)
+                      MatchSummaryPanel(
+                        configuration: panel.configuration,
+                        summary: panel.summary,
+                      ),
+                    if (panel.save case final save?) ...[
+                      const SizedBox(height: 12),
+                      _MatchSaveNotice(save: save, onRetry: panel.onRetry),
+                    ],
+                    if (panel.awards case final awards?) ...[
+                      const SizedBox(height: 16),
+                      AwardResultPanel(
+                        state: awards,
+                        onRetry: panel.onRetryAwards,
+                        l10n: l10n,
+                        showAllAssignments: true,
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Text(_rematchHint(l10n, panel)),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  key: const ValueKey('close-result-details'),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    MaterialLocalizations.of(context).closeButtonLabel,
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+    } finally {
+      _details = null;
+      details.dispose();
+    }
+  }
+
+  String _rematchHint(AppLocalizations l10n, _ResultPanel panel) =>
+      switch (panel.rematchUnavailableReason) {
+        RematchUnavailableReason.missingSnapshot => l10n.rematchMissing,
+        RematchUnavailableReason.viewportTooSmall => l10n.rematchEnlarge,
+        null =>
+          panel.configuration.gameMode == GameMode.cpuVsCpu
+              ? l10n.rematchSpectatorHint
+              : l10n.rematchHint,
+      };
+
+  @override
   Widget build(BuildContext context) {
     final l10n = _appLocalizations(context);
+    final configuration = widget.configuration;
+    final result = widget.result;
     final title = _resultTitle(l10n, configuration, result);
-    final rematchHint = switch (rematchUnavailableReason) {
-      RematchUnavailableReason.missingSnapshot => l10n.rematchMissing,
-      RematchUnavailableReason.viewportTooSmall => l10n.rematchEnlarge,
-      null =>
-        configuration.gameMode == GameMode.cpuVsCpu
-            ? l10n.rematchSpectatorHint
-            : l10n.rematchHint,
-    };
+    final rematchHint = _rematchHint(l10n, widget);
     final ruleColor = switch (result.type) {
       GameResultType.victory
           when configuration.gameMode == GameMode.playerVsCpu =>
@@ -1134,102 +1235,176 @@ class _ResultPanel extends StatelessWidget {
     };
     return ColoredBox(
       color: TacticalPalette.outer.withValues(alpha: 0.62),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Container(
-            key: const ValueKey('result-sheet'),
-            width: 248,
-            padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
-            decoration: BoxDecoration(
-              color: Color.alphaBlend(
-                TacticalPalette.surface.withValues(alpha: 0.94),
-                TacticalPalette.background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(13) / 13;
+          final summary = Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.resultHeading,
+                textAlign: TextAlign.center,
+                style: TacticalTypography.of(context).mono(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: TacticalPalette.muted,
+                  height: 1.2,
+                  letterSpacing: 1.6,
+                ),
               ),
-              border: Border.all(color: TacticalPalette.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x2E1A4448),
-                  blurRadius: 28,
-                  offset: Offset(0, 12),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  l10n.resultHeading,
-                  style: TacticalTypography.of(context).mono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: TacticalPalette.muted,
-                    height: 1.2,
-                    letterSpacing: 1.6,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
+              const SizedBox(height: 8),
+              Center(
+                child: Container(
                   key: const ValueKey('result-rule'),
                   width: 54,
                   height: 4,
                   color: ruleColor,
                 ),
-                const SizedBox(height: 18),
-                Semantics(
-                  header: true,
-                  liveRegion: true,
-                  child: Text(
-                    title,
-                    style: TacticalTypography.of(
-                      context,
-                    ).display(fontSize: 46, height: 1, letterSpacing: 0.9),
-                  ),
+              ),
+              const SizedBox(height: 10),
+              Semantics(
+                header: true,
+                liveRegion: true,
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: TacticalTypography.of(
+                    context,
+                  ).display(fontSize: 46, height: 1, letterSpacing: 0.9),
                 ),
-                if (configuration.gameMode == GameMode.playerVsCpu) ...[
-                  const SizedBox(height: 18),
-                  MatchSummaryPanel(
-                    configuration: configuration,
-                    summary: summary,
-                  ),
-                ],
-                if (save != null) ...[
-                  const SizedBox(height: 12),
-                  _MatchSaveNotice(save: save!, onRetry: onRetry),
-                ],
-                if (result.xpAwarded > 0) ...[
-                  const SizedBox(height: 18),
-                  _RankAwardSummary(result: result, progress: rankProgress),
-                ],
-                const SizedBox(height: 22),
-                Semantics(
+              ),
+              if (configuration.gameMode == GameMode.playerVsCpu) ...[
+                const SizedBox(height: 12),
+                MatchSummaryPanel(
+                  configuration: configuration,
+                  summary: widget.summary,
+                  compact: true,
+                ),
+              ],
+              if (configuration.gameMode == GameMode.playerVsCpu &&
+                  (result.xpAwarded > 0 || result.totalXpAfter != null)) ...[
+                const SizedBox(height: 12),
+                _RankAwardSummary(
+                  result: result,
+                  progress: widget.rankProgress,
+                ),
+              ],
+              if (widget.awards case final awards?) ...[
+                const SizedBox(height: 12),
+                AwardResultSummary(state: awards, l10n: l10n),
+              ],
+              if (widget.save case final save?) ...[
+                const SizedBox(height: 8),
+                _MatchSaveNotice(save: save, onRetry: widget.onRetry),
+              ],
+              TextButton(
+                key: const ValueKey('result-details-button'),
+                onPressed: _showDetails,
+                child: Text(l10n.myPageMatchDetail),
+              ),
+            ],
+          );
+          final actions = LayoutBuilder(
+            builder: (context, constraints) {
+              final rematch = Tooltip(
+                message: rematchHint,
+                child: Semantics(
                   hint: rematchHint,
                   child: _PrimaryActionButton(
                     key: const ValueKey('rematch-game'),
-                    onPressed: rematchUnavailableReason == null
-                        ? onRematch
+                    onPressed: widget.rematchUnavailableReason == null
+                        ? widget.onRematch
                         : null,
                     label: l10n.rematch,
                   ),
                 ),
-                const SizedBox(height: 9),
-                Text(rematchHint, textAlign: TextAlign.center),
-                const SizedBox(height: 9),
-                _SecondaryActionButton(
-                  key: const ValueKey('replay-game'),
-                  onPressed: onReplay,
-                  label: l10n.replay,
+              );
+              final replay = _SecondaryActionButton(
+                key: const ValueKey('replay-game'),
+                onPressed: widget.onReplay,
+                label: l10n.replay,
+              );
+              final settings = _SecondaryActionButton(
+                key: const ValueKey('return-settings'),
+                onPressed: widget.onSettings,
+                label: l10n.returnSettings,
+              );
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  rematch,
+                  if (widget.rematchUnavailableReason != null) ...[
+                    const SizedBox(height: 8),
+                    Text(rematchHint, textAlign: TextAlign.center),
+                  ],
+                  const SizedBox(height: 8),
+                  if (constraints.maxWidth >= 280 && scale <= 1.3)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: replay),
+                        const SizedBox(width: 8),
+                        Expanded(child: settings),
+                      ],
+                    )
+                  else ...[
+                    replay,
+                    const SizedBox(height: 8),
+                    settings,
+                  ],
+                ],
+              );
+            },
+          );
+          final scrollAll = constraints.maxHeight < math.max(280, 240 * scale);
+          return Center(
+            child: Container(
+              key: const ValueKey('result-sheet'),
+              width: math.min(560, math.max(0, constraints.maxWidth - 24)),
+              constraints: BoxConstraints(
+                maxHeight: math.max(0, constraints.maxHeight - 24),
+              ),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Color.alphaBlend(
+                  TacticalPalette.surface.withValues(alpha: 0.94),
+                  TacticalPalette.background,
                 ),
-                const SizedBox(height: 9),
-                _SecondaryActionButton(
-                  key: const ValueKey('return-settings'),
-                  onPressed: onSettings,
-                  label: l10n.returnSettings,
-                ),
-              ],
+                border: Border.all(color: TacticalPalette.border),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x2E1A4448),
+                    blurRadius: 28,
+                    offset: Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: scrollAll
+                  ? SingleChildScrollView(
+                      key: const ValueKey('result-summary-scroll'),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [summary, const Divider(height: 24), actions],
+                      ),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: SingleChildScrollView(
+                            key: const ValueKey('result-summary-scroll'),
+                            child: summary,
+                          ),
+                        ),
+                        const Divider(height: 24),
+                        actions,
+                      ],
+                    ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1316,7 +1491,7 @@ class _RankAwardSummary extends StatelessWidget {
       builder: (context, animation, child) {
         return Container(
           key: const ValueKey('rank-award-summary'),
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: TacticalPalette.player.withValues(alpha: 0.10),
             border: Border.all(
@@ -1328,34 +1503,50 @@ class _RankAwardSummary extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (result.totalXpAfter != null) ...[
-                RankBadgeLabel(
-                  progress: after,
-                  badgeSize: 56,
-                  label: result.didRankUp
-                      ? l10n.rankUp(
-                          rank: result.rankAfter!,
-                          title: after.localizedTitle(l10n),
-                        )
-                      : null,
-                  style: TacticalTypography.of(context).mono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: result.didRankUp
-                        ? TacticalPalette.player
-                        : TacticalPalette.foreground,
-                  ),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Text(
-                l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
-                textAlign: TextAlign.center,
-                style: TacticalTypography.of(context).mono(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: TacticalPalette.foreground,
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final xp = Text(
+                    l10n.xpEarned(xp: (result.xpAwarded * animation).round()),
+                    textAlign: TextAlign.center,
+                    style: TacticalTypography.of(context).mono(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: TacticalPalette.foreground,
+                    ),
+                  );
+                  if (result.totalXpAfter == null) return xp;
+                  final rank = RankBadgeLabel(
+                    progress: after,
+                    badgeSize: 40,
+                    label: result.didRankUp
+                        ? l10n.rankUp(
+                            rank: result.rankAfter!,
+                            title: after.localizedTitle(l10n),
+                          )
+                        : null,
+                    style: TacticalTypography.of(context).mono(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: result.didRankUp
+                          ? TacticalPalette.player
+                          : TacticalPalette.foreground,
+                    ),
+                  );
+                  if (constraints.maxWidth < 300 ||
+                      MediaQuery.textScalerOf(context).scale(13) > 17) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [rank, const SizedBox(height: 8), xp],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: rank),
+                      const SizedBox(width: 12),
+                      xp,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
@@ -1649,6 +1840,11 @@ class _ConfigurationPanel extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          TextButton(
+                            key: const ValueKey('open-awards'),
+                            onPressed: () => AwardsScreen.open(context),
+                            child: Text(l10n.awardsTitle),
+                          ),
                           TextButton(
                             key: const ValueKey('return-title'),
                             onPressed: onTitle,
@@ -2154,7 +2350,7 @@ class _PrimaryActionButton extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(
         minWidth: double.infinity,
-        minHeight: 46,
+        minHeight: 48,
       ),
       child: ElevatedButton(
         onPressed: onPressed,
@@ -2195,7 +2391,7 @@ class _SecondaryActionButton extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(
         minWidth: double.infinity,
-        minHeight: 46,
+        minHeight: 48,
       ),
       child: OutlinedButton(
         onPressed: onPressed,

@@ -9,6 +9,198 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get awardsTitle => 'Assignments & Awards';
+
+  @override
+  String get awardsAssignments => 'Assignments';
+
+  @override
+  String get awardsCollection => 'Awards';
+
+  @override
+  String get awardsRibbons => 'Ribbons';
+
+  @override
+  String get awardsMedals => 'Medals';
+
+  @override
+  String get awardsIntroduction =>
+      'Complete normal CPU matches to progress. All unlocked assignments are tracked automatically. Badges only — no bonus XP.';
+
+  @override
+  String get awardsLocalOnly =>
+      'Stored on this device. Clearing app or browser data removes awards. Unfinished matches do not count.';
+
+  @override
+  String get awardsLocked => 'Locked';
+
+  @override
+  String get awardsInProgress => 'In progress';
+
+  @override
+  String get awardsCompleted => 'Completed';
+
+  @override
+  String get awardsUnearned => 'Not earned';
+
+  @override
+  String get awardsBronze => 'Bronze';
+
+  @override
+  String get awardsSilver => 'Silver';
+
+  @override
+  String get awardsGold => 'Gold';
+
+  @override
+  String get awardsCaptureTrack => 'Island conquest';
+
+  @override
+  String get awardsCommandTrack => 'Command';
+
+  @override
+  String get awardsTacticsTrack => 'Tactics';
+
+  @override
+  String get awardsCaptureBronze => 'Island Recruit';
+
+  @override
+  String get awardsCaptureSilver => 'Island Veteran';
+
+  @override
+  String get awardsCaptureGold => 'Island Conqueror';
+
+  @override
+  String get awardsCommandBronze => 'First Command';
+
+  @override
+  String get awardsCommandSilver => 'Field Commander';
+
+  @override
+  String get awardsCommandGold => 'Veteran Commander';
+
+  @override
+  String get awardsTacticsBronze => 'Coordinated Assault';
+
+  @override
+  String get awardsTacticsSilver => 'Tactical Victory';
+
+  @override
+  String get awardsTacticsGold => 'Decisive Command';
+
+  @override
+  String get awardsCapture => 'Capture';
+
+  @override
+  String get awardsManeuver => 'Maneuver';
+
+  @override
+  String get awardsDeployment => 'Deployment';
+
+  @override
+  String get awardsVictory => 'Victory';
+
+  @override
+  String get awardsHardVictory => 'Hard Victory';
+
+  @override
+  String get awardsSwiftVictory => 'Swift Victory';
+
+  @override
+  String get awardsCapturesMetric => 'Islands captured';
+
+  @override
+  String get awardsDispatchesMetric => 'Successful dispatches';
+
+  @override
+  String get awardsForcesMetric => 'Forces sent';
+
+  @override
+  String get awardsWinsMetric => 'Victories';
+
+  @override
+  String get awardsNormalWinsMetric => 'Normal / Hard victories';
+
+  @override
+  String get awardsHardWinsMetric => 'Hard victories';
+
+  @override
+  String get awardsCaptureRibbonsMetric => 'Capture ribbons';
+
+  @override
+  String get awardsSingleMatch =>
+      'In the same single match (best completed attempt)';
+
+  @override
+  String get awardsCumulative => 'Cumulative since awards were introduced';
+
+  @override
+  String get awardsThisMatch => 'This match\'s awards';
+
+  @override
+  String get awardsEmpty => 'No awards earned this match.';
+
+  @override
+  String get awardsSaving => 'Saving awards…';
+
+  @override
+  String get awardsUnsaved =>
+      'Awards are not saved. Retry is safe; you can keep playing.';
+
+  @override
+  String get awardsUnavailable =>
+      'Award records are unavailable. Existing data will not be overwritten.';
+
+  @override
+  String get awardsRetry => 'Retry award save';
+
+  @override
+  String get awardsLoading => 'Loading awards…';
+
+  @override
+  String get awardsBadgeReward => 'Reward: assignment badge';
+
+  @override
+  String awardsPrerequisite({required String name}) {
+    return 'Requires: $name';
+  }
+
+  @override
+  String awardsCount({required int count}) {
+    return 'Earned: $count';
+  }
+
+  @override
+  String awardsNextMedal({required int count, required int target}) {
+    return 'Next medal: $count / $target ribbons';
+  }
+
+  @override
+  String awardsPerMatch({required int count, required String metric}) {
+    return 'Per match: one ribbon per $count $metric';
+  }
+
+  @override
+  String awardsWithin({required int seconds}) {
+    return 'Win on Normal / Hard within $seconds seconds';
+  }
+
+  @override
+  String awardsTimeCondition({required String time, required int seconds}) {
+    return 'Game time: $time / within $seconds seconds';
+  }
+
+  @override
+  String awardsMedalCondition({required int count}) {
+    return 'One medal per $count matching ribbons (ribbons are not consumed)';
+  }
+
+  @override
+  String awardsCompletedAt({required String date}) {
+    return 'First completed: $date';
+  }
+
+  @override
   String get myPageAll => 'All';
 
   @override

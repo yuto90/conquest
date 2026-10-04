@@ -98,6 +98,348 @@ abstract class AppLocalizations {
     Locale('ja'),
   ];
 
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Assignments & Awards'**
+  String get awardsTitle;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Assignments'**
+  String get awardsAssignments;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Awards'**
+  String get awardsCollection;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Ribbons'**
+  String get awardsRibbons;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Medals'**
+  String get awardsMedals;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete normal CPU matches to progress. All unlocked assignments are tracked automatically. Badges only — no bonus XP.'**
+  String get awardsIntroduction;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored on this device. Clearing app or browser data removes awards. Unfinished matches do not count.'**
+  String get awardsLocalOnly;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get awardsLocked;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In progress'**
+  String get awardsInProgress;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get awardsCompleted;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Not earned'**
+  String get awardsUnearned;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Bronze'**
+  String get awardsBronze;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Silver'**
+  String get awardsSilver;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Gold'**
+  String get awardsGold;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Island conquest'**
+  String get awardsCaptureTrack;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Command'**
+  String get awardsCommandTrack;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Tactics'**
+  String get awardsTacticsTrack;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Island Recruit'**
+  String get awardsCaptureBronze;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Island Veteran'**
+  String get awardsCaptureSilver;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Island Conqueror'**
+  String get awardsCaptureGold;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'First Command'**
+  String get awardsCommandBronze;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Field Commander'**
+  String get awardsCommandSilver;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Veteran Commander'**
+  String get awardsCommandGold;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Coordinated Assault'**
+  String get awardsTacticsBronze;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Tactical Victory'**
+  String get awardsTacticsSilver;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Decisive Command'**
+  String get awardsTacticsGold;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture'**
+  String get awardsCapture;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Maneuver'**
+  String get awardsManeuver;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Deployment'**
+  String get awardsDeployment;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Victory'**
+  String get awardsVictory;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard Victory'**
+  String get awardsHardVictory;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Swift Victory'**
+  String get awardsSwiftVictory;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Islands captured'**
+  String get awardsCapturesMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Successful dispatches'**
+  String get awardsDispatchesMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Forces sent'**
+  String get awardsForcesMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Victories'**
+  String get awardsWinsMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Normal / Hard victories'**
+  String get awardsNormalWinsMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Hard victories'**
+  String get awardsHardWinsMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Capture ribbons'**
+  String get awardsCaptureRibbonsMetric;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'In the same single match (best completed attempt)'**
+  String get awardsSingleMatch;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Cumulative since awards were introduced'**
+  String get awardsCumulative;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'This match\'s awards'**
+  String get awardsThisMatch;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'No awards earned this match.'**
+  String get awardsEmpty;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving awards…'**
+  String get awardsSaving;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Awards are not saved. Retry is safe; you can keep playing.'**
+  String get awardsUnsaved;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Award records are unavailable. Existing data will not be overwritten.'**
+  String get awardsUnavailable;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry award save'**
+  String get awardsRetry;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading awards…'**
+  String get awardsLoading;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Reward: assignment badge'**
+  String get awardsBadgeReward;
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Requires: {name}'**
+  String awardsPrerequisite({required String name});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Earned: {count}'**
+  String awardsCount({required int count});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Next medal: {count} / {target} ribbons'**
+  String awardsNextMedal({required int count, required int target});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Per match: one ribbon per {count} {metric}'**
+  String awardsPerMatch({required int count, required String metric});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Win on Normal / Hard within {seconds} seconds'**
+  String awardsWithin({required int seconds});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'Game time: {time} / within {seconds} seconds'**
+  String awardsTimeCondition({required String time, required int seconds});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'One medal per {count} matching ribbons (ribbons are not consumed)'**
+  String awardsMedalCondition({required int count});
+
+  /// Assignments and awards interface.
+  ///
+  /// In en, this message translates to:
+  /// **'First completed: {date}'**
+  String awardsCompletedAt({required String date});
+
   /// Saved match history filters, states and detail labels.
   ///
   /// In en, this message translates to:

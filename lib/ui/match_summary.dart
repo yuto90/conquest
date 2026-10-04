@@ -15,11 +15,13 @@ class MatchSummaryPanel extends StatelessWidget {
   const MatchSummaryPanel({
     required this.configuration,
     required this.summary,
+    this.compact = false,
     super.key,
   });
 
   final GameConfiguration configuration;
   final MatchSummary summary;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -74,10 +76,37 @@ class MatchSummaryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               _SummaryLine(label: settings),
-              _SummaryLine(label: l10n.matchSummaryTime(time: time)),
-              _SummaryLine(label: dispatches),
-              _SummaryLine(label: forces),
-              _SummaryLine(label: captures),
+              if (compact)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final twoColumns =
+                        constraints.maxWidth >= 280 &&
+                        MediaQuery.textScalerOf(context).scale(12) <= 16;
+                    return Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final label in [
+                          l10n.matchSummaryTime(time: time),
+                          captures,
+                          dispatches,
+                          forces,
+                        ])
+                          SizedBox(
+                            width: twoColumns
+                                ? (constraints.maxWidth - 8) / 2
+                                : constraints.maxWidth,
+                            child: _SummaryLine(label: label, fontSize: 12),
+                          ),
+                      ],
+                    );
+                  },
+                )
+              else ...[
+                _SummaryLine(label: l10n.matchSummaryTime(time: time)),
+                _SummaryLine(label: dispatches),
+                _SummaryLine(label: forces),
+                _SummaryLine(label: captures),
+              ],
             ],
           ),
         ),
@@ -87,9 +116,10 @@ class MatchSummaryPanel extends StatelessWidget {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.label});
+  const _SummaryLine({required this.label, this.fontSize = 10});
 
   final String label;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -100,7 +130,7 @@ class _SummaryLine extends StatelessWidget {
         textAlign: TextAlign.center,
         style: _summaryTextStyle(
           context,
-          fontSize: 10,
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
           color: TacticalPalette.foreground,
           height: 1.25,

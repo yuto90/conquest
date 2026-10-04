@@ -61,7 +61,7 @@ void main() {
       controller.finish(const GameResult.draw(elapsedMs: 0));
       await tester.pump();
       expect(
-        find.text(
+        find.byTooltip(
           locale == 'en'
               ? 'Same map and both CPU difficulties'
               : '同じマップ・両CPUの難易度で再戦します',
@@ -154,7 +154,7 @@ void main() {
             expect(tester.getSemantics(button).label, isNotEmpty);
           }
           expect(
-            find.text(
+            find.byTooltip(
               locale == 'en' ? 'Same map and difficulty' : '同じマップ・難易度で再戦します',
             ),
             findsOneWidget,

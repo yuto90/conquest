@@ -1,5 +1,6 @@
 import '../game/game_state.dart';
 import '../game/match_summary.dart';
+import '../awards/award_progress.dart';
 
 enum SessionKind {
   normal('normal'),
@@ -309,6 +310,7 @@ final class MatchCommitReceipt {
     required this.totalXpBefore,
     required this.totalXpAfter,
     required this.rewardVersion,
+    this.awards,
   }) {
     if (!record.isTerminal)
       throw ArgumentError('Receipt requires finalization');
@@ -327,9 +329,10 @@ final class MatchCommitReceipt {
   final int totalXpBefore;
   final int totalXpAfter;
   final String rewardVersion;
+  final AwardEvaluation? awards;
 
   Object get _value =>
-      (record, xpAwarded, totalXpBefore, totalXpAfter, rewardVersion);
+      (record, xpAwarded, totalXpBefore, totalXpAfter, rewardVersion, awards);
 
   @override
   bool operator ==(Object other) =>
@@ -342,9 +345,12 @@ final class MatchCommitReceipt {
 /// All writes are durable and serialized per profile; failures throw.
 abstract interface class MatchCompletionService {
   /// Repeated identical starts are no-ops; a different payload conflicts.
-  Future<void> recordStart(MatchStartContext start);
+  Future<void> recordStart(
+    MatchStartContext start, {
+    AwardEligibility? awardEligibility,
+  });
 
-  /// Atomically saves the final record and XP, or returns the original receipt.
+  /// Atomically saves the final record, XP and awards, or the original receipt.
   /// Retries use the frozen DTO, including its original end timestamp.
   Future<MatchCommitReceipt> complete(MatchCompletion completion);
 

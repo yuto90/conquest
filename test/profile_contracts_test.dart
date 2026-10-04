@@ -1,4 +1,5 @@
 import 'package:conquest/game/game_state.dart';
+import 'package:conquest/awards/award_progress.dart';
 import 'package:conquest/game/match_summary.dart';
 import 'package:conquest/profile/match_contracts.dart';
 import 'package:conquest/profile/match_identity.dart';
@@ -467,7 +468,10 @@ final class ContractServiceFake implements MatchCompletionService {
   MatchCommitReceipt? saved;
 
   @override
-  Future<void> recordStart(MatchStartContext start) async {}
+  Future<void> recordStart(
+    MatchStartContext start, {
+    AwardEligibility? awardEligibility,
+  }) async {}
 
   @override
   Future<MatchCommitReceipt> complete(MatchCompletion completion) async {

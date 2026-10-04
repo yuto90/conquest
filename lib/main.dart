@@ -11,6 +11,7 @@ import 'ui/tactical_theme.dart';
 import 'profile/legacy_xp.dart';
 import 'profile/match_identity.dart';
 import 'profile/match_persistence.dart';
+import 'awards/award_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,7 @@ Future<void> main() async {
     ),
     openBackend: DurableProfileBackend.open,
     legacyXp: SharedPreferencesLegacyXpSource(),
+    awards: AwardManager(),
   );
   unawaited(persistence.prepare());
   runApp(

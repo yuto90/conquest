@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:characters/characters.dart';
 import 'package:drift/drift.dart';
 
 import '../game/game_state.dart';
 import '../rank_progression.dart';
+import '../awards/award_catalog.dart';
+import '../awards/award_progress.dart';
+import '../awards/award_storage.dart';
+import '../game/match_summary.dart';
 import 'legacy_xp.dart';
 import 'match_contracts.dart';
 import 'match_identity.dart';
@@ -18,10 +23,14 @@ export 'profile_avatars.dart';
 enum StorageFaultPoint {
   afterProfile,
   afterLegacyEntry,
+  beforeAwardImport,
+  afterAwardImport,
   beforeMatch,
   afterMatch,
   beforeXp,
   afterXp,
+  beforeAwards,
+  afterAwards,
   beforeCommit,
   afterCommit,
 }
@@ -36,6 +45,7 @@ final class DriftProfileStore implements MatchCompletionService {
     UuidGenerator? ids,
     UtcClock? clock,
     this.faultHook,
+    this.legacyAwards = const EmptyAwardStorage(),
   }) : ids = ids ?? SecureUuidGenerator(),
        clock = clock ?? SystemUtcClock() {
     requireUuid(executionId, 'executionId');
@@ -51,6 +61,8 @@ final class DriftProfileStore implements MatchCompletionService {
   final UuidGenerator ids;
   final UtcClock clock;
   final StorageFaultHook? faultHook;
+  final AwardStorage legacyAwards;
+  static const awardMarker = 'awards_import_v1';
   Future<void> _queue = Future<void>.value();
   bool _closing = false;
   bool _accepting = true;
@@ -97,14 +109,18 @@ final class DriftProfileStore implements MatchCompletionService {
       );
 
   /// Activated only when #129 replaces the legacy writer.
-  Future<PlayerProfile> initialize(LegacyXpSource source) =>
-      _write(() => _initialize(source));
+  Future<PlayerProfile> initialize(LegacyXpSource source) => _write(() async {
+    final profile = await _initialize(source);
+    await _initializeAwards(profile.profileId);
+    return profile;
+  });
 
   /// Capture and recover the previous owner before committing the new owner.
   Future<PlayerProfile> initializeAndRecover(LegacyXpSource source) =>
       _write(() async {
         final previousExecution = await _meta('execution_id');
         final profile = await _initialize(source);
+        await _initializeAwards(profile.profileId);
         if (previousExecution != null && previousExecution != executionId) {
           await _recoverInterrupted(
             profileId: profile.profileId,
@@ -114,6 +130,54 @@ final class DriftProfileStore implements MatchCompletionService {
         }
         return profile;
       });
+
+  Future<void> _initializeAwards(String profileId) async {
+    final marker = await _meta(awardMarker);
+    if (marker != null) {
+      if (marker != profileId)
+        throw StateError('Invalid award migration marker');
+      await loadAwards(profileId);
+      return;
+    }
+    if ((await database.select(database.awardProfiles).get()).isNotEmpty) {
+      throw StateError('Unmarked award data; refusing a second import');
+    }
+    await _fault(StorageFaultPoint.beforeAwardImport);
+    final raw = await legacyAwards.read();
+    final profile = raw == null
+        ? AwardProfile()
+        : AwardProfileCodec.decode(raw, profileId);
+    await database
+        .into(database.awardProfiles)
+        .insert(
+          db.AwardProfilesCompanion.insert(
+            profileId: profileId,
+            snapshot: AwardProfileCodec.encode(profileId, profile),
+            legacySnapshot: Value(raw),
+          ),
+        );
+    await _fault(StorageFaultPoint.afterAwardImport);
+    await _putMeta(awardMarker, profileId);
+  }
+
+  Future<AwardProfile> loadAwards(String profileId) async {
+    final row = await (database.select(
+      database.awardProfiles,
+    )..where((p) => p.profileId.equals(profileId))).getSingle();
+    return AwardProfileCodec.decode(row.snapshot, profileId);
+  }
+
+  Future<db.AwardMatchState?> _awardState(String matchId) => (database.select(
+    database.awardMatchStates,
+  )..where((m) => m.matchId.equals(matchId))).getSingleOrNull();
+
+  AwardEligibility _eligibility(db.AwardMatchState row) => AwardEligibility(
+    AwardEvaluationCodec.readIds(
+      jsonDecode(row.eligibleAssignments),
+      AwardCatalog.assignments.map((a) => a.id).toSet(),
+    ),
+    catalogVersion: row.catalogVersion,
+  );
 
   Future<PlayerProfile> _initialize(LegacyXpSource source) async {
     final marker = await _meta(legacyMarker);
@@ -247,17 +311,55 @@ final class DriftProfileStore implements MatchCompletionService {
   }
 
   @override
-  Future<void> recordStart(MatchStartContext start) => _write(() async {
-    if (start.executionId != executionId)
-      throw const StorageUnavailable('Foreign execution');
+  Future<void> recordStart(
+    MatchStartContext start, {
+    AwardEligibility? awardEligibility,
+  }) => _write(() async {
     final record = MatchRecord(start: start, status: MatchStatus.inProgress);
     final existing = await _row(start.matchId);
     if (existing != null) {
       if (decodeRecord(existing).start != start)
         throw MatchCommitConflict(start.matchId);
+      if (!decodeRecord(existing).isTerminal &&
+          start.executionId != executionId)
+        throw const StorageUnavailable('Foreign execution');
+      final state = await _awardState(start.matchId);
+      if (existing.awardRequired && state == null)
+        throw StateError('Missing award start context');
+      if (state != null) {
+        if (state.profileId != start.profileId)
+          throw MatchCommitConflict(start.matchId);
+        _eligibility(state);
+      }
+      if (awardEligibility != null &&
+          state != null &&
+          _eligibility(state) != awardEligibility) {
+        throw MatchCommitConflict(start.matchId);
+      }
       return;
     }
-    await database.into(database.matchRecords).insert(_encode(record));
+    if (start.executionId != executionId)
+      throw const StorageUnavailable('Foreign execution');
+    final profile = await loadAwards(start.profileId);
+    if (profile.appliedMatches.contains(start.matchId))
+      throw MatchCommitConflict(start.matchId);
+    final eligibility =
+        awardEligibility ?? AwardEligibility(profile.eligibleAssignments);
+    await database
+        .into(database.matchRecords)
+        .insert(_encode(record).copyWith(awardRequired: const Value(true)));
+    await database
+        .into(database.awardMatchStates)
+        .insert(
+          db.AwardMatchStatesCompanion.insert(
+            matchId: start.matchId,
+            profileId: start.profileId,
+            catalogVersion: eligibility.catalogVersion,
+            eligibleAssignments: jsonEncode(
+              eligibility.assignments.toList()..sort(),
+            ),
+          ),
+        );
   });
 
   @override
@@ -275,17 +377,19 @@ final class DriftProfileStore implements MatchCompletionService {
     MatchRecord record, {
     bool recovery = false,
   }) async {
-    if (!recovery && record.start.executionId != executionId) {
-      throw const StorageUnavailable('Foreign execution');
-    }
     final row = await _row(record.start.matchId);
     if (row == null || decodeRecord(row).start != record.start) {
       throw MatchCommitConflict(record.start.matchId);
     }
     final existing = decodeRecord(row);
+    if (row.awardRequired && await _awardState(record.start.matchId) == null)
+      throw StateError('Missing award start context');
     if (existing.isTerminal) {
       requireSameFinalization(existing, record);
-      return _receipt(row);
+      return _awardReceipt(_receipt(row), requiredAwards: row.awardRequired);
+    }
+    if (!recovery && record.start.executionId != executionId) {
+      throw const StorageUnavailable('Foreign execution');
     }
     final before = await totalXp(record.start.profileId);
     final award = record.outcome == MatchOutcome.win
@@ -322,7 +426,106 @@ final class DriftProfileStore implements MatchCompletionService {
           );
     }
     await _fault(StorageFaultPoint.afterXp);
-    return receipt;
+    if (record.status == MatchStatus.completed) {
+      final state = await _awardState(record.start.matchId);
+      if (state != null) {
+        if (state.profileId != record.start.profileId ||
+            state.evaluationReceipt != null)
+          throw MatchCommitConflict(record.start.matchId);
+        final profile = await loadAwards(record.start.profileId);
+        if (profile.appliedMatches.contains(record.start.matchId))
+          throw MatchCommitConflict(record.start.matchId);
+        final metrics = record.metrics;
+        final evaluation = AwardEvaluator.evaluate(
+          profile,
+          AwardMatch(
+            id: record.start.matchId,
+            difficulty: record.start.configuration.cpuDifficulty,
+            won: record.outcome == MatchOutcome.win,
+            elapsedMs: metrics.elapsedMs!,
+            summary: MatchSummary(
+              elapsedMs: metrics.elapsedMs!,
+              playerCaptureCount: metrics.captures!,
+              playerDispatchCount: metrics.dispatchCount!,
+              playerDispatchedForces: metrics.forcesSent!,
+            ),
+            endedAtUtc: record.endedAtUtc!,
+          ),
+          _eligibility(state).assignments,
+        );
+        await _fault(StorageFaultPoint.beforeAwards);
+        await (database.update(
+          database.awardProfiles,
+        )..where((p) => p.profileId.equals(record.start.profileId))).write(
+          db.AwardProfilesCompanion(
+            snapshot: Value(
+              AwardProfileCodec.encode(
+                record.start.profileId,
+                evaluation.profile,
+              ),
+            ),
+          ),
+        );
+        await (database.update(
+          database.awardMatchStates,
+        )..where((s) => s.matchId.equals(record.start.matchId))).write(
+          db.AwardMatchStatesCompanion(
+            evaluationReceipt: Value(
+              AwardEvaluationCodec.encode(
+                record.start.profileId,
+                record.start.matchId,
+                evaluation,
+              ),
+            ),
+          ),
+        );
+        await _fault(StorageFaultPoint.afterAwards);
+      }
+    }
+    return _awardReceipt(receipt, requiredAwards: row.awardRequired);
+  }
+
+  Future<MatchCommitReceipt> _awardReceipt(
+    MatchCommitReceipt receipt, {
+    required bool requiredAwards,
+  }) async {
+    final state = await _awardState(receipt.record.start.matchId);
+    if (requiredAwards && state == null)
+      throw StateError('Missing atomic award state');
+    if (state != null) {
+      if (state.profileId != receipt.record.start.profileId)
+        throw StateError('Award receipt profile mismatch');
+      _eligibility(state);
+    }
+    AwardEvaluation? evaluation;
+    if (state != null && receipt.record.status == MatchStatus.completed) {
+      if (state.profileId != receipt.record.start.profileId ||
+          state.evaluationReceipt == null)
+        throw StateError('Missing atomic award receipt');
+      evaluation = AwardEvaluationCodec.decode(
+        state.evaluationReceipt!,
+        state.profileId,
+        state.matchId,
+      );
+      if (!_eligibility(state).assignments.containsAll({
+        ...evaluation.assignments,
+        ...evaluation.progressed,
+      })) {
+        throw const FormatException('Receipt exceeds frozen award eligibility');
+      }
+    } else if (state?.evaluationReceipt != null) {
+      throw StateError(
+        'Unexpected award receipt for an unfinished or abandoned match',
+      );
+    }
+    return MatchCommitReceipt(
+      record: receipt.record,
+      xpAwarded: receipt.xpAwarded,
+      totalXpBefore: receipt.totalXpBefore,
+      totalXpAfter: receipt.totalXpAfter,
+      rewardVersion: receipt.rewardVersion,
+      awards: evaluation,
+    );
   }
 
   @override

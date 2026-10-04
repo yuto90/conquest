@@ -198,13 +198,66 @@ text plus a generic icon until a shared badge exists; badge artwork is not a
 storage key, metric, XP source or prerequisite for this feature.
 
 #125 consumes the **same stable ID, frozen start and completion** for awards.
-It must reuse these counters, capture eligible assignments at start when its
-catalog is introduced, and join the same durable finalization boundary. The
-earlier separate SharedPreferences award-profile proposal must not become a
-second authoritative match/XP write path. Award evaluation/catalog migrations
-are separate work; no ribbons, medals, extra XP or award tables are added here.
-Any future award persistence needs atomic consistency with finalization, stable
-IDs and an explicit catalog version, including repeat-notification handling.
+`DriftProfileStore.recordStart` commits `match_records` and `award_match_states`
+together. The latter stores the same match/profile IDs, catalog version and
+immutable eligible-assignment IDs. `MatchPersistence.begin` freezes eligibility
+from its last acknowledged durable profile; starts waiting for initialization
+all freeze before any waiting completion is evaluated. Retrying a start cannot
+replace its eligibility, and completing it cannot unlock another tier in that
+same match.
+
+`DriftProfileStore._finalize`, within `_write`'s single SQLite transaction, updates
+the terminal match, the existing victory XP ledger, the award profile snapshot
+and the match's award evaluation receipt. Evaluation uses only the frozen record's
+difficulty, outcome, elapsed time, captures, dispatches, forces and end timestamp.
+Awards add **no XP**. A repeated identical completion returns the original XP and
+award receipt, not a newly evaluated delta; a different frozen payload conflicts.
+`afterCommit` response loss may show unsaved even though everything committed;
+retry/restart cannot add XP, ribbons, medals or assignments again. The current
+award projection is reloaded separately from the historical receipt so retrying
+an older match cannot roll the list back to that receipt's profile snapshot.
+An identical terminal receipt can be replayed by a new execution holding the
+writer lease; a foreign execution cannot finalize an unfinished start. Normal
+restart recovery still makes unfinished old starts interrupted, not resumed.
+
+`AwardManager` is a presentation cache, not a writer. SharedPreferences is a
+read-only migration source, never a second authoritative match/XP/award path.
+The result's saved state means the combined durable commit was acknowledged.
+An unsaved evaluation is a preview, not an update to the confirmed award list;
+its retry button retries the whole frozen match DTO. Closing storage drains the
+root queue and store transaction queue before releasing ownership.
+
+### Award cutover and preservation
+
+Schema v2 adds `award_profiles`, `award_match_states` and the
+`match_records.award_required` discriminator. The v1 structure is validated before
+DDL. Added structures and `PRAGMA user_version = 2` commit in one transaction;
+failure before commit leaves v1, and lost acknowledgment after commit leaves a
+complete v2 schema that can be reopened. Existing profile, history, XP receipts,
+ledger and legacy-XP marker are retained, not recomputed or removed. Existing
+matches get `award_required = false`; newly recorded starts use true. Missing
+new-match award context/receipt is an error, never mistaken for pre-cutover data.
+
+Initialization validates the old `conquest.awards.profile.v1` JSON against its
+schema, catalog and active profile. In the same initialization transaction it
+imports a validated baseline, keeps the exact original JSON in `legacy_snapshot`
+and writes a profile-bound `awards_import_v1` marker (alongside any required legacy
+XP import and execution recovery). The old SharedPreferences key is never written
+or deleted. After the marker exists the old source is not read or imported again,
+even after response loss or restart; the durable snapshot must still validate.
+Read failure, malformed/unknown JSON, invalid counters or profile/catalog mismatch
+abort initialization and preserve existing data. There is no empty-data fallback.
+
+Pre-cutover history and award IDs can reflect partial saves from the old design.
+They are retained as-is: an old completion with no frozen award start context does
+not manufacture awards, retroactively reconstruct eligibility or repair missing
+history/XP by guessing. The original historical XP receipt remains idempotent.
+Atomic award guarantees apply to newly recorded starts, not to repairs of old
+partial states. A forced process exit can still lose an uncommitted in-memory
+terminal DTO; persisted unfinished starts are recovered as interrupted, with no
+XP or awards. This is **not** automatic durable replay of an unsaved result or
+mid-game resume. Given the original DTO and still-finalizable start, retries after
+reopening use the persisted eligibility; committed results always retain receipts.
 
 ## Verification
 
@@ -220,13 +273,13 @@ uses `rankProgressProvider`, a ledger stream, never SharedPreferences writes.
 and explicit paused-match `abandon` capture the end time once. `retry` resubmits
 the original snapshot, even after its result/controller has been disposed.
 `saveFor(matchId)` returns saving/unsaved/saved state; a terminal match is saved
-only with a durable receipt. Delayed receipts enrich only the current result.
+only with a combined durable match/XP/award receipt. Delayed receipts enrich only the current result.
 The coordinator retains at most eight saved receipts (including the current
 match), never evicting in-progress or failed DTOs. Older saved matches are read
 from the durable repository, not the in-memory save-state cache.
 
 Initialization holds the exclusive platform lease before `initializeAndRecover`
-atomically imports legacy XP, updates the execution owner and recovers the prior
+atomically imports legacy XP and validated legacy awards, updates the execution owner and recovers the prior
 execution. Repeated initialization never interrupts the current execution.
 `StorageAlreadyOwned` blocks normal starts and tells the user to use the first
 tab or close it before retrying; other failures keep gameplay/navigation usable
@@ -241,9 +294,9 @@ the existing rank widget tests now use the same real DB boundary.
 ### Durable storage foundation (#128)
 
 `ProfileStorage.open(executionId: ...)` owns a platform executor and exclusive
-writer lease. It opens and checks schema version 1, table/column identities,
+writer lease. It opens/upgrades to schema version 2 and checks table/column identities,
 SQLite integrity and foreign keys; it does **not** initialize a profile or read
-legacy XP. Close the root-owned storage only after its queued saves finish.
+legacy XP or awards. Close the root-owned storage only after its queued saves finish.
 
 `storage.store.initialize(SharedPreferencesLegacyXpSource())` is the explicit
 cutover component for #129. It creates the profile, `legacy:<profileId>` ledger
@@ -278,10 +331,10 @@ are checked against `web/drift-assets.sha256`. Never edit generated Dart/schema
 fixtures or those assets by hand. Future schema changes must bump `schemaVersion`
 and provide a tested upgrade; unknown versions/tables/columns are refused without
 reset. `StorageFaultPoint` hooks inject failures at migration writes, before/after
-the match update and XP insert, and before commit for rollback/retry fixtures.
+the match update, XP insert and award snapshot/receipt write, and before commit for rollback/retry fixtures.
 `afterCommit` runs outside the transaction, modelling a durable success whose
 acknowledgment was lost. Retry reads the original receipt and cannot award XP
-again; committed migration metadata prevents legacy reimport after restart.
+or awards again; committed migration metadata prevents legacy reimport after restart.
 These hooks are injected only by tests; production does not configure one.
 Receipt snapshots, including zero XP,
 are persisted on every terminal match. Reward version is the contract value `1`.
