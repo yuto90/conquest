@@ -20,6 +20,7 @@ abstract interface class ProfileBackend implements MatchCompletionService {
   PlayerProfileRepository get repository;
   Future<PlayerProfile> initializeAndRecover(LegacyXpSource source);
   Stream<int> watchTotalXp(String profileId);
+  Future<AwardProfile> loadAwards(String profileId);
   Future<void> close();
 }
 
@@ -43,7 +44,13 @@ final class DurableProfileBackend implements ProfileBackend {
   @override
   Stream<int> watchTotalXp(String profileId) => store.watchTotalXp(profileId);
   @override
-  Future<void> recordStart(MatchStartContext start) => store.recordStart(start);
+  Future<void> recordStart(
+    MatchStartContext start, {
+    AwardEligibility? awardEligibility,
+  }) => store.recordStart(start, awardEligibility: awardEligibility);
+  @override
+  Future<AwardProfile> loadAwards(String profileId) =>
+      store.loadAwards(profileId);
   @override
   Future<MatchCommitReceipt> complete(MatchCompletion completion) =>
       store.complete(completion);
@@ -81,6 +88,7 @@ final class _PendingMatch {
   final GameConfiguration configuration;
   final DateTime startedAt;
   MatchStartContext? start;
+  AwardEligibility? awardEligibility;
   GameResult? result;
   MatchSummary? summary;
   DateTime? endedAt;
@@ -110,6 +118,7 @@ final class MatchPersistence extends ChangeNotifier {
   final LegacyXpSource legacyXp;
   ProfileBackend? _backend;
   PlayerProfile? _profile;
+  AwardProfile? _awardProfile;
   Future<void>? _initializing;
   Future<void> _queue = Future<void>.value();
   final Map<String, _PendingMatch> _matches = {};
@@ -149,10 +158,13 @@ final class MatchPersistence extends ChangeNotifier {
     _changed();
     try {
       _backend ??= await openBackend(factory.executionId);
-      _profile = await _backend!.initializeAndRecover(legacyXp);
-      unawaited(awards?.initialize(_profile!.profileId));
+      final profile = await _backend!.initializeAndRecover(legacyXp);
+      _awardProfile = await _backend!.loadAwards(profile.profileId);
+      _profile = profile;
+      awards?.load(_awardProfile!);
       initializationError = null;
     } catch (error) {
+      awards?.error = error;
       initializationError = error;
       rethrow;
     } finally {
@@ -189,10 +201,12 @@ final class MatchPersistence extends ChangeNotifier {
       configuration,
       storageUtc(factory.clock.now()),
     );
-    awards?.begin(id, () async {
-      await initialize();
-      return _profile!.profileId;
-    });
+    awards?.begin(id);
+    if (_awardProfile != null) {
+      _matches[id]!.awardEligibility = AwardEligibility(
+        _awardProfile!.eligibleAssignments,
+      );
+    }
     unawaited(_attempt(_matches[id]!));
     return id;
   }
@@ -211,18 +225,6 @@ final class MatchPersistence extends ChangeNotifier {
     match.result = result;
     match.summary = summary;
     match.endedAt = storageUtc(factory.clock.now());
-    unawaited(
-      awards?.complete(
-        AwardMatch(
-          id: id,
-          difficulty: match.configuration.cpuDifficulty,
-          won: result.winner == Faction.player,
-          elapsedMs: result.elapsedMs,
-          summary: summary,
-          endedAtUtc: match.endedAt!,
-        ),
-      ),
-    );
     return _attempt(match);
   }
 
@@ -234,7 +236,7 @@ final class MatchPersistence extends ChangeNotifier {
       return match.operation ?? Future.value();
     }
     match.abandoned = true;
-    awards?.abandon(id);
+    awards?.forget(id);
     match.summary = summary;
     match.endedAt = storageUtc(factory.clock.now());
     return _attempt(match);
@@ -246,10 +248,17 @@ final class MatchPersistence extends ChangeNotifier {
     // entry when that serialized operation reaches the finalization boundary.
     if (match.operation != null) return match.operation!;
     match.save = const MatchSaveState(MatchSavePhase.saving);
+    if (match.endedAt != null && !match.abandoned)
+      awards?.phase(match.id, AwardSavePhase.saving);
     _changed();
     final operation = _queue.then((_) async {
       try {
         await initialize();
+        for (final pending in _matches.values) {
+          pending.awardEligibility ??= AwardEligibility(
+            _awardProfile!.eligibleAssignments,
+          );
+        }
         match.start ??= MatchStartContext(
           matchId: match.id,
           profileId: _profile!.profileId,
@@ -262,30 +271,54 @@ final class MatchPersistence extends ChangeNotifier {
           rulesVersion: factory.rulesVersion,
           metricsVersion: factory.metricsVersion,
         );
-        await _backend!.recordStart(match.start!);
+        await _backend!.recordStart(
+          match.start!,
+          awardEligibility: match.awardEligibility,
+        );
         MatchCommitReceipt? receipt;
         if (match.endedAt != null) {
-          receipt = match.abandoned
-              ? await _backend!.abandon(
-                  MatchRecord(
-                    start: match.start!,
-                    status: MatchStatus.abandoned,
-                    endedAtUtc: match.endedAt,
-                    metrics: MatchMetrics.fromSummary(match.summary!),
-                  ),
-                )
-              : await _backend!.complete(
-                  MatchCompletion.fromGame(
-                    start: match.start!,
-                    result: match.result!,
-                    summary: match.summary!,
-                    endedAtUtc: match.endedAt!,
-                  ),
-                );
+          if (match.abandoned) {
+            receipt = await _backend!.abandon(
+              MatchRecord(
+                start: match.start!,
+                status: MatchStatus.abandoned,
+                endedAtUtc: match.endedAt,
+                metrics: MatchMetrics.fromSummary(match.summary!),
+              ),
+            );
+          } else {
+            final completion = MatchCompletion.fromGame(
+              start: match.start!,
+              result: match.result!,
+              summary: match.summary!,
+              endedAtUtc: match.endedAt!,
+            );
+            awards?.preview(
+              match.id,
+              AwardMatch(
+                id: match.id,
+                difficulty: completion.record.start.configuration.cpuDifficulty,
+                won: completion.record.outcome == MatchOutcome.win,
+                elapsedMs: completion.record.metrics.elapsedMs!,
+                summary: match.summary!,
+                endedAtUtc: completion.record.endedAtUtc!,
+              ),
+              match.awardEligibility!,
+            );
+            receipt = await _backend!.complete(completion);
+            final evaluation = receipt.awards;
+            if (evaluation == null)
+              throw StateError('Missing atomic award receipt');
+            _awardProfile = await _backend!.loadAwards(_profile!.profileId);
+            awards?.committed(match.id, evaluation, _awardProfile!);
+          }
         }
         match.save = MatchSaveState(MatchSavePhase.saved, receipt: receipt);
+        if (receipt == null) awards?.phase(match.id, AwardSavePhase.saving);
       } catch (error) {
         match.save = MatchSaveState(MatchSavePhase.unsaved, error: error);
+        if (!match.abandoned)
+          awards?.phase(match.id, AwardSavePhase.unsaved, error);
       }
       match.operation = null;
       _trimSavedReceipts();
@@ -305,6 +338,7 @@ final class MatchPersistence extends ChangeNotifier {
       if (excess <= 0) break;
       if (match.id == _activeMatchId || match.operation != null) continue;
       _matches.remove(match.id);
+      awards?.forget(match.id);
       excess--;
     }
   }
@@ -330,17 +364,10 @@ final class MatchPersistence extends ChangeNotifier {
       draining = _queue;
       await draining;
     } while (draining != _queue);
-    await awards?.drain();
   }
 
   Future<void> retryAwards([String? id]) async {
-    try {
-      await initialize();
-      await awards?.initialize(_profile!.profileId);
-      await awards?.retry(id);
-    } catch (_) {
-      // The profile and award owners expose errors independently.
-    }
+    await retry(id);
   }
 
   Future<void> close() {

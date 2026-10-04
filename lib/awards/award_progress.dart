@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../game/game_state.dart';
 import '../game/match_summary.dart';
 import 'award_catalog.dart';
@@ -6,6 +8,38 @@ class AssignmentCompletion {
   const AssignmentCompletion(this.matchId, this.completedAtUtc);
   final String matchId;
   final DateTime completedAtUtc;
+  @override
+  bool operator ==(Object other) =>
+      other is AssignmentCompletion &&
+      other.matchId == matchId &&
+      other.completedAtUtc == completedAtUtc;
+  @override
+  int get hashCode => Object.hash(matchId, completedAtUtc);
+}
+
+class AwardEligibility {
+  AwardEligibility(
+    Set<String> assignments, {
+    this.catalogVersion = AwardCatalog.version,
+  }) : assignments = Set.unmodifiable(assignments) {
+    if (catalogVersion != AwardCatalog.version ||
+        !AwardCatalog.assignments
+            .map((a) => a.id)
+            .toSet()
+            .containsAll(assignments)) {
+      throw const FormatException('Unsupported award start context');
+    }
+  }
+  final int catalogVersion;
+  final Set<String> assignments;
+  @override
+  bool operator ==(Object other) =>
+      other is AwardEligibility &&
+      catalogVersion == other.catalogVersion &&
+      setEquals(assignments, other.assignments);
+  @override
+  int get hashCode =>
+      Object.hash(catalogVersion, Object.hashAllUnordered(assignments));
 }
 
 class AwardProfile {
@@ -42,6 +76,30 @@ class AwardProfile {
       assignment.singleMatch
       ? singleMatchProgress[assignment.id] ?? const {}
       : totals;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AwardProfile &&
+      mapEquals(totals, other.totals) &&
+      mapEquals(ribbons, other.ribbons) &&
+      mapEquals(completed, other.completed) &&
+      setEquals(appliedMatches, other.appliedMatches) &&
+      setEquals(
+        singleMatchProgress.keys.toSet(),
+        other.singleMatchProgress.keys.toSet(),
+      ) &&
+      singleMatchProgress.keys.every(
+        (id) =>
+            mapEquals(singleMatchProgress[id], other.singleMatchProgress[id]),
+      );
+  @override
+  int get hashCode => Object.hash(
+    totals.length,
+    ribbons.length,
+    completed.length,
+    singleMatchProgress.length,
+    appliedMatches.length,
+  );
 }
 
 class AwardMatch {
@@ -89,6 +147,22 @@ class AwardEvaluation {
   final Map<String, int> medals;
   final Set<String> assignments;
   final Set<String> progressed;
+  @override
+  bool operator ==(Object other) =>
+      other is AwardEvaluation &&
+      profile == other.profile &&
+      mapEquals(ribbons, other.ribbons) &&
+      mapEquals(medals, other.medals) &&
+      setEquals(assignments, other.assignments) &&
+      setEquals(progressed, other.progressed);
+  @override
+  int get hashCode => Object.hash(
+    profile,
+    ribbons.length,
+    medals.length,
+    assignments.length,
+    progressed.length,
+  );
 }
 
 abstract final class AwardEvaluator {

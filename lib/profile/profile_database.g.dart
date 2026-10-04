@@ -687,6 +687,19 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
     requiredDuringInsert: true,
     $customConstraints: 'NOT NULL CHECK (metrics_version >= 1)',
   );
+  static const VerificationMeta _awardRequiredMeta = const VerificationMeta(
+    'awardRequired',
+  );
+  late final GeneratedColumn<bool> awardRequired = GeneratedColumn<bool>(
+    'award_required',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    $customConstraints:
+        'NOT NULL DEFAULT FALSE CHECK (award_required IN (0, 1))',
+    defaultValue: const CustomExpression('FALSE'),
+  );
   static const VerificationMeta _receiptXpMeta = const VerificationMeta(
     'receiptXp',
   );
@@ -754,6 +767,7 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
     appVersion,
     rulesVersion,
     metricsVersion,
+    awardRequired,
     receiptXp,
     receiptBefore,
     receiptAfter,
@@ -955,6 +969,15 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
     } else if (isInserting) {
       context.missing(_metricsVersionMeta);
     }
+    if (data.containsKey('award_required')) {
+      context.handle(
+        _awardRequiredMeta,
+        awardRequired.isAcceptableOrUnknown(
+          data['award_required']!,
+          _awardRequiredMeta,
+        ),
+      );
+    }
     if (data.containsKey('receipt_xp')) {
       context.handle(
         _receiptXpMeta,
@@ -1085,6 +1108,10 @@ class MatchRecords extends Table with TableInfo<MatchRecords, MatchRecord> {
         DriftSqlType.int,
         data['${effectivePrefix}metrics_version'],
       )!,
+      awardRequired: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}award_required'],
+      )!,
       receiptXp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}receipt_xp'],
@@ -1140,6 +1167,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
   final String appVersion;
   final String rulesVersion;
   final int metricsVersion;
+  final bool awardRequired;
   final int? receiptXp;
   final int? receiptBefore;
   final int? receiptAfter;
@@ -1166,6 +1194,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
     required this.appVersion,
     required this.rulesVersion,
     required this.metricsVersion,
+    required this.awardRequired,
     this.receiptXp,
     this.receiptBefore,
     this.receiptAfter,
@@ -1209,6 +1238,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
     map['app_version'] = Variable<String>(appVersion);
     map['rules_version'] = Variable<String>(rulesVersion);
     map['metrics_version'] = Variable<int>(metricsVersion);
+    map['award_required'] = Variable<bool>(awardRequired);
     if (!nullToAbsent || receiptXp != null) {
       map['receipt_xp'] = Variable<int>(receiptXp);
     }
@@ -1261,6 +1291,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
       appVersion: Value(appVersion),
       rulesVersion: Value(rulesVersion),
       metricsVersion: Value(metricsVersion),
+      awardRequired: Value(awardRequired),
       receiptXp: receiptXp == null && nullToAbsent
           ? const Value.absent()
           : Value(receiptXp),
@@ -1305,6 +1336,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
       appVersion: serializer.fromJson<String>(json['app_version']),
       rulesVersion: serializer.fromJson<String>(json['rules_version']),
       metricsVersion: serializer.fromJson<int>(json['metrics_version']),
+      awardRequired: serializer.fromJson<bool>(json['award_required']),
       receiptXp: serializer.fromJson<int?>(json['receipt_xp']),
       receiptBefore: serializer.fromJson<int?>(json['receipt_before']),
       receiptAfter: serializer.fromJson<int?>(json['receipt_after']),
@@ -1338,6 +1370,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
       'app_version': serializer.toJson<String>(appVersion),
       'rules_version': serializer.toJson<String>(rulesVersion),
       'metrics_version': serializer.toJson<int>(metricsVersion),
+      'award_required': serializer.toJson<bool>(awardRequired),
       'receipt_xp': serializer.toJson<int?>(receiptXp),
       'receipt_before': serializer.toJson<int?>(receiptBefore),
       'receipt_after': serializer.toJson<int?>(receiptAfter),
@@ -1369,6 +1402,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
     String? appVersion,
     String? rulesVersion,
     int? metricsVersion,
+    bool? awardRequired,
     Value<int?> receiptXp = const Value.absent(),
     Value<int?> receiptBefore = const Value.absent(),
     Value<int?> receiptAfter = const Value.absent(),
@@ -1399,6 +1433,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
     appVersion: appVersion ?? this.appVersion,
     rulesVersion: rulesVersion ?? this.rulesVersion,
     metricsVersion: metricsVersion ?? this.metricsVersion,
+    awardRequired: awardRequired ?? this.awardRequired,
     receiptXp: receiptXp.present ? receiptXp.value : this.receiptXp,
     receiptBefore: receiptBefore.present
         ? receiptBefore.value
@@ -1457,6 +1492,9 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
       metricsVersion: data.metricsVersion.present
           ? data.metricsVersion.value
           : this.metricsVersion,
+      awardRequired: data.awardRequired.present
+          ? data.awardRequired.value
+          : this.awardRequired,
       receiptXp: data.receiptXp.present ? data.receiptXp.value : this.receiptXp,
       receiptBefore: data.receiptBefore.present
           ? data.receiptBefore.value
@@ -1494,6 +1532,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
           ..write('appVersion: $appVersion, ')
           ..write('rulesVersion: $rulesVersion, ')
           ..write('metricsVersion: $metricsVersion, ')
+          ..write('awardRequired: $awardRequired, ')
           ..write('receiptXp: $receiptXp, ')
           ..write('receiptBefore: $receiptBefore, ')
           ..write('receiptAfter: $receiptAfter, ')
@@ -1525,6 +1564,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
     appVersion,
     rulesVersion,
     metricsVersion,
+    awardRequired,
     receiptXp,
     receiptBefore,
     receiptAfter,
@@ -1555,6 +1595,7 @@ class MatchRecord extends DataClass implements Insertable<MatchRecord> {
           other.appVersion == this.appVersion &&
           other.rulesVersion == this.rulesVersion &&
           other.metricsVersion == this.metricsVersion &&
+          other.awardRequired == this.awardRequired &&
           other.receiptXp == this.receiptXp &&
           other.receiptBefore == this.receiptBefore &&
           other.receiptAfter == this.receiptAfter &&
@@ -1583,6 +1624,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
   final Value<String> appVersion;
   final Value<String> rulesVersion;
   final Value<int> metricsVersion;
+  final Value<bool> awardRequired;
   final Value<int?> receiptXp;
   final Value<int?> receiptBefore;
   final Value<int?> receiptAfter;
@@ -1610,6 +1652,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
     this.appVersion = const Value.absent(),
     this.rulesVersion = const Value.absent(),
     this.metricsVersion = const Value.absent(),
+    this.awardRequired = const Value.absent(),
     this.receiptXp = const Value.absent(),
     this.receiptBefore = const Value.absent(),
     this.receiptAfter = const Value.absent(),
@@ -1638,6 +1681,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
     required String appVersion,
     required String rulesVersion,
     required int metricsVersion,
+    this.awardRequired = const Value.absent(),
     this.receiptXp = const Value.absent(),
     this.receiptBefore = const Value.absent(),
     this.receiptAfter = const Value.absent(),
@@ -1679,6 +1723,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
     Expression<String>? appVersion,
     Expression<String>? rulesVersion,
     Expression<int>? metricsVersion,
+    Expression<bool>? awardRequired,
     Expression<int>? receiptXp,
     Expression<int>? receiptBefore,
     Expression<int>? receiptAfter,
@@ -1708,6 +1753,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
       if (appVersion != null) 'app_version': appVersion,
       if (rulesVersion != null) 'rules_version': rulesVersion,
       if (metricsVersion != null) 'metrics_version': metricsVersion,
+      if (awardRequired != null) 'award_required': awardRequired,
       if (receiptXp != null) 'receipt_xp': receiptXp,
       if (receiptBefore != null) 'receipt_before': receiptBefore,
       if (receiptAfter != null) 'receipt_after': receiptAfter,
@@ -1739,6 +1785,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
     Value<String>? appVersion,
     Value<String>? rulesVersion,
     Value<int>? metricsVersion,
+    Value<bool>? awardRequired,
     Value<int?>? receiptXp,
     Value<int?>? receiptBefore,
     Value<int?>? receiptAfter,
@@ -1767,6 +1814,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
       appVersion: appVersion ?? this.appVersion,
       rulesVersion: rulesVersion ?? this.rulesVersion,
       metricsVersion: metricsVersion ?? this.metricsVersion,
+      awardRequired: awardRequired ?? this.awardRequired,
       receiptXp: receiptXp ?? this.receiptXp,
       receiptBefore: receiptBefore ?? this.receiptBefore,
       receiptAfter: receiptAfter ?? this.receiptAfter,
@@ -1843,6 +1891,9 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
     if (metricsVersion.present) {
       map['metrics_version'] = Variable<int>(metricsVersion.value);
     }
+    if (awardRequired.present) {
+      map['award_required'] = Variable<bool>(awardRequired.value);
+    }
     if (receiptXp.present) {
       map['receipt_xp'] = Variable<int>(receiptXp.value);
     }
@@ -1887,6 +1938,7 @@ class MatchRecordsCompanion extends UpdateCompanion<MatchRecord> {
           ..write('appVersion: $appVersion, ')
           ..write('rulesVersion: $rulesVersion, ')
           ..write('metricsVersion: $metricsVersion, ')
+          ..write('awardRequired: $awardRequired, ')
           ..write('receiptXp: $receiptXp, ')
           ..write('receiptBefore: $receiptBefore, ')
           ..write('receiptAfter: $receiptAfter, ')
@@ -2703,6 +2755,689 @@ class StorageMetaCompanion extends UpdateCompanion<StorageMetaData> {
   }
 }
 
+class AwardProfiles extends Table with TableInfo<AwardProfiles, AwardProfile> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  AwardProfiles(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL PRIMARY KEY REFERENCES profiles(profile_id)',
+  );
+  static const VerificationMeta _snapshotMeta = const VerificationMeta(
+    'snapshot',
+  );
+  late final GeneratedColumn<String> snapshot = GeneratedColumn<String>(
+    'snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL',
+  );
+  static const VerificationMeta _legacySnapshotMeta = const VerificationMeta(
+    'legacySnapshot',
+  );
+  late final GeneratedColumn<String> legacySnapshot = GeneratedColumn<String>(
+    'legacy_snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    $customConstraints: '',
+  );
+  @override
+  List<GeneratedColumn> get $columns => [profileId, snapshot, legacySnapshot];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'award_profiles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AwardProfile> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('snapshot')) {
+      context.handle(
+        _snapshotMeta,
+        snapshot.isAcceptableOrUnknown(data['snapshot']!, _snapshotMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_snapshotMeta);
+    }
+    if (data.containsKey('legacy_snapshot')) {
+      context.handle(
+        _legacySnapshotMeta,
+        legacySnapshot.isAcceptableOrUnknown(
+          data['legacy_snapshot']!,
+          _legacySnapshotMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {profileId};
+  @override
+  AwardProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AwardProfile(
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      snapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}snapshot'],
+      )!,
+      legacySnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}legacy_snapshot'],
+      ),
+    );
+  }
+
+  @override
+  AwardProfiles createAlias(String alias) {
+    return AwardProfiles(attachedDatabase, alias);
+  }
+
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class AwardProfile extends DataClass implements Insertable<AwardProfile> {
+  final String profileId;
+  final String snapshot;
+  final String? legacySnapshot;
+  const AwardProfile({
+    required this.profileId,
+    required this.snapshot,
+    this.legacySnapshot,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['profile_id'] = Variable<String>(profileId);
+    map['snapshot'] = Variable<String>(snapshot);
+    if (!nullToAbsent || legacySnapshot != null) {
+      map['legacy_snapshot'] = Variable<String>(legacySnapshot);
+    }
+    return map;
+  }
+
+  AwardProfilesCompanion toCompanion(bool nullToAbsent) {
+    return AwardProfilesCompanion(
+      profileId: Value(profileId),
+      snapshot: Value(snapshot),
+      legacySnapshot: legacySnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacySnapshot),
+    );
+  }
+
+  factory AwardProfile.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AwardProfile(
+      profileId: serializer.fromJson<String>(json['profile_id']),
+      snapshot: serializer.fromJson<String>(json['snapshot']),
+      legacySnapshot: serializer.fromJson<String?>(json['legacy_snapshot']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'profile_id': serializer.toJson<String>(profileId),
+      'snapshot': serializer.toJson<String>(snapshot),
+      'legacy_snapshot': serializer.toJson<String?>(legacySnapshot),
+    };
+  }
+
+  AwardProfile copyWith({
+    String? profileId,
+    String? snapshot,
+    Value<String?> legacySnapshot = const Value.absent(),
+  }) => AwardProfile(
+    profileId: profileId ?? this.profileId,
+    snapshot: snapshot ?? this.snapshot,
+    legacySnapshot: legacySnapshot.present
+        ? legacySnapshot.value
+        : this.legacySnapshot,
+  );
+  AwardProfile copyWithCompanion(AwardProfilesCompanion data) {
+    return AwardProfile(
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      snapshot: data.snapshot.present ? data.snapshot.value : this.snapshot,
+      legacySnapshot: data.legacySnapshot.present
+          ? data.legacySnapshot.value
+          : this.legacySnapshot,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardProfile(')
+          ..write('profileId: $profileId, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('legacySnapshot: $legacySnapshot')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(profileId, snapshot, legacySnapshot);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AwardProfile &&
+          other.profileId == this.profileId &&
+          other.snapshot == this.snapshot &&
+          other.legacySnapshot == this.legacySnapshot);
+}
+
+class AwardProfilesCompanion extends UpdateCompanion<AwardProfile> {
+  final Value<String> profileId;
+  final Value<String> snapshot;
+  final Value<String?> legacySnapshot;
+  final Value<int> rowid;
+  const AwardProfilesCompanion({
+    this.profileId = const Value.absent(),
+    this.snapshot = const Value.absent(),
+    this.legacySnapshot = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AwardProfilesCompanion.insert({
+    required String profileId,
+    required String snapshot,
+    this.legacySnapshot = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : profileId = Value(profileId),
+       snapshot = Value(snapshot);
+  static Insertable<AwardProfile> custom({
+    Expression<String>? profileId,
+    Expression<String>? snapshot,
+    Expression<String>? legacySnapshot,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (profileId != null) 'profile_id': profileId,
+      if (snapshot != null) 'snapshot': snapshot,
+      if (legacySnapshot != null) 'legacy_snapshot': legacySnapshot,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AwardProfilesCompanion copyWith({
+    Value<String>? profileId,
+    Value<String>? snapshot,
+    Value<String?>? legacySnapshot,
+    Value<int>? rowid,
+  }) {
+    return AwardProfilesCompanion(
+      profileId: profileId ?? this.profileId,
+      snapshot: snapshot ?? this.snapshot,
+      legacySnapshot: legacySnapshot ?? this.legacySnapshot,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (snapshot.present) {
+      map['snapshot'] = Variable<String>(snapshot.value);
+    }
+    if (legacySnapshot.present) {
+      map['legacy_snapshot'] = Variable<String>(legacySnapshot.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardProfilesCompanion(')
+          ..write('profileId: $profileId, ')
+          ..write('snapshot: $snapshot, ')
+          ..write('legacySnapshot: $legacySnapshot, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class AwardMatchStates extends Table
+    with TableInfo<AwardMatchStates, AwardMatchState> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  AwardMatchStates(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _matchIdMeta = const VerificationMeta(
+    'matchId',
+  );
+  late final GeneratedColumn<String> matchId = GeneratedColumn<String>(
+    'match_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL PRIMARY KEY',
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL REFERENCES award_profiles(profile_id)',
+  );
+  static const VerificationMeta _catalogVersionMeta = const VerificationMeta(
+    'catalogVersion',
+  );
+  late final GeneratedColumn<int> catalogVersion = GeneratedColumn<int>(
+    'catalog_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (catalog_version > 0)',
+  );
+  static const VerificationMeta _eligibleAssignmentsMeta =
+      const VerificationMeta('eligibleAssignments');
+  late final GeneratedColumn<String> eligibleAssignments =
+      GeneratedColumn<String>(
+        'eligible_assignments',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+        $customConstraints: 'NOT NULL',
+      );
+  static const VerificationMeta _evaluationReceiptMeta = const VerificationMeta(
+    'evaluationReceipt',
+  );
+  late final GeneratedColumn<String> evaluationReceipt =
+      GeneratedColumn<String>(
+        'evaluation_receipt',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        $customConstraints: '',
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    matchId,
+    profileId,
+    catalogVersion,
+    eligibleAssignments,
+    evaluationReceipt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'award_match_states';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AwardMatchState> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('match_id')) {
+      context.handle(
+        _matchIdMeta,
+        matchId.isAcceptableOrUnknown(data['match_id']!, _matchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchIdMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('catalog_version')) {
+      context.handle(
+        _catalogVersionMeta,
+        catalogVersion.isAcceptableOrUnknown(
+          data['catalog_version']!,
+          _catalogVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_catalogVersionMeta);
+    }
+    if (data.containsKey('eligible_assignments')) {
+      context.handle(
+        _eligibleAssignmentsMeta,
+        eligibleAssignments.isAcceptableOrUnknown(
+          data['eligible_assignments']!,
+          _eligibleAssignmentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_eligibleAssignmentsMeta);
+    }
+    if (data.containsKey('evaluation_receipt')) {
+      context.handle(
+        _evaluationReceiptMeta,
+        evaluationReceipt.isAcceptableOrUnknown(
+          data['evaluation_receipt']!,
+          _evaluationReceiptMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {matchId};
+  @override
+  AwardMatchState map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AwardMatchState(
+      matchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      catalogVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}catalog_version'],
+      )!,
+      eligibleAssignments: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}eligible_assignments'],
+      )!,
+      evaluationReceipt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}evaluation_receipt'],
+      ),
+    );
+  }
+
+  @override
+  AwardMatchStates createAlias(String alias) {
+    return AwardMatchStates(attachedDatabase, alias);
+  }
+
+  @override
+  List<String> get customConstraints => const [
+    'FOREIGN KEY(match_id, profile_id)REFERENCES match_records(match_id, profile_id)',
+  ];
+  @override
+  bool get dontWriteConstraints => true;
+}
+
+class AwardMatchState extends DataClass implements Insertable<AwardMatchState> {
+  final String matchId;
+  final String profileId;
+  final int catalogVersion;
+  final String eligibleAssignments;
+  final String? evaluationReceipt;
+  const AwardMatchState({
+    required this.matchId,
+    required this.profileId,
+    required this.catalogVersion,
+    required this.eligibleAssignments,
+    this.evaluationReceipt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['match_id'] = Variable<String>(matchId);
+    map['profile_id'] = Variable<String>(profileId);
+    map['catalog_version'] = Variable<int>(catalogVersion);
+    map['eligible_assignments'] = Variable<String>(eligibleAssignments);
+    if (!nullToAbsent || evaluationReceipt != null) {
+      map['evaluation_receipt'] = Variable<String>(evaluationReceipt);
+    }
+    return map;
+  }
+
+  AwardMatchStatesCompanion toCompanion(bool nullToAbsent) {
+    return AwardMatchStatesCompanion(
+      matchId: Value(matchId),
+      profileId: Value(profileId),
+      catalogVersion: Value(catalogVersion),
+      eligibleAssignments: Value(eligibleAssignments),
+      evaluationReceipt: evaluationReceipt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evaluationReceipt),
+    );
+  }
+
+  factory AwardMatchState.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AwardMatchState(
+      matchId: serializer.fromJson<String>(json['match_id']),
+      profileId: serializer.fromJson<String>(json['profile_id']),
+      catalogVersion: serializer.fromJson<int>(json['catalog_version']),
+      eligibleAssignments: serializer.fromJson<String>(
+        json['eligible_assignments'],
+      ),
+      evaluationReceipt: serializer.fromJson<String?>(
+        json['evaluation_receipt'],
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'match_id': serializer.toJson<String>(matchId),
+      'profile_id': serializer.toJson<String>(profileId),
+      'catalog_version': serializer.toJson<int>(catalogVersion),
+      'eligible_assignments': serializer.toJson<String>(eligibleAssignments),
+      'evaluation_receipt': serializer.toJson<String?>(evaluationReceipt),
+    };
+  }
+
+  AwardMatchState copyWith({
+    String? matchId,
+    String? profileId,
+    int? catalogVersion,
+    String? eligibleAssignments,
+    Value<String?> evaluationReceipt = const Value.absent(),
+  }) => AwardMatchState(
+    matchId: matchId ?? this.matchId,
+    profileId: profileId ?? this.profileId,
+    catalogVersion: catalogVersion ?? this.catalogVersion,
+    eligibleAssignments: eligibleAssignments ?? this.eligibleAssignments,
+    evaluationReceipt: evaluationReceipt.present
+        ? evaluationReceipt.value
+        : this.evaluationReceipt,
+  );
+  AwardMatchState copyWithCompanion(AwardMatchStatesCompanion data) {
+    return AwardMatchState(
+      matchId: data.matchId.present ? data.matchId.value : this.matchId,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      catalogVersion: data.catalogVersion.present
+          ? data.catalogVersion.value
+          : this.catalogVersion,
+      eligibleAssignments: data.eligibleAssignments.present
+          ? data.eligibleAssignments.value
+          : this.eligibleAssignments,
+      evaluationReceipt: data.evaluationReceipt.present
+          ? data.evaluationReceipt.value
+          : this.evaluationReceipt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardMatchState(')
+          ..write('matchId: $matchId, ')
+          ..write('profileId: $profileId, ')
+          ..write('catalogVersion: $catalogVersion, ')
+          ..write('eligibleAssignments: $eligibleAssignments, ')
+          ..write('evaluationReceipt: $evaluationReceipt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    matchId,
+    profileId,
+    catalogVersion,
+    eligibleAssignments,
+    evaluationReceipt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AwardMatchState &&
+          other.matchId == this.matchId &&
+          other.profileId == this.profileId &&
+          other.catalogVersion == this.catalogVersion &&
+          other.eligibleAssignments == this.eligibleAssignments &&
+          other.evaluationReceipt == this.evaluationReceipt);
+}
+
+class AwardMatchStatesCompanion extends UpdateCompanion<AwardMatchState> {
+  final Value<String> matchId;
+  final Value<String> profileId;
+  final Value<int> catalogVersion;
+  final Value<String> eligibleAssignments;
+  final Value<String?> evaluationReceipt;
+  final Value<int> rowid;
+  const AwardMatchStatesCompanion({
+    this.matchId = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.catalogVersion = const Value.absent(),
+    this.eligibleAssignments = const Value.absent(),
+    this.evaluationReceipt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AwardMatchStatesCompanion.insert({
+    required String matchId,
+    required String profileId,
+    required int catalogVersion,
+    required String eligibleAssignments,
+    this.evaluationReceipt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : matchId = Value(matchId),
+       profileId = Value(profileId),
+       catalogVersion = Value(catalogVersion),
+       eligibleAssignments = Value(eligibleAssignments);
+  static Insertable<AwardMatchState> custom({
+    Expression<String>? matchId,
+    Expression<String>? profileId,
+    Expression<int>? catalogVersion,
+    Expression<String>? eligibleAssignments,
+    Expression<String>? evaluationReceipt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (matchId != null) 'match_id': matchId,
+      if (profileId != null) 'profile_id': profileId,
+      if (catalogVersion != null) 'catalog_version': catalogVersion,
+      if (eligibleAssignments != null)
+        'eligible_assignments': eligibleAssignments,
+      if (evaluationReceipt != null) 'evaluation_receipt': evaluationReceipt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AwardMatchStatesCompanion copyWith({
+    Value<String>? matchId,
+    Value<String>? profileId,
+    Value<int>? catalogVersion,
+    Value<String>? eligibleAssignments,
+    Value<String?>? evaluationReceipt,
+    Value<int>? rowid,
+  }) {
+    return AwardMatchStatesCompanion(
+      matchId: matchId ?? this.matchId,
+      profileId: profileId ?? this.profileId,
+      catalogVersion: catalogVersion ?? this.catalogVersion,
+      eligibleAssignments: eligibleAssignments ?? this.eligibleAssignments,
+      evaluationReceipt: evaluationReceipt ?? this.evaluationReceipt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (matchId.present) {
+      map['match_id'] = Variable<String>(matchId.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (catalogVersion.present) {
+      map['catalog_version'] = Variable<int>(catalogVersion.value);
+    }
+    if (eligibleAssignments.present) {
+      map['eligible_assignments'] = Variable<String>(eligibleAssignments.value);
+    }
+    if (evaluationReceipt.present) {
+      map['evaluation_receipt'] = Variable<String>(evaluationReceipt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AwardMatchStatesCompanion(')
+          ..write('matchId: $matchId, ')
+          ..write('profileId: $profileId, ')
+          ..write('catalogVersion: $catalogVersion, ')
+          ..write('eligibleAssignments: $eligibleAssignments, ')
+          ..write('evaluationReceipt: $evaluationReceipt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$ProfileDatabase extends GeneratedDatabase {
   _$ProfileDatabase(QueryExecutor e) : super(e);
   $ProfileDatabaseManager get managers => $ProfileDatabaseManager(this);
@@ -2730,6 +3465,8 @@ abstract class _$ProfileDatabase extends GeneratedDatabase {
     'victory_matches_receipt',
   );
   late final StorageMeta storageMeta = StorageMeta(this);
+  late final AwardProfiles awardProfiles = AwardProfiles(this);
+  late final AwardMatchStates awardMatchStates = AwardMatchStates(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2744,6 +3481,8 @@ abstract class _$ProfileDatabase extends GeneratedDatabase {
     legacyImportOnce,
     victoryMatchesReceipt,
     storageMeta,
+    awardProfiles,
+    awardMatchStates,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2814,6 +3553,25 @@ final class $ProfilesReferences
     );
 
     final cache = $_typedResult.readTableOrNull(_xpEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<AwardProfiles, List<AwardProfile>>
+  _awardProfilesRefsTable(_$ProfileDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.awardProfiles,
+        aliasName: 'profiles__profile_id__award_profiles__profile_id',
+      );
+
+  $AwardProfilesProcessedTableManager get awardProfilesRefs {
+    final manager = $AwardProfilesTableManager($_db, $_db.awardProfiles).filter(
+      (f) =>
+          f.profileId.profileId.sqlEquals($_itemColumn<String>('profile_id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_awardProfilesRefsTable($_db));
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -2899,6 +3657,31 @@ class $ProfilesFilterComposer extends Composer<_$ProfileDatabase, Profiles> {
           }) => $XpEntriesFilterComposer(
             $db: $db,
             $table: $db.xpEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> awardProfilesRefs(
+    Expression<bool> Function($AwardProfilesFilterComposer f) f,
+  ) {
+    final $AwardProfilesFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.awardProfiles,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $AwardProfilesFilterComposer(
+            $db: $db,
+            $table: $db.awardProfiles,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -3032,6 +3815,31 @@ class $ProfilesAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> awardProfilesRefs<T extends Object>(
+    Expression<T> Function($AwardProfilesAnnotationComposer a) f,
+  ) {
+    final $AwardProfilesAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.awardProfiles,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $AwardProfilesAnnotationComposer(
+            $db: $db,
+            $table: $db.awardProfiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $ProfilesTableManager
@@ -3047,7 +3855,11 @@ class $ProfilesTableManager
           $ProfilesUpdateCompanionBuilder,
           (Profile, $ProfilesReferences),
           Profile,
-          PrefetchHooks Function({bool matchRecordsRefs, bool xpEntriesRefs})
+          PrefetchHooks Function({
+            bool matchRecordsRefs,
+            bool xpEntriesRefs,
+            bool awardProfilesRefs,
+          })
         > {
   $ProfilesTableManager(_$ProfileDatabase db, Profiles table)
     : super(
@@ -3105,12 +3917,17 @@ class $ProfilesTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({matchRecordsRefs = false, xpEntriesRefs = false}) {
+              ({
+                matchRecordsRefs = false,
+                xpEntriesRefs = false,
+                awardProfilesRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (matchRecordsRefs) db.matchRecords,
                     if (xpEntriesRefs) db.xpEntries,
+                    if (awardProfilesRefs) db.awardProfiles,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -3148,6 +3965,26 @@ class $ProfilesTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (awardProfilesRefs)
+                        await $_getPrefetchedData<
+                          Profile,
+                          Profiles,
+                          AwardProfile
+                        >(
+                          currentTable: table,
+                          referencedTable: $ProfilesReferences
+                              ._awardProfilesRefsTable(db),
+                          managerFromTypedResult: (p0) => $ProfilesReferences(
+                            db,
+                            table,
+                            p0,
+                          ).awardProfilesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.profileId,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -3168,7 +4005,11 @@ typedef $ProfilesProcessedTableManager =
       $ProfilesUpdateCompanionBuilder,
       (Profile, $ProfilesReferences),
       Profile,
-      PrefetchHooks Function({bool matchRecordsRefs, bool xpEntriesRefs})
+      PrefetchHooks Function({
+        bool matchRecordsRefs,
+        bool xpEntriesRefs,
+        bool awardProfilesRefs,
+      })
     >;
 typedef $MatchRecordsCreateCompanionBuilder =
     MatchRecordsCompanion Function({
@@ -3193,6 +4034,7 @@ typedef $MatchRecordsCreateCompanionBuilder =
       required String appVersion,
       required String rulesVersion,
       required int metricsVersion,
+      Value<bool> awardRequired,
       Value<int?> receiptXp,
       Value<int?> receiptBefore,
       Value<int?> receiptAfter,
@@ -3222,6 +4064,7 @@ typedef $MatchRecordsUpdateCompanionBuilder =
       Value<String> appVersion,
       Value<String> rulesVersion,
       Value<int> metricsVersion,
+      Value<bool> awardRequired,
       Value<int?> receiptXp,
       Value<int?> receiptBefore,
       Value<int?> receiptAfter,
@@ -3357,6 +4200,11 @@ class $MatchRecordsFilterComposer
 
   ColumnFilters<int> get metricsVersion => $composableBuilder(
     column: $table.metricsVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get awardRequired => $composableBuilder(
+    column: $table.awardRequired,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3513,6 +4361,11 @@ class $MatchRecordsOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get awardRequired => $composableBuilder(
+    column: $table.awardRequired,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get receiptXp => $composableBuilder(
     column: $table.receiptXp,
     builder: (column) => ColumnOrderings(column),
@@ -3652,6 +4505,11 @@ class $MatchRecordsAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get awardRequired => $composableBuilder(
+    column: $table.awardRequired,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get receiptXp =>
       $composableBuilder(column: $table.receiptXp, builder: (column) => column);
 
@@ -3743,6 +4601,7 @@ class $MatchRecordsTableManager
                 Value<String> appVersion = const Value.absent(),
                 Value<String> rulesVersion = const Value.absent(),
                 Value<int> metricsVersion = const Value.absent(),
+                Value<bool> awardRequired = const Value.absent(),
                 Value<int?> receiptXp = const Value.absent(),
                 Value<int?> receiptBefore = const Value.absent(),
                 Value<int?> receiptAfter = const Value.absent(),
@@ -3770,6 +4629,7 @@ class $MatchRecordsTableManager
                 appVersion: appVersion,
                 rulesVersion: rulesVersion,
                 metricsVersion: metricsVersion,
+                awardRequired: awardRequired,
                 receiptXp: receiptXp,
                 receiptBefore: receiptBefore,
                 receiptAfter: receiptAfter,
@@ -3799,6 +4659,7 @@ class $MatchRecordsTableManager
                 required String appVersion,
                 required String rulesVersion,
                 required int metricsVersion,
+                Value<bool> awardRequired = const Value.absent(),
                 Value<int?> receiptXp = const Value.absent(),
                 Value<int?> receiptBefore = const Value.absent(),
                 Value<int?> receiptAfter = const Value.absent(),
@@ -3826,6 +4687,7 @@ class $MatchRecordsTableManager
                 appVersion: appVersion,
                 rulesVersion: rulesVersion,
                 metricsVersion: metricsVersion,
+                awardRequired: awardRequired,
                 receiptXp: receiptXp,
                 receiptBefore: receiptBefore,
                 receiptAfter: receiptAfter,
@@ -4447,6 +5309,493 @@ typedef $StorageMetaProcessedTableManager =
       StorageMetaData,
       PrefetchHooks Function()
     >;
+typedef $AwardProfilesCreateCompanionBuilder =
+    AwardProfilesCompanion Function({
+      required String profileId,
+      required String snapshot,
+      Value<String?> legacySnapshot,
+      Value<int> rowid,
+    });
+typedef $AwardProfilesUpdateCompanionBuilder =
+    AwardProfilesCompanion Function({
+      Value<String> profileId,
+      Value<String> snapshot,
+      Value<String?> legacySnapshot,
+      Value<int> rowid,
+    });
+
+final class $AwardProfilesReferences
+    extends BaseReferences<_$ProfileDatabase, AwardProfiles, AwardProfile> {
+  $AwardProfilesReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static Profiles _profileIdTable(_$ProfileDatabase db) => db.profiles
+      .createAlias('award_profiles__profile_id__profiles__profile_id');
+
+  $ProfilesProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $ProfilesTableManager(
+      $_db,
+      $_db.profiles,
+    ).filter((f) => f.profileId.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $AwardProfilesFilterComposer
+    extends Composer<_$ProfileDatabase, AwardProfiles> {
+  $AwardProfilesFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get legacySnapshot => $composableBuilder(
+    column: $table.legacySnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $ProfilesFilterComposer get profileId {
+    final $ProfilesFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.profiles,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProfilesFilterComposer(
+            $db: $db,
+            $table: $db.profiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $AwardProfilesOrderingComposer
+    extends Composer<_$ProfileDatabase, AwardProfiles> {
+  $AwardProfilesOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get snapshot => $composableBuilder(
+    column: $table.snapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get legacySnapshot => $composableBuilder(
+    column: $table.legacySnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $ProfilesOrderingComposer get profileId {
+    final $ProfilesOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.profiles,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProfilesOrderingComposer(
+            $db: $db,
+            $table: $db.profiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $AwardProfilesAnnotationComposer
+    extends Composer<_$ProfileDatabase, AwardProfiles> {
+  $AwardProfilesAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get snapshot =>
+      $composableBuilder(column: $table.snapshot, builder: (column) => column);
+
+  GeneratedColumn<String> get legacySnapshot => $composableBuilder(
+    column: $table.legacySnapshot,
+    builder: (column) => column,
+  );
+
+  $ProfilesAnnotationComposer get profileId {
+    final $ProfilesAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.profiles,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $ProfilesAnnotationComposer(
+            $db: $db,
+            $table: $db.profiles,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $AwardProfilesTableManager
+    extends
+        RootTableManager<
+          _$ProfileDatabase,
+          AwardProfiles,
+          AwardProfile,
+          $AwardProfilesFilterComposer,
+          $AwardProfilesOrderingComposer,
+          $AwardProfilesAnnotationComposer,
+          $AwardProfilesCreateCompanionBuilder,
+          $AwardProfilesUpdateCompanionBuilder,
+          (AwardProfile, $AwardProfilesReferences),
+          AwardProfile,
+          PrefetchHooks Function({bool profileId})
+        > {
+  $AwardProfilesTableManager(_$ProfileDatabase db, AwardProfiles table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $AwardProfilesFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $AwardProfilesOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $AwardProfilesAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> profileId = const Value.absent(),
+                Value<String> snapshot = const Value.absent(),
+                Value<String?> legacySnapshot = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AwardProfilesCompanion(
+                profileId: profileId,
+                snapshot: snapshot,
+                legacySnapshot: legacySnapshot,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String profileId,
+                required String snapshot,
+                Value<String?> legacySnapshot = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AwardProfilesCompanion.insert(
+                profileId: profileId,
+                snapshot: snapshot,
+                legacySnapshot: legacySnapshot,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<AwardProfiles, AwardProfile>(table),
+                  $AwardProfilesReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable: $AwardProfilesReferences
+                                    ._profileIdTable(db),
+                                referencedColumn: $AwardProfilesReferences
+                                    ._profileIdTable(db)
+                                    .profileId,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $AwardProfilesProcessedTableManager =
+    ProcessedTableManager<
+      _$ProfileDatabase,
+      AwardProfiles,
+      AwardProfile,
+      $AwardProfilesFilterComposer,
+      $AwardProfilesOrderingComposer,
+      $AwardProfilesAnnotationComposer,
+      $AwardProfilesCreateCompanionBuilder,
+      $AwardProfilesUpdateCompanionBuilder,
+      (AwardProfile, $AwardProfilesReferences),
+      AwardProfile,
+      PrefetchHooks Function({bool profileId})
+    >;
+typedef $AwardMatchStatesCreateCompanionBuilder =
+    AwardMatchStatesCompanion Function({
+      required String matchId,
+      required String profileId,
+      required int catalogVersion,
+      required String eligibleAssignments,
+      Value<String?> evaluationReceipt,
+      Value<int> rowid,
+    });
+typedef $AwardMatchStatesUpdateCompanionBuilder =
+    AwardMatchStatesCompanion Function({
+      Value<String> matchId,
+      Value<String> profileId,
+      Value<int> catalogVersion,
+      Value<String> eligibleAssignments,
+      Value<String?> evaluationReceipt,
+      Value<int> rowid,
+    });
+
+class $AwardMatchStatesFilterComposer
+    extends Composer<_$ProfileDatabase, AwardMatchStates> {
+  $AwardMatchStatesFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get matchId => $composableBuilder(
+    column: $table.matchId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get catalogVersion => $composableBuilder(
+    column: $table.catalogVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get eligibleAssignments => $composableBuilder(
+    column: $table.eligibleAssignments,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get evaluationReceipt => $composableBuilder(
+    column: $table.evaluationReceipt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $AwardMatchStatesOrderingComposer
+    extends Composer<_$ProfileDatabase, AwardMatchStates> {
+  $AwardMatchStatesOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get matchId => $composableBuilder(
+    column: $table.matchId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get catalogVersion => $composableBuilder(
+    column: $table.catalogVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get eligibleAssignments => $composableBuilder(
+    column: $table.eligibleAssignments,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get evaluationReceipt => $composableBuilder(
+    column: $table.evaluationReceipt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $AwardMatchStatesAnnotationComposer
+    extends Composer<_$ProfileDatabase, AwardMatchStates> {
+  $AwardMatchStatesAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get matchId =>
+      $composableBuilder(column: $table.matchId, builder: (column) => column);
+
+  GeneratedColumn<int> get catalogVersion => $composableBuilder(
+    column: $table.catalogVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get eligibleAssignments => $composableBuilder(
+    column: $table.eligibleAssignments,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get evaluationReceipt => $composableBuilder(
+    column: $table.evaluationReceipt,
+    builder: (column) => column,
+  );
+}
+
+class $AwardMatchStatesTableManager
+    extends
+        RootTableManager<
+          _$ProfileDatabase,
+          AwardMatchStates,
+          AwardMatchState,
+          $AwardMatchStatesFilterComposer,
+          $AwardMatchStatesOrderingComposer,
+          $AwardMatchStatesAnnotationComposer,
+          $AwardMatchStatesCreateCompanionBuilder,
+          $AwardMatchStatesUpdateCompanionBuilder,
+          (
+            AwardMatchState,
+            BaseReferences<
+              _$ProfileDatabase,
+              AwardMatchStates,
+              AwardMatchState
+            >,
+          ),
+          AwardMatchState,
+          PrefetchHooks Function()
+        > {
+  $AwardMatchStatesTableManager(_$ProfileDatabase db, AwardMatchStates table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $AwardMatchStatesFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $AwardMatchStatesOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $AwardMatchStatesAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> matchId = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<int> catalogVersion = const Value.absent(),
+                Value<String> eligibleAssignments = const Value.absent(),
+                Value<String?> evaluationReceipt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AwardMatchStatesCompanion(
+                matchId: matchId,
+                profileId: profileId,
+                catalogVersion: catalogVersion,
+                eligibleAssignments: eligibleAssignments,
+                evaluationReceipt: evaluationReceipt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String matchId,
+                required String profileId,
+                required int catalogVersion,
+                required String eligibleAssignments,
+                Value<String?> evaluationReceipt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AwardMatchStatesCompanion.insert(
+                matchId: matchId,
+                profileId: profileId,
+                catalogVersion: catalogVersion,
+                eligibleAssignments: eligibleAssignments,
+                evaluationReceipt: evaluationReceipt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<AwardMatchStates, AwardMatchState>(table),
+                  BaseReferences<
+                    _$ProfileDatabase,
+                    AwardMatchStates,
+                    AwardMatchState
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $AwardMatchStatesProcessedTableManager =
+    ProcessedTableManager<
+      _$ProfileDatabase,
+      AwardMatchStates,
+      AwardMatchState,
+      $AwardMatchStatesFilterComposer,
+      $AwardMatchStatesOrderingComposer,
+      $AwardMatchStatesAnnotationComposer,
+      $AwardMatchStatesCreateCompanionBuilder,
+      $AwardMatchStatesUpdateCompanionBuilder,
+      (
+        AwardMatchState,
+        BaseReferences<_$ProfileDatabase, AwardMatchStates, AwardMatchState>,
+      ),
+      AwardMatchState,
+      PrefetchHooks Function()
+    >;
 
 class $ProfileDatabaseManager {
   final _$ProfileDatabase _db;
@@ -4459,4 +5808,8 @@ class $ProfileDatabaseManager {
       $XpEntriesTableManager(_db, _db.xpEntries);
   $StorageMetaTableManager get storageMeta =>
       $StorageMetaTableManager(_db, _db.storageMeta);
+  $AwardProfilesTableManager get awardProfiles =>
+      $AwardProfilesTableManager(_db, _db.awardProfiles);
+  $AwardMatchStatesTableManager get awardMatchStates =>
+      $AwardMatchStatesTableManager(_db, _db.awardMatchStates);
 }

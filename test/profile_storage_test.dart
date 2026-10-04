@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:conquest/awards/award_storage.dart';
 
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/game/match_summary.dart';
@@ -66,6 +67,7 @@ DriftProfileStore makeStore({
   String executionId = execution,
   StorageFaultHook? faultHook,
   StorageLease? lease,
+  AwardStorage legacyAwards = const EmptyAwardStorage(),
 }) => DriftProfileStore(
   database: db.ProfileDatabase(executor ?? NativeDatabase.memory()),
   executionId: executionId,
@@ -73,6 +75,7 @@ DriftProfileStore makeStore({
   ids: FixedIds(),
   clock: FixedClock(),
   faultHook: faultHook,
+  legacyAwards: legacyAwards,
 );
 
 MatchStartContext start(
@@ -267,11 +270,11 @@ void main() {
     );
   }
 
-  test('v1 snapshot validates against fresh and reopened schema', () async {
+  test('v1 migrates to v2 and matches fresh schema', () async {
     final verifier = SchemaVerifier(GeneratedHelper());
     final connection = await verifier.startAt(1);
     final database = db.ProfileDatabase(connection);
-    await verifier.migrateAndValidate(database, 1);
+    await verifier.migrateAndValidate(database, 2);
     await database.close();
     final fresh = db.ProfileDatabase(NativeDatabase.memory());
     await fresh.validateDatabaseSchema();

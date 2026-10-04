@@ -5,6 +5,7 @@ import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/main.dart';
+import 'package:conquest/home.dart';
 import 'package:conquest/l10n/generated/app_localizations_en.dart';
 import 'package:conquest/l10n/generated/app_localizations_ja.dart';
 import 'package:conquest/rank_progression.dart';
@@ -14,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/match_setup.dart';
 import 'support/profile_fixture.dart';
+import 'support/profile_widget_io.dart';
+import 'support/rank_badge_fixture.dart' show SilentBgmPlayer;
 import 'package:conquest/profile/match_persistence.dart';
 
 const _expectedRequiredXp = <int>[
@@ -500,17 +503,7 @@ final class _ManualRankGameLoop implements GameLoop {
 
 Future<void> closeProfile(WidgetTester tester, ProfileFixture store) async {
   await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pump(Duration.zero);
-  await tester.runAsync(() async {
-    var closed = false;
-    final closing = store.runtime.close().whenComplete(() => closed = true);
-    for (var i = 0; i < 20 && !closed; i++) {
-      await tester.pump(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
-    }
-    expect(closed, isTrue);
-    await closing;
-  });
+  await runProfileIo(tester, store.runtime.close);
 }
 
 void main() {
@@ -664,7 +657,11 @@ void main() {
     }))!;
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [matchPersistenceProvider.overrideWithValue(store.runtime)],
+        overrides: [
+          matchPersistenceProvider.overrideWithValue(store.runtime),
+          bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+          menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+        ],
         child: const MyApp(locale: Locale('ja')),
       ),
     );
@@ -691,6 +688,8 @@ void main() {
         ProviderScope(
           overrides: [
             matchPersistenceProvider.overrideWithValue(store.runtime),
+            bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+            menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
             gameLoopProvider.overrideWithValue(loop),
             randomProvider.overrideWithValue(Random(1)),
             cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
@@ -711,7 +710,7 @@ void main() {
       final container = ProviderScope.containerOf(rankElement);
       final controller = container.read(gameControllerProvider.notifier);
       controller.selectCpuDifficulty(CpuDifficulty.hard);
-      await tester.runAsync(() async {
+      await runProfileIo(tester, () async {
         controller.startGame();
         loop.tickMany(60);
         controller.finish(const GameResult.victory(elapsedMs: 100));
@@ -748,7 +747,11 @@ void main() {
     }))!;
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [matchPersistenceProvider.overrideWithValue(store.runtime)],
+        overrides: [
+          matchPersistenceProvider.overrideWithValue(store.runtime),
+          bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+          menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+        ],
         child: const MyApp(locale: Locale('en', 'US')),
       ),
     );
@@ -777,6 +780,8 @@ void main() {
       ProviderScope(
         overrides: [
           matchPersistenceProvider.overrideWithValue(store.runtime),
+          bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+          menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
           cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
@@ -792,7 +797,7 @@ void main() {
     );
     final controller = container.read(gameControllerProvider.notifier);
     controller.selectCpuDifficulty(CpuDifficulty.hard);
-    await tester.runAsync(() async {
+    await runProfileIo(tester, () async {
       controller.startGame();
       loop.tickMany(60);
       controller.finish(const GameResult.victory(elapsedMs: 100));
@@ -822,6 +827,8 @@ void main() {
       ProviderScope(
         overrides: [
           matchPersistenceProvider.overrideWithValue(store.runtime),
+          bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+          menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
           gameLoopProvider.overrideWithValue(loop),
           randomProvider.overrideWithValue(Random(1)),
           cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
@@ -837,7 +844,7 @@ void main() {
     );
     final controller = container.read(gameControllerProvider.notifier);
     controller.selectCpuDifficulty(CpuDifficulty.veryEasy);
-    await tester.runAsync(() async {
+    await runProfileIo(tester, () async {
       controller.startGame();
       loop.tickMany(60);
       controller.finish(const GameResult.victory(elapsedMs: 100));

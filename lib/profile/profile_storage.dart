@@ -1,4 +1,5 @@
 import 'drift_profile_store.dart';
+import '../awards/award_storage.dart';
 import 'match_contracts.dart';
 import 'profile_database.dart';
 import 'storage_unsupported.dart'
@@ -22,6 +23,7 @@ final class ProfileStorage {
           database: database,
           executionId: executionId,
           lease: connection.lease,
+          legacyAwards: SharedPreferencesAwardStorage(),
         ),
         connection.implementation,
       );

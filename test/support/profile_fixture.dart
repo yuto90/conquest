@@ -1,13 +1,16 @@
 import 'dart:async';
 
 import 'package:conquest/awards/award_manager.dart';
+import 'package:conquest/awards/award_storage.dart';
+import 'package:conquest/awards/award_progress.dart';
 import 'package:conquest/profile/drift_profile_store.dart';
 import 'package:conquest/profile/drift_profile_repository.dart';
 import 'package:conquest/profile/legacy_xp.dart';
 import 'package:conquest/profile/match_contracts.dart';
 import 'package:conquest/profile/match_identity.dart';
 import 'package:conquest/profile/match_persistence.dart';
-import 'package:conquest/profile/profile_database.dart' hide MatchRecord;
+import 'package:conquest/profile/profile_database.dart'
+    hide MatchRecord, AwardProfile;
 import 'package:conquest/profile/profile_repository.dart';
 import 'package:conquest/profile/storage_lease.dart';
 import 'package:drift/native.dart';
@@ -58,6 +61,7 @@ final class ProfileFixture implements ProfileBackend {
     StorageLease? lease,
     StorageFaultHook? faultHook,
     AwardManager? awards,
+    AwardStorage legacyAwards = const EmptyAwardStorage(),
   }) {
     final identities = ids ?? FixtureIds();
     clock = FixtureClock();
@@ -72,6 +76,7 @@ final class ProfileFixture implements ProfileBackend {
       database: database ?? ProfileDatabase(NativeDatabase.memory()),
       executionId: factory.executionId,
       lease: lease ?? FixtureLease(),
+      legacyAwards: legacyAwards,
       ids: identities,
       clock: clock,
       faultHook: (point) async {
@@ -112,7 +117,13 @@ final class ProfileFixture implements ProfileBackend {
   @override
   Stream<int> watchTotalXp(String profileId) => store.watchTotalXp(profileId);
   @override
-  Future<void> recordStart(MatchStartContext start) => store.recordStart(start);
+  Future<void> recordStart(
+    MatchStartContext start, {
+    AwardEligibility? awardEligibility,
+  }) => store.recordStart(start, awardEligibility: awardEligibility);
+  @override
+  Future<AwardProfile> loadAwards(String profileId) =>
+      store.loadAwards(profileId);
   @override
   Future<MatchCommitReceipt> complete(MatchCompletion completion) =>
       store.complete(completion);

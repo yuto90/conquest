@@ -15,8 +15,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'award_progress_test.dart' show awardMatch;
-import 'award_storage_test.dart' show MemoryAwardStorage, matchId;
+import 'package:conquest/game/game_state.dart';
+import 'package:conquest/game/match_summary.dart';
+import 'package:conquest/profile/drift_profile_store.dart';
 import 'support/match_setup.dart';
 import 'support/profile_fixture.dart';
 import 'support/profile_widget_io.dart';
@@ -45,13 +46,13 @@ Widget localized(Widget child, String locale) => MaterialApp(
 
 Future<ProfileFixture> fixtureFor(
   WidgetTester tester,
-  AwardManager awards,
-) async {
+  AwardManager awards, {
+  StorageFaultHook? faultHook,
+}) async {
   late ProfileFixture fixture;
   await runProfileIo(tester, () async {
-    fixture = ProfileFixture(awards: awards);
+    fixture = ProfileFixture(awards: awards, faultHook: faultHook);
     await fixture.ready();
-    await awards.drain();
   });
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox());
@@ -78,7 +79,7 @@ void main() {
             tester.binding.setSurfaceSize(null);
             tester.platformDispatcher.clearTextScaleFactorTestValue();
           });
-          final awards = AwardManager(MemoryAwardStorage());
+          final awards = AwardManager();
           final f = await fixtureFor(tester, awards);
           await tester.pumpWidget(
             ProviderScope(
@@ -173,7 +174,7 @@ void main() {
     testWidgets(
       'setup round trip preserves generated board and configuration in $locale',
       (tester) async {
-        final awards = AwardManager(MemoryAwardStorage());
+        final awards = AwardManager();
         final f = await fixtureFor(tester, awards);
         await tester.pumpWidget(
           ProviderScope(
@@ -217,20 +218,27 @@ void main() {
           tester.binding.setSurfaceSize(null);
           tester.platformDispatcher.clearTextScaleFactorTestValue();
         });
-        final storage = MemoryAwardStorage()..writeError = StateError('full');
-        final awards = AwardManager(storage);
-        final f = await fixtureFor(tester, awards);
-        final id = matchId(2);
-        awards.begin(id, () async => f.runtime.profile!.profileId);
+        var fail = true;
+        final awards = AwardManager();
+        final f = await fixtureFor(
+          tester,
+          awards,
+          faultHook: (point) async {
+            if (fail && point == StorageFaultPoint.afterAwards)
+              throw StateError('full');
+          },
+        );
+        final id = f.runtime.begin(GameConfiguration.initial)!;
         await runProfileIo(
           tester,
-          () => awards.complete(
-            awardMatch(
-              id: id,
-              captures: 30,
-              dispatches: 10,
-              forces: 500,
-              won: true,
+          () => f.runtime.finish(
+            id,
+            result: const GameResult.victory(elapsedMs: 180000),
+            summary: const MatchSummary(
+              elapsedMs: 180000,
+              playerCaptureCount: 30,
+              playerDispatchCount: 10,
+              playerDispatchedForces: 500,
             ),
           ),
         );
@@ -276,7 +284,7 @@ void main() {
         await tester.tap(find.text(l.awardsRetry));
         expect(retries, 1);
         expect(tester.takeException(), isNull);
-        storage.writeError = null;
+        fail = false;
         await runProfileIo(tester, () => f.runtime.retryAwards(id));
         expect(awards.stateFor(id)!.phase, AwardSavePhase.saved);
       },

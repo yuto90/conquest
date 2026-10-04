@@ -8,7 +8,6 @@ import 'award_progress.dart';
 
 abstract interface class AwardStorage {
   Future<String?> read();
-  Future<void> write(String value);
 }
 
 class SharedPreferencesAwardStorage implements AwardStorage {
@@ -24,13 +23,83 @@ class SharedPreferencesAwardStorage implements AwardStorage {
     }
     return value as String?;
   }
+}
 
+class EmptyAwardStorage implements AwardStorage {
+  const EmptyAwardStorage();
   @override
-  Future<void> write(String value) async {
-    final preferences = await SharedPreferences.getInstance();
-    if (!await preferences.setString(key, value)) {
-      throw StateError('Award storage write failed');
+  Future<String?> read() async => null;
+}
+
+abstract final class AwardEvaluationCodec {
+  static String encode(
+    String profileId,
+    String matchId,
+    AwardEvaluation evaluation,
+  ) => jsonEncode({
+    'schemaVersion': 1,
+    'matchId': matchId,
+    'profile': jsonDecode(
+      AwardProfileCodec.encode(profileId, evaluation.profile),
+    ),
+    'ribbons': evaluation.ribbons,
+    'medals': evaluation.medals,
+    'assignments': evaluation.assignments.toList()..sort(),
+    'progressed': evaluation.progressed.toList()..sort(),
+  });
+
+  static AwardEvaluation decode(String raw, String profileId, String matchId) {
+    final root = AwardProfileCodec._map(jsonDecode(raw));
+    AwardProfileCodec._requireKeys(root, {
+      'schemaVersion',
+      'matchId',
+      'profile',
+      'ribbons',
+      'medals',
+      'assignments',
+      'progressed',
+    });
+    if (root['schemaVersion'] != 1 || root['matchId'] != matchId) {
+      throw const FormatException('Unknown or mismatched award receipt');
     }
+    final ribbons = AwardCatalog.ribbons.map((r) => r.id).toSet();
+    final assignments = AwardCatalog.assignments.map((a) => a.id).toSet();
+    final evaluation = AwardEvaluation(
+      AwardProfileCodec.decode(jsonEncode(root['profile']), profileId),
+      ribbons: Map.unmodifiable(
+        AwardProfileCodec._counts(root['ribbons'], ribbons),
+      ),
+      medals: Map.unmodifiable(
+        AwardProfileCodec._counts(root['medals'], ribbons),
+      ),
+      assignments: readIds(root['assignments'], assignments),
+      progressed: readIds(root['progressed'], assignments),
+    );
+    if (!evaluation.profile.appliedMatches.contains(matchId) ||
+        evaluation.assignments.any(
+          (id) => evaluation.profile.completed[id]?.matchId != matchId,
+        ) ||
+        evaluation.ribbons.entries.any(
+          (e) => e.value > (evaluation.profile.ribbons[e.key] ?? 0),
+        ) ||
+        evaluation.medals.entries.any(
+          (e) =>
+              e.value >
+              (evaluation.profile.ribbons[e.key] ?? 0) ~/
+                  AwardCatalog.ribbonsPerMedal,
+        )) {
+      throw const FormatException('Inconsistent award receipt');
+    }
+    return evaluation;
+  }
+
+  static Set<String> readIds(Object? value, Set<String> known) {
+    if (value is! List ||
+        value.any((id) => id is! String || !known.contains(id)) ||
+        value.toSet().length != value.length) {
+      throw const FormatException('Invalid award assignment IDs');
+    }
+    return Set.unmodifiable(value.cast<String>());
   }
 }
 
@@ -61,6 +130,16 @@ abstract final class AwardProfileCodec {
 
   static AwardProfile decode(String raw, String profileId) {
     final root = _map(jsonDecode(raw));
+    _requireKeys(root, {
+      'schemaVersion',
+      'catalogVersion',
+      'profileId',
+      'totals',
+      'ribbons',
+      'completed',
+      'singleMatchProgress',
+      'appliedMatches',
+    });
     if (root['schemaVersion'] != 1 ||
         root['catalogVersion'] != AwardCatalog.version ||
         root['profileId'] != profileId) {
@@ -96,6 +175,7 @@ abstract final class AwardProfileCodec {
       if (!definitions.containsKey(entry.key))
         throw const FormatException('Unknown assignment');
       final record = _map(entry.value);
+      _requireKeys(record, {'matchId', 'atUtc'});
       final matchId = record['matchId'];
       final at = record['atUtc'];
       if (matchId is! String || !applied.contains(matchId) || at is! String) {
@@ -131,6 +211,12 @@ abstract final class AwardProfileCodec {
     if (value is! Map<String, dynamic>)
       throw const FormatException('Expected award object');
     return value;
+  }
+
+  static void _requireKeys(Map<String, dynamic> object, Set<String> keys) {
+    if (object.length != keys.length || !object.keys.every(keys.contains)) {
+      throw const FormatException('Unknown award object format');
+    }
   }
 
   static Map<String, int> _counts(Object? value, Set<String> known) => {

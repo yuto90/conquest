@@ -43,8 +43,8 @@ final class RankBadgeFixture {
         gameLoopProvider.overrideWithValue(loop),
         randomProvider.overrideWithValue(Random(1)),
         cpuStrategyProvider.overrideWithValue(CpuStrategy.noop()),
-        bgmPlayerProvider.overrideWithValue(_SilentBgmPlayer()),
-        menuBgmPlayerProvider.overrideWithValue(_SilentBgmPlayer()),
+        bgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
+        menuBgmPlayerProvider.overrideWithValue(SilentBgmPlayer()),
         if (presentedRank != null)
           rankProgressProvider.overrideWith(
             (_) => Stream.value(
@@ -95,7 +95,7 @@ final class RankBadgeFixture {
   }
 }
 
-final class _SilentBgmPlayer implements BgmPlayer {
+final class SilentBgmPlayer implements BgmPlayer {
   @override
   Future<void> prepare() async {}
   @override

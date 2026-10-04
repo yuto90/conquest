@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:conquest/awards/award_progress.dart';
+import 'package:conquest/awards/award_storage.dart';
 import 'package:conquest/game/game_state.dart';
 import 'package:conquest/game/match_summary.dart';
 import 'package:conquest/profile/match_contracts.dart';
@@ -333,6 +335,14 @@ void main() {
               statsStartedAtUtc: 0,
             ),
           );
+      await fixture.store.database
+          .into(fixture.store.database.awardProfiles)
+          .insert(
+            db.AwardProfilesCompanion.insert(
+              profileId: other,
+              snapshot: AwardProfileCodec.encode(other, AwardProfile()),
+            ),
+          );
       await finish(
         fixture,
         300,
@@ -355,6 +365,10 @@ void main() {
         uuid(300),
       );
       expect((await repo.watchStatistics(other).first).wins, 1);
+      expect((await fixture.store.loadAwards(other)).ribbons['capture'], 1);
+      expect((await fixture.store.loadAwards(id)).ribbons, isEmpty);
+      expect(await fixture.store.totalXp(other), 3000);
+      expect(await fixture.store.totalXp(id), 0);
       expect(await repo.loadMatch(id, uuid(300)), isNull);
       expect(await repo.loadMatch(other, uuid(1000)), isNull);
       await expectLater(
