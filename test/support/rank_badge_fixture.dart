@@ -1,10 +1,12 @@
 import 'dart:math';
 
 import 'package:conquest/audio/bgm_player.dart';
+import 'package:conquest/awards/award_manager.dart';
 import 'package:conquest/game/cpu_strategy.dart';
 import 'package:conquest/game/game_controller.dart';
 import 'package:conquest/game/game_loop.dart';
 import 'package:conquest/game/game_state.dart';
+import 'package:conquest/game/match_summary.dart';
 import 'package:conquest/home.dart';
 import 'package:conquest/main.dart';
 import 'package:conquest/profile/match_persistence.dart';
@@ -30,9 +32,10 @@ final class RankBadgeFixture {
     Locale locale = const Locale('en'),
     int? presentedRank,
     GlobalKey? boundaryKey,
+    AwardManager? awards,
   }) async {
     final store = (await tester.runAsync(() async {
-      final fixture = ProfileFixture(xp: xp);
+      final fixture = ProfileFixture(xp: xp, awards: awards);
       await fixture.ready();
       return fixture;
     }))!;
@@ -74,6 +77,7 @@ final class RankBadgeFixture {
     GameResult result = const GameResult.victory(elapsedMs: 100),
     CpuDifficulty difficulty = CpuDifficulty.hard,
     GameMode mode = GameMode.playerVsCpu,
+    MatchSummary? summary,
   }) async {
     controller.selectGameMode(mode);
     controller.selectCpuDifficulty(difficulty);
@@ -81,6 +85,13 @@ final class RankBadgeFixture {
       controller.startGame();
       for (var i = 0; i < 60; i++) {
         loop.tick();
+      }
+      if (summary != null) {
+        // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
+        controller.state = controller.state.copyWith(
+          elapsedMs: summary.elapsedMs,
+          matchSummary: summary,
+        );
       }
       controller.finish(result);
       await store.runtime.drain();
@@ -91,6 +102,7 @@ final class RankBadgeFixture {
 
   Future<void> close(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
     await runProfileIo(tester, store.runtime.close);
   }
 }

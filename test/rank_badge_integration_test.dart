@@ -49,7 +49,7 @@ void main() {
               findsOneWidget,
             );
             expect(tester.widget<RankBadge>(find.byType(RankBadge)).rank, 44);
-            expect(tester.widget<RankBadge>(find.byType(RankBadge)).size, 56);
+            expect(tester.widget<RankBadge>(find.byType(RankBadge)).size, 40);
             expect(find.text('+3000 XP'), findsOneWidget);
             expect(tester.takeException(), isNull);
             await fixture.close(tester);
@@ -98,22 +98,31 @@ void main() {
     const GameResult.draw(elapsedMs: 100),
     const GameResult.victory(elapsedMs: 100),
   ]) {
-    testWidgets('zero XP ${result.type.name} keeps the reward area absent', (
-      tester,
-    ) async {
-      final fixture = await RankBadgeFixture.mount(tester, xp: 0);
-      await fixture.finish(
-        tester,
-        result: result,
-        mode: result.type == GameResultType.victory
-            ? GameMode.cpuVsCpu
-            : GameMode.playerVsCpu,
-      );
-      expect(fixture.controller.state.result!.xpAwarded, 0);
-      expect(find.byKey(const ValueKey('result-sheet')), findsOneWidget);
-      expect(find.byKey(const ValueKey('rank-award-summary')), findsNothing);
-      expect(find.byType(RankBadge), findsNothing);
-      await fixture.close(tester);
-    });
+    testWidgets(
+      'zero XP ${result.type.name} never presents a positive reward',
+      (tester) async {
+        final fixture = await RankBadgeFixture.mount(tester, xp: 0);
+        await fixture.finish(
+          tester,
+          result: result,
+          mode: result.type == GameResultType.victory
+              ? GameMode.cpuVsCpu
+              : GameMode.playerVsCpu,
+        );
+        expect(fixture.controller.state.result!.xpAwarded, 0);
+        expect(find.byKey(const ValueKey('result-sheet')), findsOneWidget);
+        final spectator = result.type == GameResultType.victory;
+        expect(
+          find.byKey(const ValueKey('rank-award-summary')),
+          spectator ? findsNothing : findsOneWidget,
+        );
+        expect(
+          find.byType(RankBadge),
+          spectator ? findsNothing : findsOneWidget,
+        );
+        if (!spectator) expect(find.text('+0 XP'), findsOneWidget);
+        await fixture.close(tester);
+      },
+    );
   }
 }
